@@ -1,0 +1,137 @@
+body.lite-app .lite-hide {
+  display: none !important;
+}
+
+body.lite-app .lite-canvas-size .ctrl:not(.lite-ratio-row) {
+  display: none !important;
+}
+
+body.lite-app .lite-canvas-size .hint {
+  display: none !important;
+}
+
+body.lite-app .lite-ratio-row label {
+  display: none;
+}
+
+body.lite-app .lite-ratio-row > div {
+  flex: 1;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+body.lite-app .lite-ratio-row button {
+  flex: 1;
+  min-width: calc(50% - 3px);
+  font-size: 11px;
+  padding: 8px 6px;
+}
+
+body.lite-app .lite-ratio-row button.active {
+  border-color: #5718C0;
+  background: #5718C033;
+  color: #D5B8FF;
+}
+
+.lite-preset-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.lite-preset-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid #333;
+  border-radius: 6px;
+  background: #222;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  font-size: 11px;
+  color: #bbb;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.lite-preset-card:hover {
+  border-color: #444;
+  background: #2a2a2a;
+}
+
+.lite-preset-card.active {
+  border-color: #5718C0;
+  background: #5718C018;
+  color: #eee;
+}
+
+.lite-preset-card .lite-preset-name {
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.lite-preset-card .lite-preset-chips {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+}
+
+.lite-preset-card .chip {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.lite-preset-actions {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.lite-preset-actions button {
+  flex: 1;
+  font-size: 11px;
+  padding: 7px 10px;
+}
+
+.lite-full-link {
+  margin-bottom: 14px !important;
+}
+
+.lite-full-link a {
+  color: #AB77FF;
+  text-decoration: none;
+}
+
+.lite-full-link a:hover {
+  text-decoration: underline;
+}
+
+body.lite-app .lite-text-block {
+  margin-bottom: 10px;
+}
+
+body.lite-app .lite-text-block .text-area {
+  min-height: 64px;
+}
+
+body.lite-app .lite-play-row {
+  margin-top: 12px;
+}
+
+body.lite-app .lite-play-row button {
+  flex: 1;
+}
+
+body.lite-app .lite-play-row button:not(#genBtn):not(#animBtn) {
+  display: none !important;
+}
+
+body.lite-app #controls > .sect:first-of-type {
+  margin-top: 0;
+}
