@@ -182,8 +182,24 @@
   .export-meta { font-size: 10px; color: #666; min-height: 14px; margin-bottom: 12px; font-variant-numeric: tabular-nums; }
   .export-actions { display: flex; gap: 8px; justify-content: flex-end; }
   button.exporting { opacity: 0.55; pointer-events: none; }
+  .preset-bar { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+  .preset-bar-top { display: flex; gap: 6px; align-items: center; }
+  .preset-bar-top select {
+    flex: 1; min-width: 0;
+    background: #222; border: 1px solid #3a3a3a; color: #eee;
+    border-radius: 5px; padding: 9px 10px; font-size: 13px; font-weight: 500;
+  }
+  .preset-bar-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .preset-bar-actions button {
+    flex: 1; min-width: calc(50% - 3px);
+    padding: 8px 10px; font-size: 12px;
+  }
+  .preset-bar-top button { padding: 8px 11px; font-size: 12px; flex-shrink: 0; }
+  .preset-bar button.danger { border-color: #5a2020; color: #f88; }
+  .preset-name-input { flex: 1; background: #222; border: 1px solid #3a3a3a; border-radius: 4px; color: #eee; padding: 4px 8px; font-size: 12px; }
 </style>
 <script src="dial-sliders.js"></script>
+<script src="preset-io.js"></script>
 <link rel="stylesheet" href="ui-theme.css">
 <link rel="stylesheet" href="app-nav.css">
 <script src="app-nav.js" defer></script>
@@ -195,6 +211,26 @@
   <img class="app-brand" src="assets/app-brand.svg" alt="fal Glitch Dust" width="562" height="175">
 </div>
 <div class="layout" id="controls">
+
+  <div class="sect">Presets</div>
+  <div class="preset-bar">
+    <div class="preset-bar-top">
+      <select id="presetSelect"></select>
+      <button type="button" id="presetDelete" class="danger" title="Delete preset">×</button>
+    </div>
+    <div class="preset-bar-actions">
+      <button type="button" id="presetSave" class="primary" title="Save current settings">Save</button>
+      <button type="button" id="presetSaveAs" title="Save as new preset">+ New</button>
+      <button type="button" id="presetImport" title="Import preset library JSON">Import</button>
+      <button type="button" id="presetExport" title="Export all local presets">Export</button>
+    </div>
+    <input type="file" id="presetImportFile" accept="application/json,.json" hidden>
+  </div>
+  <div class="ctrl">
+    <label>Preset name</label>
+    <input type="text" id="presetName" class="preset-name-input" maxlength="48" placeholder="Preset name">
+  </div>
+  <div class="hint">Built-in Default loads on first visit · edits auto-save to the active preset</div>
 
   <div class="sect">Headline</div>
   <textarea id="headlineText" class="text-area" spellcheck="false">How to access Seedance 2.0 API</textarea>

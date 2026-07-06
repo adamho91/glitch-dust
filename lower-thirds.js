@@ -84,6 +84,12 @@
   let mp4MuxerModule = null;
   let focalUprightDataUrlPromise = null;
   let exportFontRegistered = false;
+  let presetStore = null;
+  let presetApplyInProgress = false;
+  let presetAutosaveTimer = null;
+
+  const PRESET_STORAGE_KEY = 'fal-lower-thirds-presets-v1';
+  const BUILTIN_DEFAULT_ID = 'lt-builtin-default';
 
   const SLIDER_IDS = [
     'fontSize', 'barHeight', 'barPad', 'barMaxWidth', 'typeSpeed',
@@ -667,6 +673,7 @@
     activeTonalColors = preset.colors.slice();
     applyAccessiblePresetColors(preset);
     renderTonalPresets();
+    schedulePresetAutosave();
     beginCycle();
   }
 
@@ -707,6 +714,57 @@
     if (detailRow) detailRow.style.display = style === 'light' ? 'none' : '';
   }
 
+  function buildDefaultSettings() {
+    return {
+      v: 1,
+      type: 'fal-lower-thirds',
+      headline: 'How to access Seedance 2.0 API',
+      headlineStatic: false,
+      noiseSeed: 42,
+      activePresetId: '2-b',
+      activeTonalColors: ['#FFC4D8', '#EC0648'],
+      logoStyle: 'dark',
+      showBadge: true,
+      colors: {
+        bar: '#EC0648',
+        text: '#FFFFFF',
+        logoAccent: '#FFFFFF',
+        logoDetail: '#000000',
+      },
+      sliders: {
+        fontSize: '50',
+        barHeight: '63',
+        barPad: '10',
+        barMaxWidth: '754',
+        typeSpeed: '100',
+        logoSize: '126',
+        logoIntro: '18',
+        margin: '42',
+        logoGap: '17',
+        badgeGap: '0',
+        badgeOffsetX: '28',
+        pixSize: '21',
+        shapeMin: '0',
+        shapeMax: '100',
+        dustCells: '18',
+        dustOffsetX: '0',
+        branchLen: '12',
+        branchSplit: '55',
+        axisBias: '70',
+        circlePct: '15',
+        squarePct: '85',
+        animDuration: '5',
+      },
+    };
+  }
+
+  function getActivePreset() {
+    if (!presetStore || !presetStore.presets.length) {
+      return { id: BUILTIN_DEFAULT_ID, name: 'Default', builtin: true, settings: buildDefaultSettings() };
+    }
+    return presetStore.presets.find(p => p.id === presetStore.activeId) || presetStore.presets[0];
+  }
+
   function collectSettings() {
     const sliders = {};
     SLIDER_IDS.forEach(id => {
@@ -730,6 +788,215 @@
         logoDetail: document.getElementById('logoColorDetail').value,
       },
       sliders,
+    };
+  }
+
+  function applySettings(settings, opts) {
+    opts = opts || {};
+    presetApplyInProgress = true;
+    const s = settings || buildDefaultSettings();
+
+    document.getElementById('headlineText').value = s.headline != null ? s.headline : '';
+    document.getElementById('headlineStatic').checked = !!s.headlineStatic;
+    document.getElementById('showBadge').checked = s.showBadge !== false;
+    document.getElementById('logoStyle').value = s.logoStyle || 'dark';
+
+    if (s.colors) {
+      document.getElementById('barColor').value = s.colors.bar || '#EC0648';
+      document.getElementById('textColor').value = s.colors.text || '#FFFFFF';
+      document.getElementById('logoColorAccent').value = s.colors.logoAccent || '#FFFFFF';
+      document.getElementById('logoColorDetail').value = s.colors.logoDetail || '#000000';
+    }
+
+    if (s.sliders) {
+      Object.keys(s.sliders).forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = s.sliders[id];
+      });
+    }
+
+    activePresetId = s.activePresetId || '2-b';
+    const tonal = FAL_2.find(p => p.id === activePresetId);
+    activeTonalColors = (s.activeTonalColors || (tonal ? tonal.colors.slice() : ['#FFC4D8', '#EC0648'])).slice();
+    noiseSeed = s.noiseSeed != null ? s.noiseSeed : 42;
+
+    renderTonalPresets();
+    updateLogoColorUi();
+    updateHeadlineTypeUi();
+    if (typeof syncDialSliders === 'function') syncDialSliders();
+
+    presetApplyInProgress = false;
+    if (!opts.skipRegen) beginCycle({ preserveScrub: scrubMode });
+    else drawFrame(performance.now());
+  }
+
+  function loadPresetStore() {
+    const defaults = {
+      activeId: BUILTIN_DEFAULT_ID,
+      presets: [{
+        id: BUILTIN_DEFAULT_ID,
+        name: 'Default',
+        builtin: true,
+        settings: buildDefaultSettings(),
+      }],
+    };
+    try {
+      const raw = localStorage.getItem(PRESET_STORAGE_KEY);
+      if (!raw) return defaults;
+      const parsed = JSON.parse(raw);
+      if (!parsed || !Array.isArray(parsed.presets) || !parsed.presets.length) return defaults;
+      parsed.presets = parsed.presets.filter(p => p && p.settings && p.settings.sliders);
+      if (!parsed.presets.length) return defaults;
+      if (!parsed.presets.some(p => p.id === BUILTIN_DEFAULT_ID)) {
+        parsed.presets.unshift(defaults.presets[0]);
+      }
+      parsed.activeId = parsed.presets.some(p => p.id === parsed.activeId)
+        ? parsed.activeId
+        : BUILTIN_DEFAULT_ID;
+      return parsed;
+    } catch (e) {
+      return defaults;
+    }
+  }
+
+  function persistPresetStore() {
+    if (!presetStore) return;
+    try {
+      localStorage.setItem(PRESET_STORAGE_KEY, JSON.stringify(presetStore));
+    } catch (e) {
+      console.warn('Could not persist lower-thirds presets:', e);
+    }
+  }
+
+  function renderPresetSelect() {
+    const sel = document.getElementById('presetSelect');
+    if (!sel || !presetStore) return;
+    sel.replaceChildren();
+    presetStore.presets.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.name + (p.builtin ? ' · built-in' : '');
+      opt.selected = p.id === presetStore.activeId;
+      sel.appendChild(opt);
+    });
+    const delBtn = document.getElementById('presetDelete');
+    if (delBtn) delBtn.disabled = !!getActivePreset().builtin;
+  }
+
+  function saveActivePresetFromUI() {
+    const preset = getActivePreset();
+    if (!preset) return;
+    preset.settings = collectSettings();
+    const nameEl = document.getElementById('presetName');
+    const name = nameEl && nameEl.value.trim();
+    if (name) preset.name = name;
+  }
+
+  function schedulePresetAutosave() {
+    if (presetApplyInProgress) return;
+    clearTimeout(presetAutosaveTimer);
+    presetAutosaveTimer = setTimeout(() => {
+      saveActivePresetFromUI();
+      persistPresetStore();
+    }, 450);
+  }
+
+  function initPresetSystem() {
+    presetStore = loadPresetStore();
+    persistPresetStore();
+    applySettings(getActivePreset().settings, { skipRegen: true });
+    renderPresetSelect();
+    const nameEl = document.getElementById('presetName');
+    if (nameEl) nameEl.value = getActivePreset().name;
+
+    document.getElementById('presetSelect').onchange = () => {
+      presetStore.activeId = document.getElementById('presetSelect').value;
+      applySettings(getActivePreset().settings);
+      renderPresetSelect();
+      if (nameEl) nameEl.value = getActivePreset().name;
+      persistPresetStore();
+    };
+
+    document.getElementById('presetSave').onclick = () => {
+      saveActivePresetFromUI();
+      persistPresetStore();
+      renderPresetSelect();
+      document.getElementById('status').textContent = 'Saved preset “' + getActivePreset().name + '”.';
+    };
+
+    document.getElementById('presetSaveAs').onclick = () => {
+      const name = (nameEl && nameEl.value.trim()) || ('Preset ' + (presetStore.presets.length + 1));
+      const id = 'user-' + Date.now();
+      presetStore.presets.push({ id, name, settings: collectSettings() });
+      presetStore.activeId = id;
+      persistPresetStore();
+      renderPresetSelect();
+      if (nameEl) nameEl.value = name;
+      document.getElementById('status').textContent = 'Created preset “' + name + '”.';
+    };
+
+    document.getElementById('presetDelete').onclick = () => {
+      const preset = getActivePreset();
+      if (!preset || preset.builtin) return;
+      presetStore.presets = presetStore.presets.filter(p => p.id !== preset.id);
+      presetStore.activeId = BUILTIN_DEFAULT_ID;
+      applySettings(getActivePreset().settings);
+      persistPresetStore();
+      renderPresetSelect();
+      if (nameEl) nameEl.value = getActivePreset().name;
+      document.getElementById('status').textContent = 'Preset deleted · loaded Default.';
+    };
+
+    if (nameEl) nameEl.onchange = () => schedulePresetAutosave();
+
+    document.getElementById('presetExport').onclick = () => {
+      saveActivePresetFromUI();
+      try {
+        if (typeof PresetIO === 'undefined') throw new Error('Preset IO not loaded');
+        const payload = PresetIO.buildPresetLibraryExport(presetStore);
+        PresetIO.downloadPresetJson(payload, 'fal-lower-thirds-presets');
+        document.getElementById('status').textContent =
+          'Exported ' + payload.presets.length + ' preset' + (payload.presets.length === 1 ? '' : 's') + '.';
+      } catch (err) {
+        document.getElementById('status').textContent = 'Export failed: ' + (err.message || 'unknown error');
+      }
+    };
+
+    document.getElementById('presetImport').onclick = () => {
+      document.getElementById('presetImportFile').click();
+    };
+
+    document.getElementById('presetImportFile').onchange = () => {
+      const input = document.getElementById('presetImportFile');
+      const file = input.files && input.files[0];
+      input.value = '';
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          if (typeof PresetIO === 'undefined') throw new Error('Preset IO not loaded');
+          const data = JSON.parse(reader.result);
+          const result = PresetIO.importPresetData(
+            presetStore,
+            data,
+            file.name.replace(/\.json$/i, ''),
+            { builtinDefaultId: BUILTIN_DEFAULT_ID, builtinTransitionId: BUILTIN_DEFAULT_ID }
+          );
+          applySettings(getActivePreset().settings);
+          persistPresetStore();
+          renderPresetSelect();
+          if (nameEl) nameEl.value = getActivePreset().name;
+          if (typeof syncDialSliders === 'function') syncDialSliders();
+          document.getElementById('status').textContent =
+            result.mode === 'library'
+              ? 'Imported ' + result.added + ' preset' + (result.added === 1 ? '' : 's') +
+                (result.skipped ? ' (' + result.skipped + ' built-in skipped)' : '') + '.'
+              : 'Imported preset “' + getActivePreset().name + '”.';
+        } catch (err) {
+          document.getElementById('status').textContent = 'Import failed: ' + (err.message || 'invalid JSON');
+        }
+      };
+      reader.readAsText(file);
     };
   }
 
@@ -1494,20 +1761,38 @@
     document.getElementById('logoStyle').onchange = () => {
       updateLogoColorUi();
       drawFrame(performance.now());
+      schedulePresetAutosave();
     };
-    document.getElementById('logoColorAccent').oninput = () => drawFrame(performance.now());
-    document.getElementById('logoColorDetail').oninput = () => drawFrame(performance.now());
-    document.getElementById('barColor').oninput = () => drawFrame(performance.now());
-    document.getElementById('textColor').oninput = () => drawFrame(performance.now());
-    document.getElementById('showBadge').onchange = () => drawFrame(performance.now());
+    document.getElementById('logoColorAccent').oninput = () => {
+      drawFrame(performance.now());
+      schedulePresetAutosave();
+    };
+    document.getElementById('logoColorDetail').oninput = () => {
+      drawFrame(performance.now());
+      schedulePresetAutosave();
+    };
+    document.getElementById('barColor').oninput = () => {
+      drawFrame(performance.now());
+      schedulePresetAutosave();
+    };
+    document.getElementById('textColor').oninput = () => {
+      drawFrame(performance.now());
+      schedulePresetAutosave();
+    };
+    document.getElementById('showBadge').onchange = () => {
+      drawFrame(performance.now());
+      schedulePresetAutosave();
+    };
 
     document.getElementById('headlineText').oninput = () => {
       beginCycle();
+      schedulePresetAutosave();
     };
 
     document.getElementById('headlineStatic').onchange = () => {
       updateHeadlineTypeUi();
       drawFrame(performance.now());
+      schedulePresetAutosave();
     };
 
     document.getElementById('exportCancel').onclick = () => { exportCancelRequested = true; };
@@ -1530,6 +1815,7 @@
         } else {
           rerender();
         }
+        schedulePresetAutosave();
       };
     });
   }
@@ -1540,11 +1826,7 @@
     overlayRoot = document.getElementById('overlayRoot');
     logoRoot = document.getElementById('logoRoot');
 
-    renderTonalPresets();
-    const initialPreset = FAL_2.find(p => p.id === activePresetId);
-    if (initialPreset) applyAccessiblePresetColors(initialPreset);
-    updateLogoColorUi();
-    updateHeadlineTypeUi();
+    initPresetSystem();
     wireControls();
     initPreviewScrub();
 
