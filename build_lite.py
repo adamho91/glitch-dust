@@ -7,7 +7,7 @@ ROOT = Path(__file__).parent
 src = (ROOT / "index.html").read_text(encoding="utf-8")
 
 html = src
-html = html.replace("<title>fal — Glitch Dust</title>", "<title>fal — Glitch Dust Lite</title>")
+html = html.replace("<title>fal glitch dust maker - social media</title>", "<title>fal glitch dust maker - social media lite</title>")
 html = html.replace(
     '<script src="dial-sliders.js"></script>',
     '<script src="dial-sliders.js"></script>\n<script src="preset-io.js"></script>\n<link rel="stylesheet" href="lite-ui.css">\n<script>window.GLITCH_DUST_LITE = true;</script>\n<script src="lite-ui.js"></script>',
