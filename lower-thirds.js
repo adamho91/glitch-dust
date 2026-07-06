@@ -8,32 +8,40 @@
   const FRAME_MS = 1000 / 24;
 
   const FAL_2 = [
-    { id: '2-a', label: '2-A · Cyan / Lime', colors: ['#99EDFF', '#ADFF00'], bg: '#99EDFF' },
-    { id: '2-b', label: '2-B · Pink / Red', colors: ['#FFC4D8', '#EC0648'], bg: '#FFC4D8' },
-    { id: '2-c', label: '2-C · Green / Cyan', colors: ['#004012', '#99EDFF'], bg: '#004012' },
-    { id: '2-d', label: '2-D · Olive / Cyan', colors: ['#403700', '#99EDFF'], bg: '#403700' },
-    { id: '2-e', label: '2-E · Yellow / Black', colors: ['#FFFF00', '#000000'], bg: '#FFFF00' },
-    { id: '2-f', label: '2-F · Sage / Lime', colors: ['#96AFAC', '#ADFF00'], bg: '#96AFAC' },
-    { id: '2-g', label: '2-G · Lime / Red', colors: ['#ADFF00', '#EC0648'], bg: '#ADFF00' },
-    { id: '2-h', label: '2-H · Green / Red', colors: ['#004012', '#EC0648'], bg: '#004012' },
-    { id: '2-i', label: '2-I · Green / Lime', colors: ['#004012', '#ADFF00'], bg: '#004012' },
-    { id: '2-j', label: '2-J · Olive / Lime', colors: ['#403700', '#ADFF00'], bg: '#403700' },
-    { id: '2-k', label: '2-K · Lime / Pink', colors: ['#C8FF66', '#FFC4D8'], bg: '#C8FF66' },
-    { id: '2-l', label: '2-L · Olive / Lt brown', colors: ['#403700', '#D9D7CC'], bg: '#403700' },
-    { id: '2-m', label: '2-M · Lt blue / Royal', colors: ['#C5E9FF', '#115EF3'], bg: '#C5E9FF' },
-    { id: '2-n', label: '2-N · White / Red', colors: ['#FFFFFF', '#EC0648'], bg: '#FFFFFF' },
-    { id: '2-o', label: '2-O · Sage / Brown', colors: ['#E5ECE7', '#403700'], bg: '#E5ECE7' },
-    { id: '2-p', label: '2-P · Royal / Cyan', colors: ['#115EF3', '#99EDFF'], bg: '#115EF3' },
-    { id: '2-q', label: '2-Q · Red / Pink', colors: ['#EC0648', '#FFC4D8'], bg: '#EC0648' },
-    { id: '2-r', label: '2-R · Black / White', colors: ['#000000', '#FFFFFF'], bg: '#000000' },
-    { id: '2-s', label: '2-S · Black / Lime', colors: ['#000000', '#ADFF00'], bg: '#000000' },
-    { id: '2-t', label: '2-T · Black / Pink', colors: ['#000000', '#F57EC3'], bg: '#000000' },
-    { id: '2-u', label: '2-U · Olive / Yellow', colors: ['#403700', '#FFFF00'], bg: '#403700' },
-    { id: '2-v', label: '2-V · Lt lime / Green', colors: ['#C8FF66', '#004012'], bg: '#C8FF66' },
-    { id: '2-w', label: '2-W · Baby blue / Blue', colors: ['#3FB5FE', '#115EF3'], bg: '#C5E9FF' },
-    { id: '2-x', label: '2-X · Yellow / Blue', colors: ['#FFFF00', '#115EF3'], bg: '#FFFF00' },
-    { id: '2-y', label: '2-Y · Teal / Lt blue', colors: ['#004012', '#C5E9FF'], bg: '#004012' },
-    { id: '2-z', label: '2-Z · Pink / White', colors: ['#F57EC3', '#FFFFFF'], bg: '#F57EC3' },
+    { id: '2-a', label: '2-A · Cyan / Lime', colors: ['#99EDFF', '#ADFF00'], bg: '#99EDFF', group: 'blue' },
+    { id: '2-b', label: '2-B · Pink / Red', colors: ['#FFC4D8', '#EC0648'], bg: '#FFC4D8', group: 'pink' },
+    { id: '2-c', label: '2-C · Green / Cyan', colors: ['#004012', '#99EDFF'], bg: '#004012', group: 'green' },
+    { id: '2-d', label: '2-D · Olive / Cyan', colors: ['#403700', '#99EDFF'], bg: '#403700', group: 'blue' },
+    { id: '2-e', label: '2-E · Yellow / Black', colors: ['#FFFF00', '#000000'], bg: '#FFFF00', group: 'lime' },
+    { id: '2-f', label: '2-F · Sage / Lime', colors: ['#96AFAC', '#ADFF00'], bg: '#96AFAC', group: 'green' },
+    { id: '2-g', label: '2-G · Lime / Red', colors: ['#ADFF00', '#EC0648'], bg: '#ADFF00', group: 'lime' },
+    { id: '2-h', label: '2-H · Green / Red', colors: ['#004012', '#EC0648'], bg: '#004012', group: 'green' },
+    { id: '2-i', label: '2-I · Green / Lime', colors: ['#004012', '#ADFF00'], bg: '#004012', group: 'green' },
+    { id: '2-j', label: '2-J · Olive / Lime', colors: ['#403700', '#ADFF00'], bg: '#403700', group: 'lime' },
+    { id: '2-k', label: '2-K · Lime / Pink', colors: ['#C8FF66', '#FFC4D8'], bg: '#C8FF66', group: 'lime' },
+    { id: '2-l', label: '2-L · Olive / Lt brown', colors: ['#403700', '#D9D7CC'], bg: '#403700', group: 'neutral' },
+    { id: '2-m', label: '2-M · Lt blue / Royal', colors: ['#C5E9FF', '#115EF3'], bg: '#C5E9FF', group: 'blue' },
+    { id: '2-n', label: '2-N · White / Red', colors: ['#FFFFFF', '#EC0648'], bg: '#FFFFFF', group: 'pink' },
+    { id: '2-o', label: '2-O · Sage / Brown', colors: ['#E5ECE7', '#403700'], bg: '#E5ECE7', group: 'neutral' },
+    { id: '2-p', label: '2-P · Royal / Cyan', colors: ['#115EF3', '#99EDFF'], bg: '#115EF3', group: 'blue' },
+    { id: '2-q', label: '2-Q · Red / Pink', colors: ['#EC0648', '#FFC4D8'], bg: '#EC0648', group: 'pink' },
+    { id: '2-r', label: '2-R · Black / White', colors: ['#000000', '#FFFFFF'], bg: '#000000', group: 'neutral' },
+    { id: '2-s', label: '2-S · Black / Lime', colors: ['#000000', '#ADFF00'], bg: '#000000', group: 'neutral' },
+    { id: '2-t', label: '2-T · Black / Pink', colors: ['#000000', '#F57EC3'], bg: '#000000', group: 'pink' },
+    { id: '2-u', label: '2-U · Olive / Yellow', colors: ['#403700', '#FFFF00'], bg: '#403700', group: 'neutral' },
+    { id: '2-v', label: '2-V · Lt lime / Green', colors: ['#C8FF66', '#004012'], bg: '#C8FF66', group: 'green' },
+    { id: '2-w', label: '2-W · Baby blue / Blue', colors: ['#3FB5FE', '#115EF3'], bg: '#C5E9FF', group: 'blue' },
+    { id: '2-x', label: '2-X · Yellow / Blue', colors: ['#FFFF00', '#115EF3'], bg: '#FFFF00', group: 'lime' },
+    { id: '2-y', label: '2-Y · Teal / Lt blue', colors: ['#004012', '#C5E9FF'], bg: '#004012', group: 'green' },
+    { id: '2-z', label: '2-Z · Pink / White', colors: ['#F57EC3', '#FFFFFF'], bg: '#F57EC3', group: 'pink' },
+  ];
+
+  const TONAL_GROUP_ORDER = [
+    { id: 'blue', label: 'Blue / Cyan' },
+    { id: 'green', label: 'Green / Teal' },
+    { id: 'lime', label: 'Lime / Yellow' },
+    { id: 'pink', label: 'Pink / Red' },
+    { id: 'neutral', label: 'Neutral / Earth' },
   ];
 
   const FAL_LOGO_VIEW_W = 435;
@@ -580,20 +588,29 @@
     const container = document.getElementById('tonalPresets');
     if (!container) return;
     container.replaceChildren();
-    FAL_2.forEach(preset => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'tonal-preset' + (preset.id === activePresetId ? ' active' : '');
-      btn.innerHTML = '<span>' + preset.label + '</span><span class="chips"></span>';
-      const chips = btn.querySelector('.chips');
-      preset.colors.forEach(hex => {
-        const chip = document.createElement('span');
-        chip.className = 'chip';
-        chip.style.background = hex;
-        chips.appendChild(chip);
+    TONAL_GROUP_ORDER.forEach(section => {
+      const items = FAL_2.filter(p => p.group === section.id);
+      if (!items.length) return;
+      const heading = document.createElement('div');
+      heading.className = 'tonal-preset-group';
+      heading.textContent = section.label;
+      container.appendChild(heading);
+      items.forEach(preset => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'tonal-preset' + (preset.id === activePresetId ? ' active' : '');
+        btn.innerHTML = '<span>' + preset.label + '</span><span class="chips"></span>';
+        btn.title = preset.colors.join(' / ') + (preset.bg ? ' · bg ' + preset.bg : '');
+        const chips = btn.querySelector('.chips');
+        preset.colors.forEach(hex => {
+          const chip = document.createElement('span');
+          chip.className = 'chip';
+          chip.style.background = hex;
+          chips.appendChild(chip);
+        });
+        btn.onclick = () => applyTonalPreset(preset);
+        container.appendChild(btn);
       });
-      btn.onclick = () => applyTonalPreset(preset);
-      container.appendChild(btn);
     });
   }
 

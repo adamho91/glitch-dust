@@ -82,6 +82,17 @@
   .tonal-preset.active { border-color: var(--ui-accent); background: var(--ui-accent-a18); color: #eee; }
   .tonal-preset .chips { display: flex; gap: 3px; margin-left: auto; flex-shrink: 0; }
   .tonal-preset .chip { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(255,255,255,0.15); }
+  .tonal-preset-group {
+    font-size: 9px;
+    font-weight: 600;
+    color: #555;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    margin: 10px 0 4px;
+    padding-top: 6px;
+    border-top: 1px solid #2a2a2a;
+  }
+  .tonal-preset-group:first-child { margin-top: 0; border-top: none; padding-top: 0; }
   .tonal-preview { display: flex; gap: 4px; margin-bottom: 8px; min-height: 20px; align-items: center; flex-wrap: wrap; }
   .tonal-preview .chip { width: 22px; height: 22px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.12); }
   .tonal-preview span { font-size: 10px; color: #555; }
@@ -712,23 +723,8 @@
   </div>
   <div class="tonal-preview" id="tonalPreview"></div>
   <div class="tonal-presets" id="tonalPresets"></div>
-  <div class="hint">fal brand combos — faded chip = suggested background.</div>
+  <div class="hint">Grouped by color family · chips = node palette · dust mode applies suggested bg.</div>
 
-  <div class="lite-text-block">
-  <div class="sect">Headline</div>
-  <textarea id="overlayText" class="text-area" placeholder="Headline text…" spellcheck="false"></textarea>
-  </div>
-  <div class="lite-text-block">
-  <div class="sect">Prompt</div>
-  <textarea id="promptText" class="text-area" placeholder="Caption / prompt…" spellcheck="false" style="min-height:52px"></textarea>
-  </div>
-
-  <div class="ctrl-check lite-logo-toggle">
-    <input type="checkbox" id="liteLogoEnabled">
-    <label for="liteLogoEnabled">Show fal logo</label>
-  </div>
-
-  <div class="lite-hide">
   <div class="sect">Custom Weights <span style="font-weight:400;text-transform:none;color:#444">(All mode)</span></div>
   <div class="color-grid hidden" id="colorRow"></div>
 
@@ -3627,8 +3623,46 @@ const FAL_4 = FAL_5.map(p => ({
   label: p.label.replace(/^5-/, '4-'),
   colors: p.colors.slice(0, 4),
   bg: p.bg,
+  group: p.group,
 }));
 const TONAL_BY_COUNT = { 2: FAL_2, 3: FAL_3, 4: FAL_4, 5: FAL_5 };
+
+const TONAL_GROUP_ORDER = [
+  { id: 'blue', label: 'Blue / Cyan' },
+  { id: 'green', label: 'Green / Teal' },
+  { id: 'lime', label: 'Lime / Yellow' },
+  { id: 'pink', label: 'Pink / Red' },
+  { id: 'neutral', label: 'Neutral / Earth' },
+];
+
+const PRESET_GROUP = {
+  '2-a': 'blue', '2-b': 'pink', '2-c': 'green', '2-d': 'blue', '2-e': 'lime', '2-f': 'green',
+  '2-g': 'lime', '2-h': 'green', '2-i': 'green', '2-j': 'lime', '2-k': 'lime', '2-l': 'neutral',
+  '2-m': 'blue', '2-n': 'pink', '2-o': 'neutral', '2-p': 'blue', '2-q': 'pink', '2-r': 'neutral',
+  '2-s': 'neutral', '2-t': 'pink', '2-u': 'neutral', '2-v': 'green', '2-w': 'blue', '2-x': 'lime',
+  '2-y': 'green', '2-z': 'pink',
+  '3-a': 'neutral', '3-b': 'pink', '3-c': 'blue', '3-d': 'blue', '3-e': 'blue', '3-f': 'neutral',
+  '3-g': 'blue', '3-h': 'neutral', '3-i': 'green', '3-j': 'pink', '3-k': 'lime', '3-l': 'neutral',
+  '3-m': 'pink', '3-n': 'green', '3-o': 'neutral', '3-p': 'blue',
+  '5-a': 'neutral', '5-b': 'pink', '5-c': 'blue', '5-d': 'neutral', '5-e': 'neutral', '5-f': 'blue',
+  '5-g': 'neutral', '5-h': 'blue', '5-i': 'green', '5-j': 'pink', '5-k': 'lime', '5-l': 'pink',
+  '5-m': 'neutral', '5-n': 'green', '5-o': 'pink', '5-p': 'neutral',
+  '4-a': 'neutral', '4-b': 'pink', '4-c': 'blue', '4-d': 'neutral', '4-e': 'neutral', '4-f': 'blue',
+  '4-g': 'neutral', '4-h': 'blue', '4-i': 'green', '4-j': 'pink', '4-k': 'lime', '4-l': 'pink',
+  '4-m': 'neutral', '4-n': 'green', '4-o': 'pink', '4-p': 'neutral',
+};
+
+function attachPresetGroup(preset) {
+  return { ...preset, group: preset.group || PRESET_GROUP[preset.id] || 'neutral' };
+}
+
+function getGroupedTonalPresets(count) {
+  const presets = (TONAL_BY_COUNT[count] || []).map(attachPresetGroup);
+  return TONAL_GROUP_ORDER.map(group => ({
+    ...group,
+    presets: presets.filter(p => p.group === group.id),
+  })).filter(section => section.presets.length);
+}
 
 let tonalCount = 5;
 let activePresetId = '5-a';
@@ -3685,6 +3719,27 @@ function renderTonalPreview() {
   renderPaletteMediaList();
 }
 
+function renderTonalPresetButton(preset, chipLimit) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'tonal-preset' + (preset.id === activePresetId ? ' active' : '');
+  const bgHint = preset.bg ? ` · bg ${preset.bg}` : '';
+  btn.innerHTML = `<span>${preset.label}</span><span class="chips"></span>`;
+  btn.title = preset.colors.join(' / ') + bgHint;
+  const chips = btn.querySelector('.chips');
+  const colors = preset.colors.slice(0, chipLimit);
+  colors.forEach(hex => {
+    const chip = document.createElement('span');
+    chip.className = 'chip';
+    chip.style.background = hex;
+    chip.title = hex + ' · double-click to cycle prompt text color';
+    bindPaletteChipCycle(chip, preset.colors, hex);
+    chips.appendChild(chip);
+  });
+  btn.onclick = () => applyTonalPreset(preset);
+  return btn;
+}
+
 function renderTonalPresets() {
   const container = document.getElementById('tonalPresets');
   container.replaceChildren();
@@ -3693,31 +3748,15 @@ function renderTonalPresets() {
     return;
   }
   container.style.display = 'flex';
-  const presets = TONAL_BY_COUNT[tonalCount] || [];
-  presets.forEach(preset => {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'tonal-preset' + (preset.id === activePresetId ? ' active' : '');
-    btn.innerHTML = `<span>${preset.label}</span><span class="chips"></span>`;
-    const chips = btn.querySelector('.chips');
-    if (preset.bg) {
-      const bgChip = document.createElement('span');
-      bgChip.className = 'chip';
-      bgChip.style.background = preset.bg;
-      bgChip.title = 'BG: ' + preset.bg;
-      bgChip.style.opacity = '0.55';
-      chips.appendChild(bgChip);
-    }
-    preset.colors.forEach(hex => {
-      const chip = document.createElement('span');
-      chip.className = 'chip';
-      chip.style.background = hex;
-      chip.title = hex + ' · double-click to cycle prompt text color';
-      bindPaletteChipCycle(chip, preset.colors, hex);
-      chips.appendChild(chip);
+  const chipLimit = Number(tonalCount) || 2;
+  getGroupedTonalPresets(tonalCount).forEach(section => {
+    const heading = document.createElement('div');
+    heading.className = 'tonal-preset-group';
+    heading.textContent = section.label;
+    container.appendChild(heading);
+    section.presets.forEach(preset => {
+      container.appendChild(renderTonalPresetButton(preset, chipLimit));
     });
-    btn.onclick = () => applyTonalPreset(preset);
-    container.appendChild(btn);
   });
 }
 
