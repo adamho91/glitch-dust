@@ -400,7 +400,11 @@
       <option value="60">60</option>
     </select>
   </div>
-  <div class="hint">MP4 = H.264 · WebM = preview · GIF = animated loop · JSON = settings preset</div>
+  <div class="ctrl-check">
+    <input type="checkbox" id="exportTransparentBg" checked>
+    <label for="exportTransparentBg">Transparent background (MP4/WebM/GIF)</label>
+  </div>
+  <div class="hint">MP4 transparency uses HEVC (Safari) · Chrome falls back to WebM with alpha · H.264 is opaque only</div>
 
   <div class="action-panel">
     <div class="btn-row action-play">
