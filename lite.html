@@ -204,13 +204,48 @@
     background: rgba(20, 20, 20, 0.94);
     border: 1px solid #3a3a3a;
     border-radius: 8px;
-    padding: 10px 12px 12px;
+    padding: 0;
     pointer-events: auto;
     backdrop-filter: blur(10px);
     box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
     line-height: normal;
     box-sizing: border-box;
   }
+  .canvas-text-panel .canvas-panel-section + .canvas-panel-section {
+    border-top: 1px solid #333;
+  }
+  .canvas-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px 6px;
+    user-select: none;
+  }
+  .canvas-panel-head .sect { margin: 0; flex: 1; min-width: 0; }
+  .canvas-panel-toggle {
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 1px solid #3a3a3a;
+    border-radius: 4px;
+    background: #222;
+    color: #999;
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+  }
+  .canvas-panel-toggle:hover { background: #2a2a2a; color: #ddd; border-color: #555; }
+  .canvas-panel-body { padding: 0 12px 12px; }
+  .canvas-panel-section.is-collapsed .canvas-panel-body,
+  .canvas-logo-panel.is-collapsed .canvas-panel-body { display: none; }
+  .canvas-panel-section.is-collapsed .canvas-panel-head,
+  .canvas-logo-panel.is-collapsed .canvas-panel-head { padding-bottom: 8px; }
   .canvas-text-panel .sect { margin: 0 0 8px; font-size: 9px; }
   .canvas-text-panel .ctrl { margin-bottom: 5px; gap: 6px; min-width: 0; }
   .canvas-text-panel .ctrl label { width: 52px; flex-shrink: 0; font-size: 11px; }
@@ -275,7 +310,7 @@
     background: rgba(20, 20, 20, 0.94);
     border: 1px solid #3a3a3a;
     border-radius: 8px;
-    padding: 10px 12px 12px;
+    padding: 0;
     pointer-events: auto;
     backdrop-filter: blur(10px);
     box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
@@ -1006,7 +1041,12 @@
   <p class="subtitle">1920×1080 · click preview to scrub · click again to play</p>
   <div class="preview-wrap" id="previewWrap">
     <div class="canvas-text-panel lite-hide" id="canvasTextPanel">
-      <div class="sect">Overlay Text</div>
+      <div class="canvas-panel-section" data-panel-section>
+        <div class="canvas-panel-head">
+          <div class="sect">Overlay Text</div>
+          <button type="button" class="canvas-panel-toggle" data-panel-toggle aria-expanded="true" aria-label="Collapse overlay text" title="Collapse">−</button>
+        </div>
+        <div class="canvas-panel-body">
       <textarea id="overlayTextStub" class="lite-hide" hidden aria-hidden="true"></textarea>
       <div class="ctrl-check">
         <input type="checkbox" id="textEnabled" checked>
@@ -1085,9 +1125,15 @@
         <input type="color" id="textColor" value="#000000">
       </div>
       <div class="hint">Focal Upright · 480 · −2.5% tracking · 20ch @ 1920×1080</div>
+        </div>
+      </div>
 
-      <div class="prompt-text-divider"></div>
-      <div class="sect">Prompt Text</div>
+      <div class="canvas-panel-section" data-panel-section>
+        <div class="canvas-panel-head">
+          <div class="sect">Prompt Text</div>
+          <button type="button" class="canvas-panel-toggle" data-panel-toggle aria-expanded="true" aria-label="Collapse prompt text" title="Collapse">−</button>
+        </div>
+        <div class="canvas-panel-body">
       <textarea id="promptTextStub" class="lite-hide" hidden aria-hidden="true"></textarea>
       <div class="ctrl-check">
         <input type="checkbox" id="promptEnabled">
@@ -1176,9 +1222,15 @@
         <span class="val" id="promptLineWrapOffsetPxV">−48px</span>
       </div>
       <div class="hint">Below headline · per-word boxes · double-click palette chip to cycle prompt text color</div>
+        </div>
+      </div>
     </div>
     <div class="canvas-logo-panel lite-hide" id="canvasLogoPanel">
-      <div class="sect">fal Logo</div>
+      <div class="canvas-panel-head">
+        <div class="sect">fal Logo</div>
+        <button type="button" class="canvas-panel-toggle" data-panel-toggle aria-expanded="true" aria-label="Collapse fal logo panel" title="Collapse">−</button>
+      </div>
+      <div class="canvas-panel-body">
       <div class="ctrl-check">
         <input type="checkbox" id="logoEnabled">
         <label for="logoEnabled">Show logo</label>
@@ -1249,6 +1301,7 @@
         <label for="logoClearPattern">Clear shapes under logo</label>
       </div>
       <div class="hint">Drop custom SVGs in assets/logo/ · 9-pin grid · match text follows headline pin</div>
+      </div>
     </div>
     <div class="median-thumb" title="Median frame — loop at 50%">
       <span class="median-thumb-label">50%</span>
@@ -6103,6 +6156,24 @@ function drawFrame(ts) {
     `fal ${styleLabel} · ${W}×${H} · frame ${frameNum}/${frameTotal} (${(loopProgress * 100).toFixed(0)}%)${scrubTag}`;
 }
 
+function initCanvasPanelToggles() {
+  document.querySelectorAll('[data-panel-toggle]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const panel = btn.closest('[data-panel-section]') || btn.closest('.canvas-logo-panel');
+      if (!panel) return;
+      const collapsed = panel.classList.toggle('is-collapsed');
+      btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      btn.textContent = collapsed ? '+' : '−';
+      btn.title = collapsed ? 'Expand' : 'Collapse';
+      const label = btn.getAttribute('aria-label') || '';
+      if (label.startsWith('Collapse') || label.startsWith('Expand')) {
+        btn.setAttribute('aria-label', collapsed ? label.replace(/^Collapse/, 'Expand') : label.replace(/^Expand/, 'Collapse'));
+      }
+    });
+  });
+}
+
 function initPreviewScrub() {
   const wrap = document.getElementById('previewWrap');
   const stage = document.getElementById('stage');
@@ -6213,14 +6284,24 @@ function loop(ts) {
 function beginCycle(opts) {
   opts = opts || {};
   if (opts.noiseSeed != null) pendingNoiseSeed = opts.noiseSeed;
+  const preserveScrub = !!(opts.preserveScrub && scrubMode);
+  const savedScrubProgress = preserveScrub ? scrubProgress : null;
+
   if (!opts.skipRegen) spawnDust();
-  cycleStart = performance.now();
-  scrubMode = false;
-  scrubActive = false;
   dustScrubAt = -1;
-  document.getElementById('scrubLine').style.display = 'none';
-  document.getElementById('previewWrap').classList.remove('scrub-active');
-  if (!opts.skipAnim) startAnim();
+
+  if (preserveScrub) {
+    cycleStart = performance.now() - savedScrubProgress * getAnimDurationMs();
+    drawFrame(performance.now());
+  } else {
+    cycleStart = performance.now();
+    scrubMode = false;
+    scrubActive = false;
+    document.getElementById('scrubLine').style.display = 'none';
+    document.getElementById('previewWrap').classList.remove('scrub-active');
+    if (!opts.skipAnim) startAnim();
+  }
+
   if (!opts.skipPresetSave && !presetApplyInProgress) schedulePresetAutosave();
 }
 
@@ -6251,7 +6332,7 @@ function startAnim() {
   animId = requestAnimationFrame(loop);
 }
 
-document.getElementById('genBtn').onclick = () => { beginCycle(); };
+document.getElementById('genBtn').onclick = () => { beginCycle({ preserveScrub: scrubMode }); };
 document.getElementById('animBtn').onclick = () => {
   paused = !paused;
   document.getElementById('animBtn').textContent = paused ? 'Resume' : 'Pause';
@@ -7747,7 +7828,7 @@ async function exportVideoWebM(fps, cycleMs, totalFrames, canvas, ctx, exportOpt
     await renderSvgToCanvas(ctx, svg, rasterOpts);
     if (track && track.requestFrame) track.requestFrame();
     setExportModal(true, (i + 1) / totalFrames, `Encoding WebM · ${i + 1} / ${totalFrames} frames…`, i + 1);
-    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    await new Promise(r => setTimeout(r, Math.ceil(1000 / fps)));
   }
 
   recorder.stop();
@@ -8144,6 +8225,7 @@ initLogoPinPicker();
 loadLogoSvgAssets().catch(() => {});
 beginCycle({ noiseSeed: getActivePreset().settings.noiseSeed, skipPresetSave: true });
 initPreviewScrub();
+initCanvasPanelToggles();
 window.addEventListener('resize', () => updatePreviewScale());
 loadFocalUprightDataUrl().catch(() => {});
 if (document.fonts && document.fonts.load) {
