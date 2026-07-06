@@ -32,9 +32,13 @@
       nav.appendChild(link);
     });
 
-    const subtitle = document.querySelector('.sidebar .subtitle');
-    if (subtitle) subtitle.insertAdjacentElement('afterend', nav);
-    else document.querySelector('.sidebar')?.prepend(nav);
+    const brand = document.querySelector('.sidebar .app-brand-wrap');
+    if (brand) brand.insertAdjacentElement('afterend', nav);
+    else {
+      const subtitle = document.querySelector('.sidebar .subtitle');
+      if (subtitle) subtitle.insertAdjacentElement('afterend', nav);
+      else document.querySelector('.sidebar')?.prepend(nav);
+    }
   }
 
   function isTypingTarget(el) {
@@ -48,16 +52,22 @@
     return false;
   }
 
+  const PAGE_BY_CODE = {
+    Digit1: PAGES[0],
+    Digit2: PAGES[1],
+    Digit3: PAGES[2],
+  };
+
   document.addEventListener('keydown', e => {
     if (!e.shiftKey || e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
     if (isTypingTarget(e.target)) return;
 
-    const page = PAGES.find(entry => entry.key === e.key);
+    const page = PAGE_BY_CODE[e.code];
     if (!page || page.id === currentPageId()) return;
 
     e.preventDefault();
     location.assign(page.href);
-  });
+  }, true);
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initAppNav);

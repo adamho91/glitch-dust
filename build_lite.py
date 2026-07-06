@@ -19,16 +19,18 @@ html = html.replace(
 )
 
 old_header = """<aside class="sidebar">
-<h1><span>fal</span> Glitch Dust</h1>
-<p class="subtitle">Controls · settings saved locally</p>
+<div class="app-brand-wrap">
+  <img class="app-brand" src="assets/app-brand.svg" alt="fal Glitch Dust" width="562" height="175">
+</div>
 <div class="layout" id="controls">
 
   <div class="sect">Presets</div>
   <div class="preset-bar">"""
 
 new_header = """<aside class="sidebar">
-<h1><span>fal</span> Glitch Dust Lite</h1>
-<p class="subtitle">Pick a look · aspect ratio · colors · text</p>
+<div class="app-brand-wrap">
+  <img class="app-brand" src="assets/app-brand.svg" alt="fal Glitch Dust" width="562" height="175">
+</div>
 <div class="layout" id="controls">
 
   <div class="sect">Presets</div>

@@ -133,10 +133,11 @@
     flex-shrink: 1;
   }
   .wave-box { margin: 8px 0 10px; border: 1px solid #333; border-radius: 5px; background: #111; padding: 6px; }
-  .wave-box svg { width: 100%; height: 58px; display: block; }
+  .wave-box svg { width: 100%; height: 58px; display: block; overflow: visible; }
+  .wave-box.wave-custom { overflow: visible; }
   .wave-box .wave-label { font-size: 10px; color: #555; margin-bottom: 4px; text-transform: uppercase; letter-spacing: .06em; }
   .wave-editor-hint { font-size: 10px; color: #555; margin: 4px 0 0; }
-  .wave-handle { fill: #5718C0; stroke: #AB77FF; stroke-width: 1.5; cursor: grab; }
+  .wave-handle { fill: #5718C0; stroke: #AB77FF; stroke-width: 1.5; cursor: grab; vector-effect: non-scaling-stroke; }
   .wave-handle:active { cursor: grabbing; }
   .median-thumb {
     position: absolute;
@@ -458,8 +459,9 @@
 <body class="lite-app">
 <div class="app">
 <aside class="sidebar">
-<h1><span>fal</span> Glitch Dust Lite</h1>
-<p class="subtitle">Pick a look · aspect ratio · colors · text</p>
+<div class="app-brand-wrap">
+  <img class="app-brand" src="assets/app-brand.svg" alt="fal Glitch Dust" width="562" height="175">
+</div>
 <div class="layout" id="controls">
 
   <div class="sect">Presets</div>
@@ -490,8 +492,10 @@
     <input type="text" id="presetName" class="preset-name-input" maxlength="48" placeholder="Preset name">
   </div>
   <div class="hint">Built-in Default loads on first visit · edits auto-save to the active preset · ⇧1/2/3 switch pages</div>
+  </div>
 
-  <div class="sect">Canvas Size</div>
+  <div class="sect">Aspect ratio</div>
+  <div class="lite-canvas-size">
 
   <div class="ctrl">
     <label>Width (px)</label>
@@ -4806,6 +4810,17 @@ function sampleLoopOpacity(progress, opts = {}) {
 function waveToSvgY(y) { return 50 - y * 46; }
 function waveToSvgX(x) { return x * 200; }
 
+const WAVE_VB_W = 200;
+const WAVE_VB_H = 56;
+const WAVE_HANDLE_R_PX = 5;
+
+function waveHandleRadii(svg) {
+  const rect = svg ? svg.getBoundingClientRect() : { width: WAVE_VB_W, height: WAVE_VB_H };
+  const sx = Math.max(rect.width / WAVE_VB_W, 0.001);
+  const sy = Math.max(rect.height / WAVE_VB_H, 0.001);
+  return { rx: WAVE_HANDLE_R_PX / sx, ry: WAVE_HANDLE_R_PX / sy };
+}
+
 function renderWavePreview() {
   const line = document.getElementById('wavePreviewLine');
   if (!line) return;
@@ -4819,6 +4834,7 @@ function renderWavePreview() {
 }
 
 function renderWaveEditor() {
+  const svg = document.getElementById('waveEditor');
   const g = document.getElementById('waveEditorPts');
   const line = document.getElementById('waveEditorLine');
   if (!g || !line) return;
@@ -4826,13 +4842,16 @@ function renderWaveEditor() {
   line.setAttribute('points', customWavePoints.map(pt =>
     `${waveToSvgX(pt.x)},${waveToSvgY(pt.y)}`
   ).join(' '));
+  const { rx, ry } = waveHandleRadii(svg);
   g.replaceChildren();
   customWavePoints.forEach((pt, i) => {
-    const c = document.createElementNS(SVG_NS, 'circle');
+    const c = document.createElementNS(SVG_NS, 'ellipse');
     c.setAttribute('class', 'wave-handle');
     c.setAttribute('cx', waveToSvgX(pt.x));
     c.setAttribute('cy', waveToSvgY(pt.y));
-    c.setAttribute('r', 4.5);
+    c.setAttribute('rx', rx);
+    c.setAttribute('ry', ry);
+    c.setAttribute('vector-effect', 'non-scaling-stroke');
     c.dataset.idx = i;
     g.appendChild(c);
   });
@@ -4954,6 +4973,9 @@ function setCustomWavePreset(preset) {
   };
   document.getElementById('waveReset').onclick = () => setCustomWavePreset('dome');
   document.getElementById('waveBreathe').onclick = () => setCustomWavePreset('breathe');
+  window.addEventListener('resize', () => {
+    if (document.getElementById('loopWave').value === 'custom') renderWaveEditor();
+  });
   renderWavePreview();
 })();
 
