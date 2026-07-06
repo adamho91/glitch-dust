@@ -85,9 +85,9 @@
 
   const SLIDER_IDS = [
     'fontSize', 'barHeight', 'barPad', 'barMaxWidth', 'typeSpeed',
-    'logoSize', 'logoIntro', 'marginLeft', 'marginBottom', 'logoGap',
+    'logoSize', 'logoIntro', 'margin', 'logoGap',
     'badgeGap', 'badgeOffsetX', 'pixSize', 'shapeMin', 'shapeMax', 'dustCells', 'dustOffsetX',
-    'branchLen', 'branchSplit', 'axisBias', 'circlePct', 'animDuration',
+    'branchLen', 'branchSplit', 'axisBias', 'circlePct', 'squarePct', 'animDuration',
   ];
 
   function v(id) {
@@ -98,6 +98,76 @@
 
   function clamp01(t) {
     return Math.max(0, Math.min(1, t));
+  }
+
+  const WCAG_AA_CONTRAST = 4.5;
+
+  function parseHexColor(hex) {
+    if (!hex || typeof hex !== 'string') return null;
+    let h = hex.trim();
+    if (!h.startsWith('#')) h = '#' + h;
+    if (h.length === 4) {
+      h = '#' + h[1] + h[1] + h[2] + h[2] + h[3] + h[3];
+    }
+    if (!/^#[0-9a-fA-F]{6}$/.test(h)) return null;
+    return {
+      r: parseInt(h.slice(1, 3), 16),
+      g: parseInt(h.slice(3, 5), 16),
+      b: parseInt(h.slice(5, 7), 16),
+    };
+  }
+
+  function relativeLuminance(rgb) {
+    const channel = c => {
+      c /= 255;
+      return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    };
+    return 0.2126 * channel(rgb.r) + 0.7152 * channel(rgb.g) + 0.0722 * channel(rgb.b);
+  }
+
+  function contrastRatio(hexA, hexB) {
+    const a = parseHexColor(hexA);
+    const b = parseHexColor(hexB);
+    if (!a || !b) return 1;
+    const l1 = relativeLuminance(a);
+    const l2 = relativeLuminance(b);
+    const lighter = Math.max(l1, l2);
+    const darker = Math.min(l1, l2);
+    return (lighter + 0.05) / (darker + 0.05);
+  }
+
+  function pickAccessibleBarText(colors) {
+    const palette = (colors || []).filter(Boolean);
+    const barCandidates = palette.length >= 2 ? [palette[1], palette[0]] : palette.length ? [palette[0]] : ['#EC0648'];
+    const textCandidates = [...new Set([...palette, '#FFFFFF', '#000000'])];
+
+    let best = null;
+    barCandidates.forEach((bar, barIdx) => {
+      textCandidates.forEach(text => {
+        if (text.toLowerCase() === bar.toLowerCase()) return;
+        const ratio = contrastRatio(bar, text);
+        if (ratio < WCAG_AA_CONTRAST) return;
+        const paletteScore =
+          (barIdx === 0 ? 2 : 1) +
+          (palette.indexOf(text) === 0 ? 1 : 0) -
+          (text === '#FFFFFF' || text === '#000000' ? 0.25 : 0);
+        const score = ratio + paletteScore * 0.001;
+        if (!best || score > best.score) best = { bar, text, ratio, score };
+      });
+    });
+
+    if (best) return best;
+
+    const bar = barCandidates[0];
+    const text = contrastRatio(bar, '#000000') >= contrastRatio(bar, '#FFFFFF') ? '#000000' : '#FFFFFF';
+    return { bar, text, ratio: contrastRatio(bar, text) };
+  }
+
+  function applyAccessiblePresetColors(preset) {
+    const pair = pickAccessibleBarText(preset.colors);
+    document.getElementById('barColor').value = pair.bar;
+    document.getElementById('textColor').value = pair.text;
+    return pair;
   }
 
   function lerp(a, b, t) {
@@ -212,21 +282,36 @@
     return activeTonalColors[i];
   }
 
-  function pickNodeShape(gx, gy) {
-    const h = hashNoise(gx * 13.7 + gy * 9.3);
-    const circlePct = v('circlePct') / 100;
-    return h < circlePct ? 'circle' : 'rect';
+  function pickNodeShape(gx, gy, salt) {
+    const cir = Math.max(0, v('circlePct'));
+    const sq = Math.max(0, v('squarePct'));
+    const total = Math.max(1, cir + sq);
+    const h = hashNoise(gx * 11.3 + gy * 19.7 + (salt || 0) + noiseSeed * 0.31);
+    return h < cir / total ? 'circle' : 'rect';
   }
 
-  function buildRectCluster(cx, cy, sz, maxCells) {
+  function pickBranchDirection() {
+    const axisBias = v('axisBias') / 100;
+    const r = Math.random();
+    if (r < 0.36) return [1, 0];
+    if (r < 0.72) return [0, -1];
+    if (r < 0.84) return [1, -1];
+    if (Math.random() < axisBias) {
+      const d = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+      return d[Math.floor(Math.random() * d.length)];
+    }
+    const d = [[1, 0], [-1, 0], [0, 1], [0, -1], [2, 0], [-2, 0], [0, 2], [0, -2]];
+    return d[Math.floor(Math.random() * d.length)];
+  }
+
+  function buildRectCluster(rootTopLeftX, rootTopLeftY, sz, maxCells) {
     const maxLen = Math.round(v('branchLen'));
     const splitProb = v('branchSplit') / 100;
-    const axisBias = v('axisBias') / 100;
     const cells = new Set();
     const cellDepth = new Map();
     const key = (gx, gy) => gx + ',' + gy;
-    const sx = Math.round(cx / sz);
-    const sy = Math.round(cy / sz);
+    const sx = Math.round(rootTopLeftX / sz);
+    const sy = Math.round(rootTopLeftY / sz);
     cells.add(key(sx, sy));
     cellDepth.set(key(sx, sy), 0);
     const queue = [{ gx: sx, gy: sy, dx: 0, dy: 0, rem: 0 }];
@@ -237,13 +322,7 @@
       const qi = Math.floor(Math.random() * queue.length);
       let { gx, gy, dx, dy, rem } = queue[qi];
       if (rem <= 0 || (dx === 0 && dy === 0)) {
-        if (Math.random() < axisBias) {
-          const d = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-          [dx, dy] = d[Math.floor(Math.random() * d.length)];
-        } else {
-          const d = [[1, 0], [-1, 0], [0, 1], [0, -1], [2, 0], [-2, 0], [0, 2], [0, -2]];
-          [dx, dy] = d[Math.floor(Math.random() * d.length)];
-        }
+        [dx, dy] = pickBranchDirection();
         rem = Math.ceil(rnd(1, maxLen));
       }
       const nx = gx + dx;
@@ -270,8 +349,9 @@
   }
 
   function getLayout(fullText) {
-    const marginL = v('marginLeft');
-    const marginB = v('marginBottom');
+    const margin = v('margin');
+    const marginL = margin;
+    const marginB = margin;
     const logoSize = v('logoSize');
     const logoGap = v('logoGap');
     const barHeight = v('barHeight');
@@ -293,13 +373,16 @@
     const badgeX = barX + barWidth - badgeW + v('badgeOffsetX');
     const badgeY = barY + barHeight + v('badgeGap');
 
-    const dustAnchorX = barX + barWidth + v('dustOffsetX');
-    const dustAnchorY = barY + barHeight * 0.35;
-
     return {
       logoX, logoY, logoSize, barX, barY, barWidth, barHeight, barPad,
       fontSize, fontWeight, badgeX, badgeY, badgeW, badgeH,
-      dustAnchorX, dustAnchorY,
+    };
+  }
+
+  function getDustRootTopLeft(layout, sz) {
+    return {
+      x: layout.barX + layout.barWidth + v('dustOffsetX'),
+      y: layout.barY - sz,
     };
   }
 
@@ -336,17 +419,18 @@
     noiseSeed = Math.random() * 200;
     const sz = Math.round(v('pixSize'));
     const maxCells = Math.round(v('dustCells'));
-    const cells = buildRectCluster(layout.dustAnchorX, layout.dustAnchorY, sz, maxCells);
+    const root = getDustRootTopLeft(layout, sz);
+    const cells = buildRectCluster(0, 0, sz, maxCells);
     cells.forEach((cell, i) => {
-      const bx = cell.gx * sz;
-      const by = cell.gy * sz;
+      const bx = root.x + cell.gx * sz;
+      const by = root.y + cell.gy * sz;
       particles.push({
         x: bx,
         y: by,
         baseX: bx,
         baseY: by,
         sz,
-        shape: pickNodeShape(cell.gx, cell.gy),
+        shape: pickNodeShape(cell.gx, cell.gy, i),
         col: pickColor(),
         on: 1,
         appearT: hashNoise(i * 3.1 + cell.depth * 0.7),
@@ -579,7 +663,7 @@
   function applyTonalPreset(preset) {
     activePresetId = preset.id;
     activeTonalColors = preset.colors.slice();
-    document.getElementById('barColor').value = preset.colors[1] || preset.colors[0];
+    applyAccessiblePresetColors(preset);
     renderTonalPresets();
     beginCycle();
   }
@@ -600,7 +684,8 @@
         btn.type = 'button';
         btn.className = 'tonal-preset' + (preset.id === activePresetId ? ' active' : '');
         btn.innerHTML = '<span>' + preset.label + '</span><span class="chips"></span>';
-        btn.title = preset.colors.join(' / ') + (preset.bg ? ' · bg ' + preset.bg : '');
+        const pair = pickAccessibleBarText(preset.colors);
+        btn.title = 'Bar ' + pair.bar + ' · Text ' + pair.text + ' · ' + pair.ratio.toFixed(1) + ':1 contrast';
         const chips = btn.querySelector('.chips');
         preset.colors.forEach(hex => {
           const chip = document.createElement('span');
@@ -1286,14 +1371,14 @@
 
     const rerender = () => drawFrame(performance.now());
     [
-      'marginLeft', 'marginBottom', 'logoSize', 'logoGap', 'logoIntro',
+      'margin', 'logoSize', 'logoGap', 'logoIntro',
       'barHeight', 'barPad', 'barMaxWidth', 'fontSize', 'typeSpeed',
       'animDuration', 'pixSize', 'shapeMin', 'shapeMax', 'dustCells', 'dustOffsetX', 'badgeGap',
-      'badgeOffsetX', 'branchLen', 'branchSplit', 'axisBias', 'circlePct',
+      'badgeOffsetX', 'branchLen', 'branchSplit', 'axisBias', 'circlePct', 'squarePct',
     ].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.oninput = () => {
-        if (['pixSize', 'dustCells', 'branchLen', 'branchSplit', 'axisBias', 'circlePct', 'dustOffsetX'].includes(id)) {
+        if (['pixSize', 'dustCells', 'branchLen', 'branchSplit', 'axisBias', 'circlePct', 'squarePct', 'dustOffsetX'].includes(id)) {
           beginCycle();
         } else {
           rerender();
@@ -1309,6 +1394,8 @@
     logoRoot = document.getElementById('logoRoot');
 
     renderTonalPresets();
+    const initialPreset = FAL_2.find(p => p.id === activePresetId);
+    if (initialPreset) applyAccessiblePresetColors(initialPreset);
     updateLogoColorUi();
     updateHeadlineTypeUi();
     wireControls();
