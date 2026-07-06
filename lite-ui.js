@@ -18,30 +18,12 @@
     return (settings.activeTonalColors || []).slice(0, 4);
   }
 
-  function normalizeImportedPreset(data, fileName) {
-    if (!data || typeof data !== 'object') {
-      throw new Error('Invalid preset JSON');
+  function importStatusMessage(result) {
+    if (result.mode === 'library') {
+      const skipped = result.skipped ? ` (${result.skipped} built-in skipped)` : '';
+      return `Imported ${result.added} preset${result.added === 1 ? '' : 's'}${skipped}.`;
     }
-
-    if (Array.isArray(data.presets) && data.presets.length) {
-      const activeId = data.activeId || data.presets[0].id;
-      const active = data.presets.find(p => p.id === activeId) || data.presets[0];
-      if (!active || !active.settings) throw new Error('Preset bundle has no settings');
-      return { name: active.name || fileName, settings: active.settings };
-    }
-
-    if (data.settings && typeof data.settings === 'object') {
-      return {
-        name: data.name || fileName,
-        settings: data.settings,
-      };
-    }
-
-    if (data.sliders && data.selects) {
-      return { name: data.name || fileName, settings: data };
-    }
-
-    throw new Error('Unrecognized preset format');
+    return `Imported preset “${getActivePreset().name}”.`;
   }
 
   function renderLitePresetGrid() {
@@ -75,24 +57,20 @@
     });
   }
 
-  function exportActivePresetJson() {
-    if (typeof saveActivePresetFromUI !== 'function') return;
+  function exportPresetLibraryJson() {
+    if (typeof saveActivePresetFromUI !== 'function' || typeof PresetIO === 'undefined') return;
     saveActivePresetFromUI();
-    const preset = getActivePreset();
-    if (!preset) return;
-    const payload = {
-      v: 1,
-      name: preset.name,
-      settings: preset.settings,
-    };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = (preset.name || 'glitch-dust-preset').replace(/[^\w\-]+/g, '_') + '.json';
-    a.click();
-    URL.revokeObjectURL(a.href);
-    const status = document.getElementById('status');
-    if (status) status.textContent = `Exported “${preset.name}” for full editor import.`;
+    try {
+      const payload = PresetIO.buildPresetLibraryExport(presetStore);
+      PresetIO.downloadPresetJson(payload, 'glitch-dust-presets');
+      const status = document.getElementById('status');
+      if (status) {
+        status.textContent = `Exported ${payload.presets.length} preset${payload.presets.length === 1 ? '' : 's'}.`;
+      }
+    } catch (err) {
+      const status = document.getElementById('status');
+      if (status) status.textContent = 'Export failed: ' + (err.message || 'unknown error');
+    }
   }
 
   function importPresetFromFile(file) {
@@ -101,21 +79,21 @@
     reader.onload = () => {
       try {
         if (typeof presetStore === 'undefined') throw new Error('Preset system not ready');
+        if (typeof PresetIO === 'undefined') throw new Error('Preset IO not loaded');
         const data = JSON.parse(reader.result);
         const fileName = file.name.replace(/\.json$/i, '') || 'Imported preset';
-        const imported = normalizeImportedPreset(data, fileName);
-        const name = (imported.name || fileName).trim();
-        const settings = imported.settings;
-        const id = 'user-' + Date.now();
-        presetStore.presets.push({ id, name, settings });
-        presetStore.activeId = id;
-        applySettings(settings);
+        const result = PresetIO.importPresetData(presetStore, data, fileName, {
+          builtinDefaultId: typeof BUILTIN_DEFAULT_ID !== 'undefined' ? BUILTIN_DEFAULT_ID : 'builtin-default',
+          builtinTransitionId: typeof BUILTIN_TRANSITION_ID !== 'undefined' ? BUILTIN_TRANSITION_ID : 'builtin-transition',
+        });
+        applySettings(getActivePreset().settings);
         persistPresetStore();
         if (typeof renderPresetSelect === 'function') renderPresetSelect();
         renderLitePresetGrid();
-        syncLiteTextFromSettings(settings);
+        syncLiteTextFromSettings(getActivePreset().settings);
+        if (typeof syncDialSliders === 'function') syncDialSliders();
         const status = document.getElementById('status');
-        if (status) status.textContent = `Imported preset “${name}”.`;
+        if (status) status.textContent = importStatusMessage(result);
       } catch (err) {
         const status = document.getElementById('status');
         if (status) status.textContent = 'Import failed: ' + (err.message || 'invalid JSON');
@@ -199,7 +177,7 @@
 
     if (exportBtn && !exportBtn.dataset.liteWired) {
       exportBtn.dataset.liteWired = 'true';
-      exportBtn.addEventListener('click', exportActivePresetJson);
+      exportBtn.addEventListener('click', exportPresetLibraryJson);
     }
 
     if (importBtn && importInput && !importBtn.dataset.liteWired) {

@@ -1,0 +1,2853 @@
+{
+  "v": 1,
+  "kind": "preset-library",
+  "exportedAt": "2026-07-06T19:00:23.796Z",
+  "activeId": "user-1783088769730",
+  "presets": [
+    {
+      "id": "builtin-transition",
+      "name": "Transition In/Out",
+      "builtin": true,
+      "settings": {
+        "v": 1,
+        "canvasW": 1920,
+        "canvasH": 1080,
+        "sliders": {
+          "pixSize": 60,
+          "shapeMin": 28,
+          "shapeMax": 100,
+          "megaRarity": 35,
+          "clusterDensity": 70,
+          "cornerFocus": 0,
+          "centerBias": 0,
+          "circlePct": 50,
+          "squarePct": 50,
+          "cornerSpread": 0,
+          "pixAmt": 240,
+          "scatter": 0,
+          "clusterN": 4,
+          "clusterBias": 0,
+          "branchLen": 16,
+          "branchSplit": 61,
+          "axisBias": 80,
+          "speed": 4,
+          "staccato": 0,
+          "waveScale": 42,
+          "gridFill": 55,
+          "streamGradient": 72,
+          "streamJitter": 65,
+          "sweepDepth": 0,
+          "waveRipples": 0,
+          "diffusionSoft": 15,
+          "glitchShift": 0,
+          "isolines": 4,
+          "isoBand": 38,
+          "isoFill": 24,
+          "waveBuild": 30,
+          "waveFade": 70,
+          "nodeSpread": 12,
+          "pulseDepth": 0,
+          "pulseRate": 3,
+          "animDuration": 5,
+          "burst": 1.75
+        },
+        "selects": {
+          "animStyle": "voxel",
+          "bgSel": "#ffffff",
+          "loopWave": "breathe",
+          "envInCurve": "easeOut",
+          "envOutCurve": "easeIn",
+          "pulseCurve": "none",
+          "sweepAxis": "v",
+          "circleNodes": "2"
+        },
+        "megaTiers": [
+          2
+        ],
+        "tonalCount": 2,
+        "activePresetId": "2-b",
+        "activeTonalColors": [
+          "#FFC4D8",
+          "#EC0648"
+        ],
+        "customWavePoints": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 0.18,
+            "y": 0.55
+          },
+          {
+            "x": 0.38,
+            "y": 0.92
+          },
+          {
+            "x": 0.62,
+            "y": 1
+          },
+          {
+            "x": 0.82,
+            "y": 0.55
+          },
+          {
+            "x": 1,
+            "y": 0
+          }
+        ],
+        "colorAll": [
+          "#99EDFF",
+          "#5718C0",
+          "#EC0648",
+          "#004012",
+          "#FFFF00"
+        ],
+        "colorWeights": [
+          20,
+          20,
+          20,
+          20,
+          20
+        ],
+        "noiseSeed": 42.5,
+        "oneMovePerNode": false,
+        "bakeInOut": true,
+        "text": {
+          "content": "",
+          "enabled": true,
+          "typewriter": true,
+          "unit": "chars",
+          "revealSpeed": 100,
+          "clearPattern": true,
+          "clearStrict": false,
+          "fontSize": 120,
+          "fontWeight": 480,
+          "lineHeight": 92,
+          "pin": "center",
+          "align": "left",
+          "marginNodes": 1,
+          "color": "#000000"
+        },
+        "promptText": {
+          "content": "",
+          "enabled": false,
+          "fontWeight": 400,
+          "padNodes": 2,
+          "marginNodes": 1,
+          "pin": "bottom-left",
+          "borderColor": "#FFC4D8",
+          "followPalette": true
+        },
+        "logo": {
+          "enabled": false,
+          "style": "brand",
+          "colorAccent": "#99EDFF",
+          "colorDetail": "#403700",
+          "size": 100,
+          "marginNodes": 1,
+          "clearPattern": false
+        }
+      }
+    },
+    {
+      "id": "builtin-default",
+      "name": "Default",
+      "builtin": true,
+      "settings": {
+        "v": 1,
+        "canvasW": 1920,
+        "canvasH": 1080,
+        "sliders": {
+          "pixSize": 60,
+          "shapeMin": 67,
+          "shapeMax": 100,
+          "megaRarity": 100,
+          "clusterDensity": 88,
+          "cornerFocus": 0,
+          "centerBias": 0,
+          "circlePct": 50,
+          "squarePct": 50,
+          "cornerSpread": 0,
+          "pixAmt": 240,
+          "scatter": 0,
+          "clusterN": 4,
+          "clusterBias": 0,
+          "branchLen": 16,
+          "branchSplit": 61,
+          "axisBias": 80,
+          "speed": 8,
+          "staccato": 40,
+          "waveScale": 45,
+          "gridFill": 55,
+          "streamGradient": 72,
+          "streamJitter": 65,
+          "sweepDepth": 38,
+          "waveRipples": 32,
+          "diffusionSoft": 45,
+          "glitchShift": 0,
+          "isolines": 4,
+          "isoBand": 42,
+          "isoFill": 18,
+          "waveBuild": 38,
+          "waveFade": 62,
+          "nodeSpread": 58,
+          "pulseDepth": 32,
+          "pulseRate": 5,
+          "animDuration": 3.5,
+          "burst": 1.75
+        },
+        "selects": {
+          "animStyle": "voxel",
+          "bgSel": "#ffffff",
+          "loopWave": "breathe",
+          "envInCurve": "smooth",
+          "envOutCurve": "smooth",
+          "pulseCurve": "sine",
+          "sweepAxis": "v",
+          "circleNodes": "2"
+        },
+        "megaTiers": [
+          2
+        ],
+        "tonalCount": 2,
+        "activePresetId": "2-b",
+        "activeTonalColors": [
+          "#FFC4D8",
+          "#EC0648"
+        ],
+        "customWavePoints": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 0.18,
+            "y": 0.55
+          },
+          {
+            "x": 0.38,
+            "y": 0.92
+          },
+          {
+            "x": 0.62,
+            "y": 1
+          },
+          {
+            "x": 0.82,
+            "y": 0.55
+          },
+          {
+            "x": 1,
+            "y": 0
+          }
+        ],
+        "colorAll": [
+          "#99EDFF",
+          "#5718C0",
+          "#EC0648",
+          "#004012",
+          "#FFFF00"
+        ],
+        "colorWeights": [
+          20,
+          20,
+          20,
+          20,
+          20
+        ],
+        "noiseSeed": 42.5,
+        "oneMovePerNode": false,
+        "bakeInOut": false,
+        "text": {
+          "content": "",
+          "enabled": true,
+          "typewriter": true,
+          "unit": "chars",
+          "revealSpeed": 100,
+          "clearPattern": true,
+          "clearStrict": false,
+          "fontSize": 120,
+          "fontWeight": 480,
+          "lineHeight": 92,
+          "pin": "center",
+          "align": "left",
+          "marginNodes": 1,
+          "color": "#000000"
+        },
+        "promptText": {
+          "content": "",
+          "enabled": false,
+          "fontWeight": 400,
+          "padNodes": 2,
+          "marginNodes": 1,
+          "pin": "bottom-left",
+          "borderColor": "#FFC4D8",
+          "followPalette": true
+        },
+        "logo": {
+          "enabled": false,
+          "style": "brand",
+          "colorAccent": "#99EDFF",
+          "colorDetail": "#403700",
+          "size": 100,
+          "marginNodes": 1,
+          "clearPattern": false
+        }
+      }
+    },
+    {
+      "id": "user-1782951181313",
+      "name": "Purple Halftone Wave",
+      "builtin": false,
+      "settings": {
+        "v": 1,
+        "canvasW": 1920,
+        "canvasH": 1080,
+        "sliders": {
+          "pixSize": "60",
+          "shapeMin": "0",
+          "shapeMax": "100",
+          "megaRarity": "100",
+          "clusterDensity": "88",
+          "cornerFocus": "0",
+          "centerBias": "0",
+          "circlePct": "52",
+          "squarePct": "100",
+          "pixAmt": "240",
+          "scatter": "0",
+          "clusterN": "4",
+          "clusterBias": "0",
+          "branchLen": "16",
+          "branchSplit": "61",
+          "axisBias": "80",
+          "speed": "8",
+          "staccato": "40",
+          "waveScale": "45",
+          "gridFill": "55",
+          "streamGradient": "72",
+          "streamJitter": "65",
+          "sweepDepth": "10",
+          "waveRipples": "34",
+          "diffusionSoft": "27",
+          "glitchShift": "0",
+          "isolines": "4",
+          "isoBand": "42",
+          "isoFill": "18",
+          "waveBuild": "38",
+          "waveFade": "71",
+          "nodeSpread": "58",
+          "pulseDepth": "26",
+          "pulseRate": "3",
+          "cornerSpread": "15",
+          "burst": "1.75",
+          "animDuration": "3.5"
+        },
+        "selects": {
+          "animStyle": "halftone",
+          "bgSel": "#ffffff",
+          "loopWave": "breathe",
+          "envInCurve": "smooth",
+          "envOutCurve": "smooth",
+          "pulseCurve": "sine",
+          "sweepAxis": "h",
+          "circleNodes": "2"
+        },
+        "megaTiers": [
+          8
+        ],
+        "tonalCount": 4,
+        "activePresetId": "4-b",
+        "activeTonalColors": [
+          "#D5B8FF",
+          "#FFFFFF",
+          "#EC0648",
+          "#ADFF00"
+        ],
+        "customWavePoints": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 0.18,
+            "y": 0.55
+          },
+          {
+            "x": 0.38,
+            "y": 0.92
+          },
+          {
+            "x": 0.62,
+            "y": 1
+          },
+          {
+            "x": 0.82,
+            "y": 0.55
+          },
+          {
+            "x": 1,
+            "y": 0
+          }
+        ],
+        "colorAll": [
+          "#5718c0",
+          "#ab77ff",
+          "#d5b8ff",
+          "#115ef3",
+          "#3fb5fe",
+          "#c5e9ff",
+          "#99edff",
+          "#adff00",
+          "#ffff00",
+          "#ec0648",
+          "#f57ec3",
+          "#ffffff",
+          "#000000"
+        ],
+        "colorWeights": [
+          "12",
+          "8",
+          "5",
+          "12",
+          "20",
+          "10",
+          "8",
+          "12",
+          "8",
+          "5",
+          "5",
+          "5",
+          "0"
+        ],
+        "noiseSeed": 26.017561721725645
+      }
+    },
+    {
+      "id": "user-1782951214696",
+      "name": "Red",
+      "builtin": false,
+      "settings": {
+        "v": 1,
+        "canvasW": 1080,
+        "canvasH": 1920,
+        "sliders": {
+          "pixSize": "60",
+          "shapeMin": "100",
+          "shapeMax": "100",
+          "megaRarity": "100",
+          "clusterDensity": "88",
+          "cornerFocus": "22",
+          "centerBias": "44",
+          "circlePct": "1",
+          "squarePct": "91",
+          "pixAmt": "240",
+          "scatter": "0",
+          "clusterN": "4",
+          "clusterBias": "0",
+          "branchLen": "16",
+          "branchSplit": "61",
+          "axisBias": "80",
+          "speed": "8",
+          "staccato": "40",
+          "waveScale": "45",
+          "gridFill": "55",
+          "streamGradient": "72",
+          "streamJitter": "65",
+          "sweepDepth": "72",
+          "waveRipples": "30",
+          "diffusionSoft": "43",
+          "glitchShift": "0",
+          "isolines": "4",
+          "isoBand": "42",
+          "isoFill": "18",
+          "waveBuild": "38",
+          "waveFade": "54",
+          "nodeSpread": "58",
+          "pulseDepth": "26",
+          "pulseRate": "3",
+          "cornerSpread": "15",
+          "burst": "1.75",
+          "animDuration": "6"
+        },
+        "selects": {
+          "animStyle": "voxel",
+          "bgSel": "#ffffff",
+          "loopWave": "breathe",
+          "envInCurve": "smooth",
+          "envOutCurve": "smooth",
+          "pulseCurve": "sine",
+          "sweepAxis": "v",
+          "circleNodes": "2"
+        },
+        "megaTiers": [],
+        "tonalCount": 2,
+        "activePresetId": "2-g",
+        "activeTonalColors": [
+          "#5718C0",
+          "#EC0648"
+        ],
+        "customWavePoints": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 0.18,
+            "y": 0.55
+          },
+          {
+            "x": 0.38,
+            "y": 0.92
+          },
+          {
+            "x": 0.62,
+            "y": 1
+          },
+          {
+            "x": 0.82,
+            "y": 0.55
+          },
+          {
+            "x": 1,
+            "y": 0
+          }
+        ],
+        "colorAll": [
+          "#5718c0",
+          "#ab77ff",
+          "#d5b8ff",
+          "#115ef3",
+          "#3fb5fe",
+          "#c5e9ff",
+          "#99edff",
+          "#adff00",
+          "#ffff00",
+          "#ec0648",
+          "#f57ec3",
+          "#ffffff",
+          "#000000"
+        ],
+        "colorWeights": [
+          "12",
+          "8",
+          "5",
+          "12",
+          "20",
+          "10",
+          "8",
+          "12",
+          "8",
+          "5",
+          "5",
+          "5",
+          "0"
+        ],
+        "noiseSeed": 164.95227329841845,
+        "oneMovePerNode": true,
+        "bakeInOut": true,
+        "text": {
+          "content": "Testing\nTwo\nThings",
+          "enabled": true,
+          "typewriter": true,
+          "unit": "words",
+          "revealSpeed": 200,
+          "clearPattern": true,
+          "fontSize": 120,
+          "fontWeight": 480,
+          "pin": "center",
+          "align": "center",
+          "marginNodes": 2,
+          "color": "#000000"
+        },
+        "logo": {
+          "enabled": true,
+          "style": "brand",
+          "colorAccent": "#99edff",
+          "colorDetail": "#403700",
+          "size": 280,
+          "marginNodes": 1,
+          "clearPattern": true
+        }
+      }
+    },
+    {
+      "id": "user-1782951231921",
+      "name": "Purple",
+      "builtin": false,
+      "settings": {
+        "v": 1,
+        "canvasW": 1920,
+        "canvasH": 1080,
+        "sliders": {
+          "pixSize": "60",
+          "shapeMin": "0",
+          "shapeMax": "100",
+          "megaRarity": "100",
+          "clusterDensity": "88",
+          "cornerFocus": "0",
+          "centerBias": "0",
+          "circlePct": "52",
+          "squarePct": "100",
+          "pixAmt": "240",
+          "scatter": "0",
+          "clusterN": "4",
+          "clusterBias": "0",
+          "branchLen": "16",
+          "branchSplit": "61",
+          "axisBias": "80",
+          "speed": "8",
+          "staccato": "40",
+          "waveScale": "45",
+          "gridFill": "55",
+          "streamGradient": "72",
+          "streamJitter": "65",
+          "sweepDepth": "10",
+          "waveRipples": "34",
+          "diffusionSoft": "27",
+          "glitchShift": "0",
+          "isolines": "4",
+          "isoBand": "42",
+          "isoFill": "18",
+          "waveBuild": "38",
+          "waveFade": "54",
+          "nodeSpread": "58",
+          "pulseDepth": "26",
+          "pulseRate": "3",
+          "cornerSpread": "15",
+          "burst": "1.75",
+          "animDuration": "3.5"
+        },
+        "selects": {
+          "animStyle": "voxel",
+          "bgSel": "#ffffff",
+          "loopWave": "breathe",
+          "envInCurve": "smooth",
+          "envOutCurve": "smooth",
+          "pulseCurve": "sine",
+          "sweepAxis": "h",
+          "circleNodes": "2"
+        },
+        "megaTiers": [
+          8
+        ],
+        "tonalCount": 2,
+        "activePresetId": "2-f",
+        "activeTonalColors": [
+          "#96AFAC",
+          "#5718C0"
+        ],
+        "customWavePoints": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 0.18,
+            "y": 0.55
+          },
+          {
+            "x": 0.38,
+            "y": 0.92
+          },
+          {
+            "x": 0.62,
+            "y": 1
+          },
+          {
+            "x": 0.82,
+            "y": 0.55
+          },
+          {
+            "x": 1,
+            "y": 0
+          }
+        ],
+        "colorAll": [
+          "#5718c0",
+          "#ab77ff",
+          "#d5b8ff",
+          "#115ef3",
+          "#3fb5fe",
+          "#c5e9ff",
+          "#99edff",
+          "#adff00",
+          "#ffff00",
+          "#ec0648",
+          "#f57ec3",
+          "#ffffff",
+          "#000000"
+        ],
+        "colorWeights": [
+          "12",
+          "8",
+          "5",
+          "12",
+          "20",
+          "10",
+          "8",
+          "12",
+          "8",
+          "5",
+          "5",
+          "5",
+          "0"
+        ],
+        "noiseSeed": 184.94182490146812
+      }
+    },
+    {
+      "id": "user-1782951321436",
+      "name": "Purple Chartreus",
+      "builtin": false,
+      "settings": {
+        "v": 1,
+        "canvasW": 1920,
+        "canvasH": 1080,
+        "sliders": {
+          "pixSize": "60",
+          "shapeMin": "5",
+          "shapeMax": "100",
+          "megaRarity": "100",
+          "clusterDensity": "88",
+          "cornerFocus": "0",
+          "centerBias": "0",
+          "circlePct": "52",
+          "squarePct": "100",
+          "pixAmt": "240",
+          "scatter": "0",
+          "clusterN": "4",
+          "clusterBias": "0",
+          "branchLen": "16",
+          "branchSplit": "61",
+          "axisBias": "80",
+          "speed": "8",
+          "staccato": "40",
+          "waveScale": "45",
+          "gridFill": "55",
+          "streamGradient": "72",
+          "streamJitter": "65",
+          "sweepDepth": "10",
+          "waveRipples": "34",
+          "diffusionSoft": "27",
+          "glitchShift": "0",
+          "isolines": "4",
+          "isoBand": "42",
+          "isoFill": "18",
+          "waveBuild": "38",
+          "waveFade": "71",
+          "nodeSpread": "58",
+          "pulseDepth": "26",
+          "pulseRate": "3",
+          "cornerSpread": "15",
+          "burst": "1.75",
+          "animDuration": "3.5"
+        },
+        "selects": {
+          "animStyle": "halftone",
+          "bgSel": "#004012",
+          "loopWave": "breathe",
+          "envInCurve": "easeInOut",
+          "envOutCurve": "smooth",
+          "pulseCurve": "sine",
+          "sweepAxis": "h",
+          "circleNodes": "2"
+        },
+        "megaTiers": [
+          8
+        ],
+        "tonalCount": 4,
+        "activePresetId": "4-b",
+        "activeTonalColors": [
+          "#D5B8FF",
+          "#FFFFFF",
+          "#EC0648",
+          "#ADFF00"
+        ],
+        "customWavePoints": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 0.18,
+            "y": 0.55
+          },
+          {
+            "x": 0.38,
+            "y": 0.92
+          },
+          {
+            "x": 0.62,
+            "y": 1
+          },
+          {
+            "x": 0.82,
+            "y": 0.55
+          },
+          {
+            "x": 1,
+            "y": 0
+          }
+        ],
+        "colorAll": [
+          "#5718c0",
+          "#ab77ff",
+          "#d5b8ff",
+          "#115ef3",
+          "#3fb5fe",
+          "#c5e9ff",
+          "#99edff",
+          "#adff00",
+          "#ffff00",
+          "#ec0648",
+          "#f57ec3",
+          "#ffffff",
+          "#000000"
+        ],
+        "colorWeights": [
+          "12",
+          "8",
+          "5",
+          "12",
+          "20",
+          "10",
+          "8",
+          "12",
+          "8",
+          "5",
+          "5",
+          "5",
+          "0"
+        ],
+        "noiseSeed": 178.96032014284816,
+        "oneMovePerNode": false
+      }
+    },
+    {
+      "id": "user-1782951757593",
+      "name": "Green Ice",
+      "builtin": false,
+      "settings": {
+        "v": 1,
+        "canvasW": 1920,
+        "canvasH": 1080,
+        "sliders": {
+          "pixSize": "60",
+          "shapeMin": "0",
+          "shapeMax": "100",
+          "megaRarity": "100",
+          "clusterDensity": "35",
+          "cornerFocus": "0",
+          "centerBias": "0",
+          "circlePct": "8",
+          "squarePct": "100",
+          "pixAmt": "240",
+          "scatter": "0",
+          "clusterN": "4",
+          "clusterBias": "0",
+          "branchLen": "16",
+          "branchSplit": "61",
+          "axisBias": "80",
+          "speed": "0",
+          "staccato": "100",
+          "waveScale": "45",
+          "gridFill": "55",
+          "streamGradient": "72",
+          "streamJitter": "65",
+          "sweepDepth": "0",
+          "waveRipples": "0",
+          "diffusionSoft": "56",
+          "glitchShift": "24",
+          "isolines": "4",
+          "isoBand": "42",
+          "isoFill": "18",
+          "waveBuild": "28",
+          "waveFade": "67",
+          "nodeSpread": "12",
+          "pulseDepth": "16",
+          "pulseRate": "1",
+          "cornerSpread": "15",
+          "burst": "1.75",
+          "animDuration": "3.5"
+        },
+        "selects": {
+          "animStyle": "voxel",
+          "bgSel": "#ffffff",
+          "loopWave": "breathe",
+          "envInCurve": "smooth",
+          "envOutCurve": "smooth",
+          "pulseCurve": "sine",
+          "sweepAxis": "d",
+          "circleNodes": "2"
+        },
+        "megaTiers": [
+          2,
+          3,
+          4,
+          5
+        ],
+        "tonalCount": 2,
+        "activePresetId": "2-c",
+        "activeTonalColors": [
+          "#004012",
+          "#99EDFF"
+        ],
+        "customWavePoints": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 0.18,
+            "y": 0.55
+          },
+          {
+            "x": 0.38,
+            "y": 0.92
+          },
+          {
+            "x": 0.62,
+            "y": 1
+          },
+          {
+            "x": 0.82,
+            "y": 0.55
+          },
+          {
+            "x": 1,
+            "y": 0
+          }
+        ],
+        "colorAll": [
+          "#5718c0",
+          "#ab77ff",
+          "#d5b8ff",
+          "#115ef3",
+          "#3fb5fe",
+          "#c5e9ff",
+          "#99edff",
+          "#adff00",
+          "#ffff00",
+          "#ec0648",
+          "#f57ec3",
+          "#ffffff",
+          "#000000"
+        ],
+        "colorWeights": [
+          "12",
+          "8",
+          "5",
+          "12",
+          "20",
+          "10",
+          "8",
+          "12",
+          "8",
+          "5",
+          "5",
+          "5",
+          "0"
+        ],
+        "noiseSeed": 128.0547720049943,
+        "oneMovePerNode": false
+      }
+    },
+    {
+      "id": "user-1782951809290",
+      "name": "Green Ice 2",
+      "builtin": false,
+      "settings": {
+        "v": 1,
+        "canvasW": 1920,
+        "canvasH": 1080,
+        "sliders": {
+          "pixSize": "60",
+          "shapeMin": "0",
+          "shapeMax": "100",
+          "megaRarity": "100",
+          "clusterDensity": "35",
+          "cornerFocus": "0",
+          "centerBias": "0",
+          "circlePct": "8",
+          "squarePct": "100",
+          "pixAmt": "240",
+          "scatter": "0",
+          "clusterN": "4",
+          "clusterBias": "0",
+          "branchLen": "16",
+          "branchSplit": "61",
+          "axisBias": "80",
+          "speed": "0",
+          "staccato": "100",
+          "waveScale": "45",
+          "gridFill": "55",
+          "streamGradient": "72",
+          "streamJitter": "65",
+          "sweepDepth": "0",
+          "waveRipples": "0",
+          "diffusionSoft": "56",
+          "glitchShift": "24",
+          "nodeMediaBlend": "61",
+          "nodeMediaSliceShift": "100",
+          "nodeMediaSmear": "16",
+          "isolines": "4",
+          "isoBand": "42",
+          "isoFill": "18",
+          "waveBuild": "28",
+          "waveFade": "67",
+          "nodeSpread": "12",
+          "pulseDepth": "16",
+          "pulseRate": "1",
+          "cornerSpread": "15",
+          "burst": "1.75",
+          "animDuration": "3.5"
+        },
+        "selects": {
+          "animStyle": "voxel",
+          "bgSel": "#ffffff",
+          "loopWave": "breathe",
+          "envInCurve": "smooth",
+          "envOutCurve": "smooth",
+          "pulseCurve": "sine",
+          "sweepAxis": "d",
+          "circleNodes": "2"
+        },
+        "megaTiers": [
+          2,
+          3,
+          4,
+          5
+        ],
+        "tonalCount": 2,
+        "activePresetId": "2-d",
+        "activeTonalColors": [
+          "#403700",
+          "#99EDFF"
+        ],
+        "customWavePoints": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 0.18,
+            "y": 0.55
+          },
+          {
+            "x": 0.38,
+            "y": 0.92
+          },
+          {
+            "x": 0.62,
+            "y": 1
+          },
+          {
+            "x": 0.82,
+            "y": 0.55
+          },
+          {
+            "x": 1,
+            "y": 0
+          }
+        ],
+        "colorAll": [
+          "#5718c0",
+          "#ab77ff",
+          "#d5b8ff",
+          "#115ef3",
+          "#3fb5fe",
+          "#c5e9ff",
+          "#99edff",
+          "#adff00",
+          "#ffff00",
+          "#ec0648",
+          "#f57ec3",
+          "#ffffff",
+          "#000000"
+        ],
+        "colorWeights": [
+          "12",
+          "8",
+          "5",
+          "12",
+          "20",
+          "10",
+          "8",
+          "12",
+          "8",
+          "5",
+          "5",
+          "5",
+          "0"
+        ],
+        "noiseSeed": 79.10927568777701,
+        "oneMovePerNode": false,
+        "bakeInOut": true,
+        "blanketNodeSpeedEnabled": false,
+        "blanketNodeSpeed": 55,
+        "blanketTextSpeedEnabled": false,
+        "blanketTextSpeed": 100,
+        "nodesFlowDuringText": false,
+        "nodeMedia": {
+          "enabled": true,
+          "blend": "61",
+          "sliceShift": "100",
+          "smear": "16"
+        },
+        "text": {
+          "content": "Test A Thing Here",
+          "enabled": true,
+          "typewriter": true,
+          "unit": "chars",
+          "revealSpeed": 100,
+          "clearPattern": true,
+          "clearStrict": false,
+          "fontSize": 120,
+          "fontWeight": 480,
+          "lineHeight": 92,
+          "pin": "center",
+          "align": "left",
+          "marginPx": 60,
+          "color": "#000000"
+        },
+        "promptText": {
+          "content": "",
+          "enabled": false,
+          "typewriter": true,
+          "unit": "chars",
+          "revealSpeed": 100,
+          "fontSize": 36,
+          "fontWeight": 400,
+          "boxRadius": 4,
+          "boxColor": "#403700",
+          "followPalette": true,
+          "lineWrapOffset": true,
+          "lineWrapOffsetPx": -48,
+          "spaceColorEnabled": false,
+          "spaceColor": "#c4b5fd",
+          "spaceGlitchRhythm": false
+        },
+        "logo": {
+          "enabled": false,
+          "style": "brand",
+          "colorAccent": "#99edff",
+          "colorDetail": "#403700",
+          "size": 100,
+          "marginNodes": 1,
+          "clearPattern": false,
+          "matchText": true,
+          "pin": "bottom-left"
+        }
+      }
+    },
+    {
+      "id": "user-1783009434164",
+      "name": "Small Nodes - Green / Brown",
+      "builtin": false,
+      "settings": {
+        "v": 1,
+        "canvasW": 1080,
+        "canvasH": 1920,
+        "sliders": {
+          "pixSize": "40",
+          "shapeMin": "100",
+          "shapeMax": "100",
+          "megaRarity": "100",
+          "clusterDensity": "54",
+          "cornerFocus": "0",
+          "centerBias": "0",
+          "circlePct": "8",
+          "squarePct": "100",
+          "pixAmt": "240",
+          "scatter": "0",
+          "clusterN": "4",
+          "clusterBias": "0",
+          "branchLen": "16",
+          "branchSplit": "61",
+          "axisBias": "80",
+          "speed": "23",
+          "staccato": "2",
+          "waveScale": "45",
+          "gridFill": "55",
+          "streamGradient": "72",
+          "streamJitter": "65",
+          "sweepDepth": "86",
+          "waveRipples": "90",
+          "diffusionSoft": "0",
+          "glitchShift": "0",
+          "isolines": "6",
+          "isoBand": "11",
+          "isoFill": "12",
+          "waveBuild": "33",
+          "waveFade": "82",
+          "nodeSpread": "0",
+          "pulseDepth": "53",
+          "pulseRate": "1",
+          "cornerSpread": "100",
+          "burst": "1.75",
+          "animDuration": "3.5"
+        },
+        "selects": {
+          "animStyle": "voxel",
+          "bgSel": "#ffffff",
+          "loopWave": "breathe",
+          "envInCurve": "easeIn",
+          "envOutCurve": "easeOut",
+          "pulseCurve": "sine",
+          "sweepAxis": "h",
+          "circleNodes": "2"
+        },
+        "megaTiers": [
+          2,
+          8
+        ],
+        "tonalCount": 2,
+        "activePresetId": "2-j",
+        "activeTonalColors": [
+          "#403700",
+          "#ADFF00"
+        ],
+        "customWavePoints": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 0.18,
+            "y": 0.55
+          },
+          {
+            "x": 0.38,
+            "y": 0.92
+          },
+          {
+            "x": 0.62,
+            "y": 1
+          },
+          {
+            "x": 0.82,
+            "y": 0.55
+          },
+          {
+            "x": 1,
+            "y": 0
+          }
+        ],
+        "colorAll": [
+          "#5718c0",
+          "#ab77ff",
+          "#d5b8ff",
+          "#115ef3",
+          "#3fb5fe",
+          "#c5e9ff",
+          "#99edff",
+          "#adff00",
+          "#ffff00",
+          "#ec0648",
+          "#f57ec3",
+          "#ffffff",
+          "#000000"
+        ],
+        "colorWeights": [
+          "12",
+          "8",
+          "5",
+          "12",
+          "20",
+          "10",
+          "8",
+          "12",
+          "8",
+          "5",
+          "5",
+          "5",
+          "0"
+        ],
+        "noiseSeed": 151.14662112363516,
+        "oneMovePerNode": false
+      }
+    },
+    {
+      "id": "user-1783010797806",
+      "name": "Small Nodes - Green / Brown - 9:16",
+      "builtin": false,
+      "settings": {
+        "v": 1,
+        "canvasW": 1920,
+        "canvasH": 1080,
+        "sliders": {
+          "pixSize": "40",
+          "shapeMin": "100",
+          "shapeMax": "100",
+          "megaRarity": "100",
+          "clusterDensity": "35",
+          "cornerFocus": "0",
+          "centerBias": "0",
+          "circlePct": "8",
+          "squarePct": "100",
+          "pixAmt": "240",
+          "scatter": "0",
+          "clusterN": "4",
+          "clusterBias": "0",
+          "branchLen": "16",
+          "branchSplit": "61",
+          "axisBias": "80",
+          "speed": "0",
+          "staccato": "100",
+          "waveScale": "45",
+          "gridFill": "55",
+          "streamGradient": "72",
+          "streamJitter": "65",
+          "sweepDepth": "0",
+          "waveRipples": "0",
+          "diffusionSoft": "0",
+          "glitchShift": "0",
+          "isolines": "4",
+          "isoBand": "42",
+          "isoFill": "18",
+          "waveBuild": "28",
+          "waveFade": "67",
+          "nodeSpread": "12",
+          "pulseDepth": "16",
+          "pulseRate": "1",
+          "cornerSpread": "100",
+          "burst": "1.75",
+          "animDuration": "4"
+        },
+        "selects": {
+          "animStyle": "voxel",
+          "bgSel": "transparent",
+          "loopWave": "breathe",
+          "envInCurve": "smooth",
+          "envOutCurve": "smooth",
+          "pulseCurve": "sine",
+          "sweepAxis": "h",
+          "circleNodes": "2"
+        },
+        "megaTiers": [
+          6
+        ],
+        "tonalCount": 2,
+        "activePresetId": "2-f",
+        "activeTonalColors": [
+          "#96AFAC",
+          "#5718C0"
+        ],
+        "customWavePoints": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 0.18,
+            "y": 0.55
+          },
+          {
+            "x": 0.38,
+            "y": 0.92
+          },
+          {
+            "x": 0.62,
+            "y": 1
+          },
+          {
+            "x": 0.82,
+            "y": 0.55
+          },
+          {
+            "x": 1,
+            "y": 0
+          }
+        ],
+        "colorAll": [
+          "#5718c0",
+          "#ab77ff",
+          "#d5b8ff",
+          "#115ef3",
+          "#3fb5fe",
+          "#c5e9ff",
+          "#99edff",
+          "#adff00",
+          "#ffff00",
+          "#ec0648",
+          "#f57ec3",
+          "#ffffff",
+          "#000000"
+        ],
+        "colorWeights": [
+          "12",
+          "8",
+          "5",
+          "12",
+          "20",
+          "10",
+          "8",
+          "12",
+          "8",
+          "5",
+          "5",
+          "5",
+          "0"
+        ],
+        "noiseSeed": 112.79097333063699,
+        "oneMovePerNode": false,
+        "bakeInOut": true,
+        "text": {
+          "content": "Something something like this kind of caption",
+          "enabled": true,
+          "typewriter": false,
+          "unit": "chars",
+          "revealSpeed": 260,
+          "clearPattern": true,
+          "clearStrict": true,
+          "fontSize": 148,
+          "fontWeight": 480,
+          "lineHeight": 95,
+          "pin": "top-left",
+          "align": "left",
+          "marginNodes": 2,
+          "color": "#000000"
+        },
+        "promptText": {
+          "content": "Testing out a caption prompt like this",
+          "enabled": true,
+          "typewriter": true,
+          "unit": "words",
+          "revealSpeed": 100,
+          "fontSize": 50,
+          "fontWeight": 400,
+          "boxRadius": 0,
+          "boxColor": "#000000",
+          "followPalette": false
+        },
+        "logo": {
+          "enabled": true,
+          "style": "dark",
+          "colorAccent": "#96afac",
+          "colorDetail": "#000000",
+          "size": 176,
+          "marginNodes": 2,
+          "clearPattern": false
+        }
+      }
+    },
+    {
+      "id": "user-1783020417999",
+      "name": "Mint Choco - Horizontal",
+      "builtin": false,
+      "settings": {
+        "v": 1,
+        "canvasW": 1920,
+        "canvasH": 1080,
+        "sliders": {
+          "pixSize": "60",
+          "shapeMin": "100",
+          "shapeMax": "100",
+          "megaRarity": "50",
+          "clusterDensity": "70",
+          "cornerFocus": "0",
+          "centerBias": "0",
+          "circlePct": "10",
+          "squarePct": "36",
+          "pixAmt": "240",
+          "scatter": "0",
+          "clusterN": "4",
+          "clusterBias": "0",
+          "branchLen": "16",
+          "branchSplit": "61",
+          "axisBias": "80",
+          "speed": "4",
+          "staccato": "0",
+          "waveScale": "42",
+          "gridFill": "55",
+          "streamGradient": "72",
+          "streamJitter": "65",
+          "sweepDepth": "100",
+          "waveRipples": "0",
+          "diffusionSoft": "15",
+          "glitchShift": "0",
+          "isolines": "4",
+          "isoBand": "38",
+          "isoFill": "24",
+          "waveBuild": "30",
+          "waveFade": "70",
+          "nodeSpread": "12",
+          "pulseDepth": "0",
+          "pulseRate": "3",
+          "cornerSpread": "0",
+          "burst": "1.75",
+          "animDuration": "12"
+        },
+        "selects": {
+          "animStyle": "voxel",
+          "bgSel": "#ffffff",
+          "loopWave": "breathe",
+          "envInCurve": "easeOut",
+          "envOutCurve": "easeIn",
+          "pulseCurve": "none",
+          "sweepAxis": "h",
+          "circleNodes": "2"
+        },
+        "megaTiers": [
+          2,
+          8
+        ],
+        "tonalCount": 2,
+        "activePresetId": "2-d",
+        "activeTonalColors": [
+          "#403700",
+          "#99EDFF"
+        ],
+        "customWavePoints": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 0.18,
+            "y": 0.55
+          },
+          {
+            "x": 0.38,
+            "y": 0.92
+          },
+          {
+            "x": 0.62,
+            "y": 1
+          },
+          {
+            "x": 0.82,
+            "y": 0.55
+          },
+          {
+            "x": 1,
+            "y": 0
+          }
+        ],
+        "colorAll": [
+          "#5718c0",
+          "#ab77ff",
+          "#d5b8ff",
+          "#115ef3",
+          "#3fb5fe",
+          "#c5e9ff",
+          "#99edff",
+          "#adff00",
+          "#ffff00",
+          "#ec0648",
+          "#f57ec3",
+          "#ffffff",
+          "#000000"
+        ],
+        "colorWeights": [
+          "12",
+          "8",
+          "5",
+          "12",
+          "20",
+          "10",
+          "8",
+          "12",
+          "8",
+          "5",
+          "5",
+          "5",
+          "0"
+        ],
+        "noiseSeed": 182.99417140691,
+        "oneMovePerNode": true,
+        "bakeInOut": true,
+        "text": {
+          "content": "Words Here",
+          "enabled": true,
+          "typewriter": true,
+          "unit": "words",
+          "revealSpeed": 200,
+          "clearPattern": true,
+          "fontSize": 98,
+          "fontWeight": 480,
+          "pin": "center",
+          "marginNodes": 1,
+          "color": "#000000"
+        }
+      }
+    },
+    {
+      "id": "user-1783029653185",
+      "name": "Large to large - Horizontal",
+      "builtin": false,
+      "settings": {
+        "v": 1,
+        "canvasW": 1920,
+        "canvasH": 1080,
+        "sliders": {
+          "pixSize": "40",
+          "shapeMin": "100",
+          "shapeMax": "100",
+          "megaRarity": "7",
+          "clusterDensity": "35",
+          "cornerFocus": "0",
+          "centerBias": "0",
+          "circlePct": "8",
+          "squarePct": "100",
+          "pixAmt": "240",
+          "scatter": "0",
+          "clusterN": "4",
+          "clusterBias": "0",
+          "branchLen": "16",
+          "branchSplit": "61",
+          "axisBias": "80",
+          "speed": "0",
+          "staccato": "24",
+          "waveScale": "45",
+          "gridFill": "55",
+          "streamGradient": "72",
+          "streamJitter": "65",
+          "sweepDepth": "70",
+          "waveRipples": "0",
+          "diffusionSoft": "99",
+          "glitchShift": "0",
+          "isolines": "4",
+          "isoBand": "42",
+          "isoFill": "18",
+          "waveBuild": "28",
+          "waveFade": "67",
+          "nodeSpread": "0",
+          "pulseDepth": "38",
+          "pulseRate": "1",
+          "cornerSpread": "100",
+          "burst": "1.75",
+          "animDuration": "4"
+        },
+        "selects": {
+          "animStyle": "voxel",
+          "bgSel": "transparent",
+          "loopWave": "breathe",
+          "envInCurve": "smooth",
+          "envOutCurve": "smooth",
+          "pulseCurve": "sine",
+          "sweepAxis": "h",
+          "circleNodes": "2"
+        },
+        "megaTiers": [
+          6
+        ],
+        "tonalCount": 2,
+        "activePresetId": "2-f",
+        "activeTonalColors": [
+          "#96AFAC",
+          "#5718C0"
+        ],
+        "customWavePoints": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 0.18,
+            "y": 0.55
+          },
+          {
+            "x": 0.38,
+            "y": 0.92
+          },
+          {
+            "x": 0.62,
+            "y": 1
+          },
+          {
+            "x": 0.82,
+            "y": 0.55
+          },
+          {
+            "x": 1,
+            "y": 0
+          }
+        ],
+        "colorAll": [
+          "#5718c0",
+          "#ab77ff",
+          "#d5b8ff",
+          "#115ef3",
+          "#3fb5fe",
+          "#c5e9ff",
+          "#99edff",
+          "#adff00",
+          "#ffff00",
+          "#ec0648",
+          "#f57ec3",
+          "#ffffff",
+          "#000000"
+        ],
+        "colorWeights": [
+          "12",
+          "8",
+          "5",
+          "12",
+          "20",
+          "10",
+          "8",
+          "12",
+          "8",
+          "5",
+          "5",
+          "5",
+          "0"
+        ],
+        "noiseSeed": 94.33152697522047,
+        "oneMovePerNode": false,
+        "bakeInOut": true,
+        "text": {
+          "content": "Something something like this kind",
+          "enabled": true,
+          "typewriter": true,
+          "unit": "chars",
+          "revealSpeed": 260,
+          "clearPattern": true,
+          "clearStrict": true,
+          "fontSize": 148,
+          "fontWeight": 480,
+          "lineHeight": 95,
+          "pin": "top-left",
+          "align": "left",
+          "marginNodes": 2,
+          "color": "#000000"
+        },
+        "promptText": {
+          "content": "Testing out a caption prompt like this",
+          "enabled": false,
+          "typewriter": true,
+          "unit": "words",
+          "revealSpeed": 100,
+          "fontSize": 50,
+          "fontWeight": 400,
+          "boxRadius": 0,
+          "boxColor": "#000000",
+          "followPalette": false
+        },
+        "logo": {
+          "enabled": true,
+          "style": "dark",
+          "colorAccent": "#96afac",
+          "colorDetail": "#000000",
+          "size": 176,
+          "marginNodes": 2,
+          "clearPattern": false
+        }
+      }
+    },
+    {
+      "id": "user-1783029747787",
+      "name": "Green Horizontal - Slower",
+      "builtin": false,
+      "settings": {
+        "v": 1,
+        "canvasW": 1920,
+        "canvasH": 1080,
+        "sliders": {
+          "pixSize": "80",
+          "shapeMin": "100",
+          "shapeMax": "100",
+          "megaRarity": "68",
+          "clusterDensity": "35",
+          "cornerFocus": "0",
+          "centerBias": "0",
+          "circlePct": "8",
+          "squarePct": "100",
+          "pixAmt": "240",
+          "scatter": "0",
+          "clusterN": "4",
+          "clusterBias": "0",
+          "branchLen": "16",
+          "branchSplit": "61",
+          "axisBias": "80",
+          "speed": "0",
+          "staccato": "0",
+          "waveScale": "45",
+          "gridFill": "55",
+          "streamGradient": "72",
+          "streamJitter": "65",
+          "sweepDepth": "70",
+          "waveRipples": "73",
+          "diffusionSoft": "29",
+          "glitchShift": "0",
+          "nodeMediaBlend": "0",
+          "isolines": "4",
+          "isoBand": "42",
+          "isoFill": "18",
+          "waveBuild": "37",
+          "waveFade": "85",
+          "nodeSpread": "100",
+          "pulseDepth": "11",
+          "pulseRate": "1",
+          "cornerSpread": "100",
+          "burst": "1.75",
+          "animDuration": "4"
+        },
+        "selects": {
+          "animStyle": "voxel",
+          "bgSel": "#ffffff",
+          "loopWave": "breathe",
+          "envInCurve": "easeInOut",
+          "envOutCurve": "easeInOut",
+          "pulseCurve": "sine",
+          "sweepAxis": "h",
+          "circleNodes": "2"
+        },
+        "megaTiers": [
+          2,
+          8
+        ],
+        "tonalCount": 2,
+        "activePresetId": "2-i",
+        "activeTonalColors": [
+          "#004012",
+          "#ADFF00"
+        ],
+        "customWavePoints": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 0.18,
+            "y": 0.55
+          },
+          {
+            "x": 0.38,
+            "y": 0.92
+          },
+          {
+            "x": 0.62,
+            "y": 1
+          },
+          {
+            "x": 0.82,
+            "y": 0.55
+          },
+          {
+            "x": 1,
+            "y": 0
+          }
+        ],
+        "colorAll": [
+          "#5718c0",
+          "#ab77ff",
+          "#d5b8ff",
+          "#115ef3",
+          "#3fb5fe",
+          "#c5e9ff",
+          "#99edff",
+          "#adff00",
+          "#ffff00",
+          "#ec0648",
+          "#f57ec3",
+          "#ffffff",
+          "#000000"
+        ],
+        "colorWeights": [
+          "12",
+          "8",
+          "5",
+          "12",
+          "20",
+          "10",
+          "8",
+          "12",
+          "8",
+          "5",
+          "5",
+          "5",
+          "0"
+        ],
+        "noiseSeed": 72.06579153087868,
+        "oneMovePerNode": false,
+        "bakeInOut": true,
+        "blanketNodeSpeedEnabled": false,
+        "blanketNodeSpeed": 55,
+        "blanketTextSpeedEnabled": false,
+        "blanketTextSpeed": 100,
+        "nodesFlowDuringText": false,
+        "nodeMedia": {
+          "enabled": true,
+          "blend": "0"
+        },
+        "text": {
+          "content": "Something something like this kind",
+          "enabled": false,
+          "typewriter": true,
+          "unit": "chars",
+          "revealSpeed": 260,
+          "clearPattern": true,
+          "clearStrict": true,
+          "fontSize": 128,
+          "fontWeight": 480,
+          "lineHeight": 95,
+          "pin": "top-left",
+          "align": "left",
+          "marginPx": 120,
+          "color": "#000000"
+        },
+        "promptText": {
+          "content": "Testing out a caption prompt like this",
+          "enabled": false,
+          "typewriter": true,
+          "unit": "words",
+          "revealSpeed": 395,
+          "fontSize": 50,
+          "fontWeight": 400,
+          "boxRadius": 0,
+          "boxColor": "#004012",
+          "followPalette": false,
+          "lineWrapOffset": false,
+          "lineWrapOffsetPx": 8,
+          "spaceColorEnabled": false,
+          "spaceColor": "#5718c0",
+          "spaceGlitchRhythm": false,
+          "spaceGapShuffle": true,
+          "spaceGapShuffleMs": 250
+        },
+        "logo": {
+          "enabled": false,
+          "style": "brand",
+          "colorAccent": "#000000",
+          "colorDetail": "#ffffff",
+          "size": 176,
+          "marginNodes": 2,
+          "clearPattern": false,
+          "matchText": false,
+          "pin": "bottom-left"
+        }
+      }
+    },
+    {
+      "id": "user-1783030767857",
+      "name": "Green Horizontal - Slower",
+      "builtin": false,
+      "settings": {
+        "v": 1,
+        "canvasW": 1920,
+        "canvasH": 1080,
+        "sliders": {
+          "pixSize": "40",
+          "shapeMin": "100",
+          "shapeMax": "100",
+          "megaRarity": "68",
+          "clusterDensity": "35",
+          "cornerFocus": "0",
+          "centerBias": "0",
+          "circlePct": "8",
+          "squarePct": "100",
+          "pixAmt": "240",
+          "scatter": "0",
+          "clusterN": "4",
+          "clusterBias": "0",
+          "branchLen": "16",
+          "branchSplit": "61",
+          "axisBias": "80",
+          "speed": "0",
+          "staccato": "0",
+          "waveScale": "45",
+          "gridFill": "55",
+          "streamGradient": "72",
+          "streamJitter": "65",
+          "sweepDepth": "70",
+          "waveRipples": "73",
+          "diffusionSoft": "29",
+          "glitchShift": "0",
+          "nodeMediaBlend": "61",
+          "isolines": "4",
+          "isoBand": "42",
+          "isoFill": "18",
+          "waveBuild": "37",
+          "waveFade": "85",
+          "nodeSpread": "100",
+          "pulseDepth": "11",
+          "pulseRate": "1",
+          "cornerSpread": "100",
+          "burst": "1.75",
+          "animDuration": "4"
+        },
+        "selects": {
+          "animStyle": "voxel",
+          "bgSel": "#ffffff",
+          "loopWave": "breathe",
+          "envInCurve": "easeInOut",
+          "envOutCurve": "easeInOut",
+          "pulseCurve": "sine",
+          "sweepAxis": "h",
+          "circleNodes": "2"
+        },
+        "megaTiers": [
+          6,
+          8
+        ],
+        "tonalCount": 2,
+        "activePresetId": "2-a",
+        "activeTonalColors": [
+          "#99EDFF",
+          "#5718C0"
+        ],
+        "customWavePoints": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 0.18,
+            "y": 0.55
+          },
+          {
+            "x": 0.38,
+            "y": 0.92
+          },
+          {
+            "x": 0.62,
+            "y": 1
+          },
+          {
+            "x": 0.82,
+            "y": 0.55
+          },
+          {
+            "x": 1,
+            "y": 0
+          }
+        ],
+        "colorAll": [
+          "#5718c0",
+          "#ab77ff",
+          "#d5b8ff",
+          "#115ef3",
+          "#3fb5fe",
+          "#c5e9ff",
+          "#99edff",
+          "#adff00",
+          "#ffff00",
+          "#ec0648",
+          "#f57ec3",
+          "#ffffff",
+          "#000000"
+        ],
+        "colorWeights": [
+          "12",
+          "8",
+          "5",
+          "12",
+          "20",
+          "10",
+          "8",
+          "12",
+          "8",
+          "5",
+          "5",
+          "5",
+          "0"
+        ],
+        "noiseSeed": 113.6223423494438,
+        "oneMovePerNode": false,
+        "bakeInOut": true,
+        "blanketNodeSpeedEnabled": true,
+        "blanketNodeSpeed": 55,
+        "blanketTextSpeedEnabled": true,
+        "blanketTextSpeed": 100,
+        "nodesFlowDuringText": false,
+        "nodeMedia": {
+          "enabled": true,
+          "blend": "61",
+          "gifLoop": true
+        },
+        "text": {
+          "content": "Something something like this kind",
+          "enabled": true,
+          "typewriter": true,
+          "unit": "chars",
+          "revealSpeed": 260,
+          "clearPattern": true,
+          "clearStrict": true,
+          "fontSize": 128,
+          "fontWeight": 480,
+          "lineHeight": 95,
+          "pin": "top-left",
+          "align": "left",
+          "marginPx": 80,
+          "color": "#000000"
+        },
+        "promptText": {
+          "content": "Testing out a caption prompt like this",
+          "enabled": true,
+          "typewriter": true,
+          "unit": "words",
+          "revealSpeed": 105,
+          "fontSize": 50,
+          "fontWeight": 400,
+          "boxRadius": 0,
+          "boxColor": "#99edff",
+          "followPalette": true,
+          "lineWrapOffset": false,
+          "lineWrapOffsetPx": -52,
+          "spaceColorEnabled": true,
+          "spaceColor": "#5718c0",
+          "spaceGlitchRhythm": true,
+          "spaceGapShuffle": true,
+          "spaceGapShuffleMs": 250
+        },
+        "logo": {
+          "enabled": true,
+          "style": "brand",
+          "colorAccent": "#000000",
+          "colorDetail": "#ffffff",
+          "size": 140,
+          "marginNodes": 2,
+          "clearPattern": true,
+          "matchText": false,
+          "pin": "bottom-left"
+        }
+      }
+    },
+    {
+      "id": "user-1783035688504",
+      "name": "Procedural",
+      "builtin": false,
+      "settings": {
+        "v": 1,
+        "canvasW": 1920,
+        "canvasH": 1080,
+        "sliders": {
+          "pixSize": "80",
+          "shapeMin": "100",
+          "shapeMax": "100",
+          "megaRarity": "68",
+          "clusterDensity": "100",
+          "cornerFocus": "100",
+          "centerBias": "100",
+          "circlePct": "0",
+          "squarePct": "100",
+          "pixAmt": "240",
+          "scatter": "0",
+          "clusterN": "4",
+          "clusterBias": "0",
+          "branchLen": "16",
+          "branchSplit": "61",
+          "axisBias": "80",
+          "speed": "0",
+          "staccato": "0",
+          "waveScale": "45",
+          "gridFill": "55",
+          "streamGradient": "72",
+          "streamJitter": "65",
+          "sweepDepth": "70",
+          "waveRipples": "73",
+          "diffusionSoft": "29",
+          "glitchShift": "0",
+          "nodeMediaBlend": "0",
+          "isolines": "4",
+          "isoBand": "42",
+          "isoFill": "18",
+          "waveBuild": "37",
+          "waveFade": "85",
+          "nodeSpread": "100",
+          "pulseDepth": "11",
+          "pulseRate": "1",
+          "cornerSpread": "100",
+          "burst": "1.75",
+          "animDuration": "4"
+        },
+        "selects": {
+          "animStyle": "voxel",
+          "bgSel": "#ffffff",
+          "loopWave": "breathe",
+          "envInCurve": "easeInOut",
+          "envOutCurve": "easeInOut",
+          "pulseCurve": "sine",
+          "sweepAxis": "h",
+          "circleNodes": "2"
+        },
+        "megaTiers": [
+          2,
+          8
+        ],
+        "tonalCount": 2,
+        "activePresetId": "2-i",
+        "activeTonalColors": [
+          "#004012",
+          "#ADFF00"
+        ],
+        "customWavePoints": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 0.18,
+            "y": 0.55
+          },
+          {
+            "x": 0.38,
+            "y": 0.92
+          },
+          {
+            "x": 0.62,
+            "y": 1
+          },
+          {
+            "x": 0.82,
+            "y": 0.55
+          },
+          {
+            "x": 1,
+            "y": 0
+          }
+        ],
+        "colorAll": [
+          "#5718c0",
+          "#ab77ff",
+          "#d5b8ff",
+          "#115ef3",
+          "#3fb5fe",
+          "#c5e9ff",
+          "#99edff",
+          "#adff00",
+          "#ffff00",
+          "#ec0648",
+          "#f57ec3",
+          "#ffffff",
+          "#000000"
+        ],
+        "colorWeights": [
+          "12",
+          "8",
+          "5",
+          "12",
+          "20",
+          "10",
+          "8",
+          "12",
+          "8",
+          "5",
+          "5",
+          "5",
+          "0"
+        ],
+        "noiseSeed": 76.54354263816691,
+        "oneMovePerNode": false,
+        "bakeInOut": true,
+        "blanketNodeSpeedEnabled": false,
+        "blanketNodeSpeed": 55,
+        "blanketTextSpeedEnabled": false,
+        "blanketTextSpeed": 100,
+        "nodesFlowDuringText": false,
+        "nodeMedia": {
+          "enabled": true,
+          "blend": "0",
+          "gifLoop": true
+        },
+        "text": {
+          "content": "Something something like this kind",
+          "enabled": false,
+          "typewriter": true,
+          "unit": "chars",
+          "revealSpeed": 260,
+          "clearPattern": true,
+          "clearStrict": true,
+          "fontSize": 128,
+          "fontWeight": 480,
+          "lineHeight": 95,
+          "pin": "top-left",
+          "align": "left",
+          "marginPx": 120,
+          "color": "#000000"
+        },
+        "promptText": {
+          "content": "Testing out a caption prompt like this",
+          "enabled": false,
+          "typewriter": true,
+          "unit": "words",
+          "revealSpeed": 395,
+          "fontSize": 50,
+          "fontWeight": 400,
+          "boxRadius": 0,
+          "boxColor": "#004012",
+          "followPalette": false,
+          "lineWrapOffset": false,
+          "lineWrapOffsetPx": 8,
+          "spaceColorEnabled": false,
+          "spaceColor": "#5718c0",
+          "spaceGlitchRhythm": false,
+          "spaceGapShuffle": true,
+          "spaceGapShuffleMs": 250
+        },
+        "logo": {
+          "enabled": false,
+          "style": "brand",
+          "colorAccent": "#000000",
+          "colorDetail": "#ffffff",
+          "size": 176,
+          "marginNodes": 2,
+          "clearPattern": false,
+          "matchText": false,
+          "pin": "bottom-left"
+        }
+      }
+    },
+    {
+      "id": "user-1783088769730",
+      "name": "Procedural - Big",
+      "builtin": false,
+      "settings": {
+        "v": 1,
+        "canvasW": 1920,
+        "canvasH": 1080,
+        "sliders": {
+          "pixSize": "80",
+          "shapeMin": "100",
+          "shapeMax": "100",
+          "megaRarity": "68",
+          "clusterDensity": "100",
+          "cornerFocus": "100",
+          "centerBias": "100",
+          "circlePct": "0",
+          "squarePct": "100",
+          "pixAmt": "240",
+          "scatter": "0",
+          "clusterN": "4",
+          "clusterBias": "0",
+          "branchLen": "16",
+          "branchSplit": "61",
+          "axisBias": "80",
+          "speed": "0",
+          "staccato": "0",
+          "waveScale": "45",
+          "gridFill": "55",
+          "streamGradient": "72",
+          "streamJitter": "65",
+          "sweepDepth": "70",
+          "waveRipples": "73",
+          "diffusionSoft": "29",
+          "glitchShift": "0",
+          "nodeMediaBlend": "0",
+          "isolines": "4",
+          "isoBand": "42",
+          "isoFill": "18",
+          "waveBuild": "37",
+          "waveFade": "85",
+          "nodeSpread": "100",
+          "pulseDepth": "11",
+          "pulseRate": "1",
+          "cornerSpread": "100",
+          "burst": "1.75",
+          "animDuration": "6"
+        },
+        "selects": {
+          "animStyle": "voxel",
+          "bgSel": "#ffffff",
+          "loopWave": "breathe",
+          "envInCurve": "easeInOut",
+          "envOutCurve": "easeInOut",
+          "pulseCurve": "sine",
+          "sweepAxis": "h",
+          "circleNodes": "2"
+        },
+        "megaTiers": [
+          2,
+          6,
+          8
+        ],
+        "tonalCount": 2,
+        "activePresetId": "2-i",
+        "activeTonalColors": [
+          "#004012",
+          "#ADFF00"
+        ],
+        "customWavePoints": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 0.18,
+            "y": 0.55
+          },
+          {
+            "x": 0.38,
+            "y": 0.92
+          },
+          {
+            "x": 0.62,
+            "y": 1
+          },
+          {
+            "x": 0.82,
+            "y": 0.55
+          },
+          {
+            "x": 1,
+            "y": 0
+          }
+        ],
+        "colorAll": [
+          "#5718c0",
+          "#ab77ff",
+          "#d5b8ff",
+          "#115ef3",
+          "#3fb5fe",
+          "#c5e9ff",
+          "#99edff",
+          "#adff00",
+          "#ffff00",
+          "#ec0648",
+          "#f57ec3",
+          "#ffffff",
+          "#000000"
+        ],
+        "colorWeights": [
+          "12",
+          "8",
+          "5",
+          "12",
+          "20",
+          "10",
+          "8",
+          "12",
+          "8",
+          "5",
+          "5",
+          "5",
+          "0"
+        ],
+        "noiseSeed": 106.57165366293748,
+        "oneMovePerNode": false,
+        "bakeInOut": true,
+        "blanketNodeSpeedEnabled": false,
+        "blanketNodeSpeed": 70,
+        "blanketTextSpeedEnabled": false,
+        "blanketTextSpeed": 100,
+        "nodesFlowDuringText": false,
+        "nodeMedia": {
+          "enabled": true,
+          "blend": "0",
+          "gifLoop": true
+        },
+        "text": {
+          "content": "Something something like this kind",
+          "enabled": false,
+          "typewriter": true,
+          "unit": "chars",
+          "revealSpeed": 260,
+          "clearPattern": true,
+          "clearStrict": true,
+          "fontSize": 128,
+          "fontWeight": 480,
+          "lineHeight": 95,
+          "pin": "top-left",
+          "align": "left",
+          "marginPx": 120,
+          "color": "#000000"
+        },
+        "promptText": {
+          "content": "Testing out a caption prompt like this",
+          "enabled": false,
+          "typewriter": true,
+          "unit": "words",
+          "revealSpeed": 395,
+          "fontSize": 50,
+          "fontWeight": 400,
+          "boxRadius": 0,
+          "boxColor": "#004012",
+          "followPalette": false,
+          "lineWrapOffset": false,
+          "lineWrapOffsetPx": 8,
+          "spaceColorEnabled": false,
+          "spaceColor": "#5718c0",
+          "spaceGlitchRhythm": false,
+          "spaceGapShuffle": true,
+          "spaceGapShuffleMs": 250
+        },
+        "logo": {
+          "enabled": false,
+          "style": "brand",
+          "colorAccent": "#000000",
+          "colorDetail": "#ffffff",
+          "size": 176,
+          "marginNodes": 2,
+          "clearPattern": false,
+          "matchText": false,
+          "pin": "bottom-left"
+        }
+      }
+    },
+    {
+      "id": "user-1783308596762",
+      "name": "Procedural - Big 2",
+      "builtin": false,
+      "settings": {
+        "v": 1,
+        "canvasW": 1920,
+        "canvasH": 1080,
+        "sliders": {
+          "pixSize": "80",
+          "shapeMin": "100",
+          "shapeMax": "100",
+          "megaRarity": "68",
+          "clusterDensity": "100",
+          "cornerFocus": "100",
+          "centerBias": "100",
+          "circlePct": "0",
+          "squarePct": "100",
+          "pixAmt": "240",
+          "scatter": "0",
+          "clusterN": "4",
+          "clusterBias": "0",
+          "branchLen": "16",
+          "branchSplit": "61",
+          "axisBias": "80",
+          "speed": "0",
+          "staccato": "0",
+          "waveScale": "45",
+          "gridFill": "55",
+          "streamGradient": "72",
+          "streamJitter": "65",
+          "sweepDepth": "70",
+          "waveRipples": "73",
+          "diffusionSoft": "29",
+          "glitchShift": "0",
+          "nodeMediaBlend": "0",
+          "isolines": "4",
+          "isoBand": "42",
+          "isoFill": "18",
+          "waveBuild": "37",
+          "waveFade": "85",
+          "nodeSpread": "100",
+          "pulseDepth": "11",
+          "pulseRate": "1",
+          "cornerSpread": "100",
+          "burst": "1.75",
+          "animDuration": "6"
+        },
+        "selects": {
+          "animStyle": "voxel",
+          "bgSel": "#ffffff",
+          "loopWave": "breathe",
+          "envInCurve": "easeInOut",
+          "envOutCurve": "easeInOut",
+          "pulseCurve": "sine",
+          "sweepAxis": "h",
+          "circleNodes": "2"
+        },
+        "megaTiers": [
+          2,
+          6,
+          8
+        ],
+        "tonalCount": 2,
+        "activePresetId": "2-d",
+        "activeTonalColors": [
+          "#403700",
+          "#99EDFF"
+        ],
+        "customWavePoints": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 0.18,
+            "y": 0.55
+          },
+          {
+            "x": 0.38,
+            "y": 0.92
+          },
+          {
+            "x": 0.62,
+            "y": 1
+          },
+          {
+            "x": 0.82,
+            "y": 0.55
+          },
+          {
+            "x": 1,
+            "y": 0
+          }
+        ],
+        "colorAll": [
+          "#5718c0",
+          "#ab77ff",
+          "#d5b8ff",
+          "#115ef3",
+          "#3fb5fe",
+          "#c5e9ff",
+          "#99edff",
+          "#adff00",
+          "#ffff00",
+          "#ec0648",
+          "#f57ec3",
+          "#ffffff",
+          "#000000"
+        ],
+        "colorWeights": [
+          "12",
+          "8",
+          "5",
+          "12",
+          "20",
+          "10",
+          "8",
+          "12",
+          "8",
+          "5",
+          "5",
+          "5",
+          "0"
+        ],
+        "noiseSeed": 106.8928038628059,
+        "oneMovePerNode": false,
+        "bakeInOut": true,
+        "blanketNodeSpeedEnabled": false,
+        "blanketNodeSpeed": 70,
+        "blanketTextSpeedEnabled": false,
+        "blanketTextSpeed": 100,
+        "nodesFlowDuringText": false,
+        "nodeMedia": {
+          "enabled": true,
+          "blend": "0",
+          "gifLoop": true
+        },
+        "text": {
+          "content": "Something something like this kind",
+          "enabled": false,
+          "typewriter": true,
+          "unit": "chars",
+          "revealSpeed": 260,
+          "clearPattern": true,
+          "clearStrict": true,
+          "fontSize": 128,
+          "fontWeight": 480,
+          "lineHeight": 95,
+          "pin": "top-left",
+          "align": "left",
+          "marginPx": 120,
+          "color": "#000000"
+        },
+        "promptText": {
+          "content": "Testing out a caption prompt like this",
+          "enabled": false,
+          "typewriter": true,
+          "unit": "words",
+          "revealSpeed": 395,
+          "fontSize": 50,
+          "fontWeight": 400,
+          "boxRadius": 0,
+          "boxColor": "#004012",
+          "followPalette": false,
+          "lineWrapOffset": false,
+          "lineWrapOffsetPx": 8,
+          "spaceColorEnabled": false,
+          "spaceColor": "#5718c0",
+          "spaceGlitchRhythm": false,
+          "spaceGapShuffle": true,
+          "spaceGapShuffleMs": 250
+        },
+        "logo": {
+          "enabled": false,
+          "style": "brand",
+          "colorAccent": "#000000",
+          "colorDetail": "#ffffff",
+          "size": 176,
+          "marginNodes": 2,
+          "clearPattern": false,
+          "matchText": false,
+          "pin": "bottom-left"
+        }
+      }
+    },
+    {
+      "id": "user-1783309274276",
+      "name": "Procedural - Big 3",
+      "builtin": false,
+      "settings": {
+        "v": 1,
+        "canvasW": 1920,
+        "canvasH": 1080,
+        "sliders": {
+          "pixSize": "80",
+          "shapeMin": "100",
+          "shapeMax": "100",
+          "megaRarity": "68",
+          "clusterDensity": "100",
+          "cornerFocus": "100",
+          "centerBias": "100",
+          "circlePct": "0",
+          "squarePct": "100",
+          "pixAmt": "240",
+          "scatter": "0",
+          "clusterN": "4",
+          "clusterBias": "0",
+          "branchLen": "16",
+          "branchSplit": "61",
+          "axisBias": "80",
+          "speed": "0",
+          "staccato": "0",
+          "waveScale": "45",
+          "gridFill": "55",
+          "streamGradient": "72",
+          "streamJitter": "65",
+          "sweepDepth": "70",
+          "waveRipples": "73",
+          "diffusionSoft": "29",
+          "glitchShift": "0",
+          "nodeMediaBlend": "0",
+          "isolines": "4",
+          "isoBand": "42",
+          "isoFill": "18",
+          "waveBuild": "37",
+          "waveFade": "85",
+          "nodeSpread": "100",
+          "pulseDepth": "11",
+          "pulseRate": "1",
+          "cornerSpread": "100",
+          "burst": "1.75",
+          "animDuration": "6"
+        },
+        "selects": {
+          "animStyle": "voxel",
+          "bgSel": "#ffffff",
+          "loopWave": "breathe",
+          "envInCurve": "easeInOut",
+          "envOutCurve": "easeInOut",
+          "pulseCurve": "sine",
+          "sweepAxis": "h",
+          "circleNodes": "2"
+        },
+        "megaTiers": [
+          3,
+          6,
+          8
+        ],
+        "tonalCount": 2,
+        "activePresetId": "2-a",
+        "activeTonalColors": [
+          "#99EDFF",
+          "#5718C0"
+        ],
+        "customWavePoints": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 0.18,
+            "y": 0.55
+          },
+          {
+            "x": 0.38,
+            "y": 0.92
+          },
+          {
+            "x": 0.62,
+            "y": 1
+          },
+          {
+            "x": 0.82,
+            "y": 0.55
+          },
+          {
+            "x": 1,
+            "y": 0
+          }
+        ],
+        "colorAll": [
+          "#5718c0",
+          "#ab77ff",
+          "#d5b8ff",
+          "#115ef3",
+          "#3fb5fe",
+          "#c5e9ff",
+          "#99edff",
+          "#adff00",
+          "#ffff00",
+          "#ec0648",
+          "#f57ec3",
+          "#ffffff",
+          "#000000"
+        ],
+        "colorWeights": [
+          "12",
+          "8",
+          "5",
+          "12",
+          "20",
+          "10",
+          "8",
+          "12",
+          "8",
+          "5",
+          "5",
+          "5",
+          "0"
+        ],
+        "noiseSeed": 141.62034585517162,
+        "oneMovePerNode": false,
+        "bakeInOut": true,
+        "blanketNodeSpeedEnabled": false,
+        "blanketNodeSpeed": 70,
+        "blanketTextSpeedEnabled": false,
+        "blanketTextSpeed": 100,
+        "nodesFlowDuringText": false,
+        "nodeMedia": {
+          "enabled": true,
+          "blend": "0",
+          "gifLoop": true
+        },
+        "text": {
+          "content": "Something something like this kind",
+          "enabled": false,
+          "typewriter": false,
+          "unit": "chars",
+          "revealSpeed": 260,
+          "clearPattern": true,
+          "clearStrict": true,
+          "fontSize": 128,
+          "fontWeight": 480,
+          "lineHeight": 95,
+          "pin": "top-left",
+          "align": "left",
+          "marginPx": 120,
+          "color": "#000000"
+        },
+        "promptText": {
+          "content": "Testing out a caption prompt like this",
+          "enabled": false,
+          "typewriter": true,
+          "unit": "words",
+          "revealSpeed": 395,
+          "fontSize": 50,
+          "fontWeight": 400,
+          "boxRadius": 0,
+          "boxColor": "#000000",
+          "followPalette": false,
+          "lineWrapOffset": false,
+          "lineWrapOffsetPx": 8,
+          "spaceColorEnabled": true,
+          "spaceColor": "#ffffff",
+          "spaceGlitchRhythm": true,
+          "spaceGapShuffle": false,
+          "spaceGapShuffleMs": 250
+        },
+        "logo": {
+          "enabled": false,
+          "style": "dark",
+          "colorAccent": "#000000",
+          "colorDetail": "#ffffff",
+          "size": 176,
+          "marginNodes": 2,
+          "clearPattern": false,
+          "matchText": false,
+          "pin": "bottom-left"
+        }
+      }
+    }
+  ]
+}

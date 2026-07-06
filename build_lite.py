@@ -10,7 +10,7 @@ html = src
 html = html.replace("<title>fal — Glitch Dust</title>", "<title>fal — Glitch Dust Lite</title>")
 html = html.replace(
     '<script src="dial-sliders.js"></script>',
-    '<script src="dial-sliders.js"></script>\n<link rel="stylesheet" href="lite-ui.css">\n<script>window.GLITCH_DUST_LITE = true;</script>\n<script src="lite-ui.js"></script>',
+    '<script src="dial-sliders.js"></script>\n<script src="preset-io.js"></script>\n<link rel="stylesheet" href="lite-ui.css">\n<script>window.GLITCH_DUST_LITE = true;</script>\n<script src="lite-ui.js"></script>',
 )
 html = html.replace("<body>", '<body class="lite-app">')
 html = html.replace(
@@ -34,8 +34,8 @@ new_header = """<aside class="sidebar">
   <div class="sect">Presets</div>
   <div id="litePresetGrid" class="lite-preset-grid"></div>
   <div class="lite-preset-actions">
-    <button type="button" id="litePresetImport" class="primary">Import preset…</button>
-    <button type="button" id="litePresetExport">Export JSON</button>
+    <button type="button" id="litePresetImport" class="primary">Import presets…</button>
+    <button type="button" id="litePresetExport">Export all presets</button>
     <input type="file" id="litePresetImportFile" accept="application/json,.json" hidden>
   </div>
   <p class="hint lite-full-link">Craft looks in the <a href="index.html">full editor</a>, export JSON, import here.</p>

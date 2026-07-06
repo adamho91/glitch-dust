@@ -436,9 +436,12 @@
   .dialkit-controls .dial-slider-active .dial-value { color: rgba(255, 255, 255, 0.95); }
 </style>
 <script src="dial-sliders.js"></script>
+<script src="preset-io.js"></script>
 <link rel="stylesheet" href="lite-ui.css">
 <script>window.GLITCH_DUST_LITE = true;</script>
 <script src="lite-ui.js"></script>
+<script src="default-presets.js"></script>
+<script src="preset-io.js"></script>
 </head>
 <body class="lite-app">
 <div class="app">
@@ -450,8 +453,8 @@
   <div class="sect">Presets</div>
   <div id="litePresetGrid" class="lite-preset-grid"></div>
   <div class="lite-preset-actions">
-    <button type="button" id="litePresetImport" class="primary">Import preset…</button>
-    <button type="button" id="litePresetExport">Export JSON</button>
+    <button type="button" id="litePresetImport" class="primary">Import presets…</button>
+    <button type="button" id="litePresetExport">Export all presets</button>
     <input type="file" id="litePresetImportFile" accept="application/json,.json" hidden>
   </div>
   <p class="hint lite-full-link">Craft looks in the <a href="index.html">full editor</a>, export JSON, import here.</p>
@@ -461,8 +464,8 @@
     <select id="presetSelect"></select>
     <button type="button" id="presetSave" class="primary" title="Save current settings">Save</button>
     <button type="button" id="presetSaveAs" title="Save as new preset">+</button>
-    <button type="button" id="presetImport" title="Import preset JSON">Import</button>
-    <button type="button" id="presetExport" title="Export preset JSON">Export</button>
+    <button type="button" id="presetImport" title="Import preset library JSON">Import</button>
+    <button type="button" id="presetExport" title="Export all local presets">Export</button>
     <button type="button" id="presetDelete" class="danger" title="Delete preset">×</button>
     <input type="file" id="presetImportFile" accept="application/json,.json" hidden>
   </div>
@@ -6378,7 +6381,7 @@ const DEFAULT_LOGO_SETTINGS = {
 const PRESET_STORAGE_KEY = 'falGlitchDustPresets_v1';
 const BUILTIN_DEFAULT_ID = 'builtin-default';
 const BUILTIN_TRANSITION_ID = 'builtin-transition';
-const BUILTIN_DEFAULTS_REV = 4;
+const BUILTIN_DEFAULTS_REV = 5;
 let presetStore = null;
 let presetApplyInProgress = false;
 let presetAutosaveTimer = null;
@@ -6438,138 +6441,37 @@ function setExportModal(open, pct, msg, frame) {
 
 const SETTING_SELECTS = ['animStyle', 'bgSel', 'loopWave', 'envInCurve', 'envOutCurve', 'pulseCurve', 'sweepAxis', 'circleNodes'];
 
-const BUILTIN_DEFAULT_SETTINGS = {
-  v: 1,
-  canvasW: 1920,
-  canvasH: 1080,
-  sliders: {
-    pixSize: 60, shapeMin: 67, shapeMax: 100, megaRarity: 100,
-    clusterDensity: 88, cornerFocus: 0, centerBias: 0, circlePct: 50, squarePct: 50,
-    cornerSpread: 0, pixAmt: 240, scatter: 0, clusterN: 4, clusterBias: 0,
-    branchLen: 16, branchSplit: 61, axisBias: 80, speed: 8, staccato: 40,
-    waveScale: 45, gridFill: 55, streamGradient: 72, streamJitter: 65,
-    sweepDepth: 38, waveRipples: 32, diffusionSoft: 45, glitchShift: 0,
-    nodeMediaBlend: 0,
-    isolines: 4, isoBand: 42, isoFill: 18, waveBuild: 38, waveFade: 62,
-    nodeSpread: 58, pulseDepth: 32, pulseRate: 5, animDuration: 3.5, burst: 1.75,
-  },
-  selects: {
-    animStyle: 'voxel', bgSel: '#ffffff', loopWave: 'breathe',
-    envInCurve: 'smooth', envOutCurve: 'smooth', pulseCurve: 'sine',
-    sweepAxis: 'v', circleNodes: '2',
-  },
-  megaTiers: [2],
-  tonalCount: 2,
-  activePresetId: '2-b',
-  activeTonalColors: ['#FFC4D8', '#EC0648'],
-  customWavePoints: [
-    { x: 0, y: 0 }, { x: 0.18, y: 0.55 }, { x: 0.38, y: 0.92 },
-    { x: 0.62, y: 1 }, { x: 0.82, y: 0.55 }, { x: 1, y: 0 },
-  ],
-  colorAll: ['#99EDFF', '#5718C0', '#EC0648', '#004012', '#FFFF00'],
-  colorWeights: [20, 20, 20, 20, 20],
-  noiseSeed: 42.5,
-  oneMovePerNode: false,
-  bakeInOut: false,
-  blanketNodeSpeedEnabled: false,
-  blanketNodeSpeed: 100,
-  blanketTextSpeedEnabled: false,
-  blanketTextSpeed: 100,
-  nodesFlowDuringText: false,
-  text: { ...DEFAULT_TEXT_SETTINGS },
-  promptText: { ...DEFAULT_PROMPT_SETTINGS },
-  logo: { ...DEFAULT_LOGO_SETTINGS },
-};
-
-const BUILTIN_TRANSITION_SETTINGS = {
-  v: 1,
-  canvasW: 1920,
-  canvasH: 1080,
-  sliders: {
-    pixSize: 60, shapeMin: 28, shapeMax: 100, megaRarity: 35,
-    clusterDensity: 70, cornerFocus: 0, centerBias: 0, circlePct: 50, squarePct: 50,
-    cornerSpread: 0, pixAmt: 240, scatter: 0, clusterN: 4, clusterBias: 0,
-    branchLen: 16, branchSplit: 61, axisBias: 80, speed: 4, staccato: 0,
-    waveScale: 42, gridFill: 55, streamGradient: 72, streamJitter: 65,
-    sweepDepth: 0, waveRipples: 0, diffusionSoft: 15, glitchShift: 0,
-    isolines: 4, isoBand: 38, isoFill: 24, waveBuild: 30, waveFade: 70,
-    nodeSpread: 12, pulseDepth: 0, pulseRate: 3, animDuration: 5, burst: 1.75,
-  },
-  selects: {
-    animStyle: 'voxel', bgSel: '#ffffff', loopWave: 'breathe',
-    envInCurve: 'easeOut', envOutCurve: 'easeIn', pulseCurve: 'none',
-    sweepAxis: 'v', circleNodes: '2',
-  },
-  megaTiers: [2],
-  tonalCount: 2,
-  activePresetId: '2-b',
-  activeTonalColors: ['#FFC4D8', '#EC0648'],
-  customWavePoints: [
-    { x: 0, y: 0 }, { x: 0.18, y: 0.55 }, { x: 0.38, y: 0.92 },
-    { x: 0.62, y: 1 }, { x: 0.82, y: 0.55 }, { x: 1, y: 0 },
-  ],
-  colorAll: ['#99EDFF', '#5718C0', '#EC0648', '#004012', '#FFFF00'],
-  colorWeights: [20, 20, 20, 20, 20],
-  noiseSeed: 42.5,
-  oneMovePerNode: false,
-  bakeInOut: true,
-  text: { ...DEFAULT_TEXT_SETTINGS },
-  promptText: { ...DEFAULT_PROMPT_SETTINGS },
-  logo: { ...DEFAULT_LOGO_SETTINGS },
-};
-
 function cloneSettings(obj) {
   return JSON.parse(JSON.stringify(obj));
 }
 
 function createDefaultPresetStore() {
-  return {
-    version: 1,
-    builtinDefaultsRev: BUILTIN_DEFAULTS_REV,
-    activeId: BUILTIN_TRANSITION_ID,
-    presets: [
-      {
-        id: BUILTIN_TRANSITION_ID,
-        name: 'Transition In/Out',
-        builtin: true,
-        settings: cloneSettings(BUILTIN_TRANSITION_SETTINGS),
-      },
-      {
-        id: BUILTIN_DEFAULT_ID,
-        name: 'Default',
-        builtin: true,
-        settings: cloneSettings(BUILTIN_DEFAULT_SETTINGS),
-      },
-    ],
-  };
+  const store = getDefaultPresetStoreTemplate();
+  store.builtinDefaultsRev = BUILTIN_DEFAULTS_REV;
+  return store;
 }
 
 function syncBuiltinPresets(store) {
   if ((store.builtinDefaultsRev || 0) >= BUILTIN_DEFAULTS_REV) return;
 
-  let transition = store.presets.find(p => p.id === BUILTIN_TRANSITION_ID);
-  if (!transition) {
-    transition = {
-      id: BUILTIN_TRANSITION_ID,
-      name: 'Transition In/Out',
-      builtin: true,
-      settings: cloneSettings(BUILTIN_TRANSITION_SETTINGS),
-    };
-    const defaultIdx = store.presets.findIndex(p => p.id === BUILTIN_DEFAULT_ID);
-    if (defaultIdx >= 0) store.presets.splice(defaultIdx, 0, transition);
-    else store.presets.unshift(transition);
-  } else {
-    transition.name = 'Transition In/Out';
-    transition.settings = cloneSettings(BUILTIN_TRANSITION_SETTINGS);
-  }
-
-  const builtin = store.presets.find(p => p.id === BUILTIN_DEFAULT_ID);
-  if (builtin) builtin.settings = cloneSettings(BUILTIN_DEFAULT_SETTINGS);
+  const defaults = getDefaultPresetStoreTemplate();
+  defaults.presets.forEach(def => {
+    const existing = store.presets.find(p => p.id === def.id);
+    if (existing) {
+      existing.name = def.name;
+      existing.builtin = def.builtin;
+      existing.settings = cloneSettings(def.settings);
+    } else {
+      store.presets.push({
+        id: def.id,
+        name: def.name,
+        builtin: def.builtin,
+        settings: cloneSettings(def.settings),
+      });
+    }
+  });
 
   store.builtinDefaultsRev = BUILTIN_DEFAULTS_REV;
-  if (store.activeId === BUILTIN_DEFAULT_ID) {
-    store.activeId = BUILTIN_TRANSITION_ID;
-  }
 }
 
 function loadPresetStore() {
@@ -6913,16 +6815,14 @@ function initPresetSystem() {
 
   document.getElementById('presetExport').onclick = () => {
     saveActivePresetFromUI();
-    const preset = getActivePreset();
-    if (!preset) return;
-    const payload = { v: 1, name: preset.name, settings: preset.settings };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = (preset.name || 'glitch-dust-preset').replace(/[^\w\-]+/g, '_') + '.json';
-    a.click();
-    URL.revokeObjectURL(a.href);
-    document.getElementById('status').textContent = `Exported preset “${preset.name}”.`;
+    try {
+      const payload = PresetIO.buildPresetLibraryExport(presetStore);
+      PresetIO.downloadPresetJson(payload, 'glitch-dust-presets');
+      document.getElementById('status').textContent =
+        `Exported ${payload.presets.length} preset${payload.presets.length === 1 ? '' : 's'}.`;
+    } catch (err) {
+      document.getElementById('status').textContent = 'Export failed: ' + (err.message || 'unknown error');
+    }
   };
 
   document.getElementById('presetImport').onclick = () => {
@@ -6938,17 +6838,21 @@ function initPresetSystem() {
     reader.onload = () => {
       try {
         const data = JSON.parse(reader.result);
-        const settings = data.settings || data;
-        const name = (data.name || file.name.replace(/\.json$/i, '') || 'Imported preset').trim();
-        if (!settings || !settings.sliders) throw new Error('Invalid preset JSON');
-        const id = 'user-' + Date.now();
-        presetStore.presets.push({ id, name, settings });
-        presetStore.activeId = id;
-        applySettings(settings);
+        const result = PresetIO.importPresetData(
+          presetStore,
+          data,
+          file.name.replace(/\.json$/i, ''),
+          { builtinDefaultId: BUILTIN_DEFAULT_ID, builtinTransitionId: BUILTIN_TRANSITION_ID }
+        );
+        applySettings(getActivePreset().settings);
         persistPresetStore();
         renderPresetSelect();
-        document.getElementById('presetName').value = name;
-        document.getElementById('status').textContent = `Imported preset “${name}”.`;
+        document.getElementById('presetName').value = getActivePreset().name;
+        if (typeof syncDialSliders === 'function') syncDialSliders();
+        document.getElementById('status').textContent =
+          result.mode === 'library'
+            ? `Imported ${result.added} preset${result.added === 1 ? '' : 's'}${result.skipped ? ` (${result.skipped} built-in skipped)` : ''}.`
+            : `Imported preset “${getActivePreset().name}”.`;
       } catch (err) {
         document.getElementById('status').textContent = 'Import failed: ' + (err.message || 'invalid JSON');
       }
