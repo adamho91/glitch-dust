@@ -82,6 +82,8 @@
   let exportCancelRequested = false;
   let exportRunMeta = { format: '', fps: 0, totalFrames: 0 };
   let mp4MuxerModule = null;
+  let focalUprightDataUrlPromise = null;
+  let exportFontRegistered = false;
 
   const SLIDER_IDS = [
     'fontSize', 'barHeight', 'barPad', 'barMaxWidth', 'typeSpeed',
@@ -808,35 +810,142 @@
   }
 
   function parseFontFamily(raw) {
-    if (!raw) return '"Focal Upright", sans-serif';
-    return raw.replace(/^['"]|['"]$/g, '').split(',')[0].trim();
+    if (!raw) return 'Focal Upright';
+    const first = raw.split(',')[0].trim().replace(/^['"]+|['"]+$/g, '');
+    return first || 'Focal Upright';
+  }
+
+  function bytesToBase64(bytes) {
+    let binary = '';
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+    }
+    return btoa(binary);
+  }
+
+  async function fetchFontArrayBuffer(path) {
+    try {
+      const res = await fetch(path);
+      if (res.ok) return res.arrayBuffer();
+    } catch (e) {}
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('GET', path, true);
+      xhr.responseType = 'arraybuffer';
+      xhr.onload = () => {
+        if (xhr.status === 0 || xhr.status === 200) resolve(xhr.response);
+        else reject(new Error('font xhr ' + xhr.status));
+      };
+      xhr.onerror = () => reject(new Error('font xhr error'));
+      xhr.send();
+    });
+  }
+
+  function getFontLoadPaths() {
+    const paths = ['Focal-Upright-VF_wght.ttf', './Focal-Upright-VF_wght.ttf', 'fonts/Focal-Upright-VF_wght.ttf'];
+    try {
+      const base = document.baseURI || window.location.href;
+      ['Focal-Upright-VF_wght.ttf', 'fonts/Focal-Upright-VF_wght.ttf'].forEach(rel => {
+        const url = new URL(rel, base);
+        if (url.protocol === 'file:') paths.push(decodeURIComponent(url.pathname));
+        else paths.push(url.href);
+      });
+    } catch (e) {}
+    return [...new Set(paths)];
+  }
+
+  async function loadFocalUprightDataUrl() {
+    if (!focalUprightDataUrlPromise) {
+      focalUprightDataUrlPromise = (async () => {
+        let lastErr;
+        for (const path of getFontLoadPaths()) {
+          try {
+            const buf = await fetchFontArrayBuffer(path);
+            return 'data:font/ttf;base64,' + bytesToBase64(new Uint8Array(buf));
+          } catch (e) {
+            lastErr = e;
+          }
+        }
+        throw lastErr || new Error('Focal-Upright-VF_wght.ttf not found');
+      })();
+    }
+    return focalUprightDataUrlPromise;
+  }
+
+  async function registerExportFontFace(dataUrl) {
+    if (!dataUrl || !document.fonts || exportFontRegistered) return;
+    const face = new FontFace('Focal Upright', 'url(' + dataUrl + ')', { weight: '100 900', style: 'normal' });
+    await face.load();
+    try {
+      document.fonts.add(face);
+    } catch (e) {
+      if (![...document.fonts].some(f => f.family === 'Focal Upright')) throw e;
+    }
+    exportFontRegistered = true;
+  }
+
+  function getExportSvgMount() {
+    let mount = document.getElementById('exportSvgMount');
+    if (!mount) {
+      mount = document.createElement('div');
+      mount.id = 'exportSvgMount';
+      mount.setAttribute('aria-hidden', 'true');
+      mount.style.cssText = 'position:fixed;left:-24000px;top:0;overflow:hidden;width:0;height:0;pointer-events:none;';
+      document.body.appendChild(mount);
+    }
+    return mount;
+  }
+
+  function injectSvgExportFont(clone, fontDataUrl) {
+    if (!fontDataUrl) return;
+    let defs = clone.querySelector('defs');
+    if (!defs) {
+      defs = document.createElementNS(SVG_NS, 'defs');
+      clone.insertBefore(defs, clone.firstChild);
+    }
+    let styleEl = defs.querySelector('#exportOverlayFont');
+    if (!styleEl) {
+      styleEl = document.createElementNS(SVG_NS, 'style');
+      styleEl.setAttribute('id', 'exportOverlayFont');
+      defs.insertBefore(styleEl, defs.firstChild);
+    }
+    styleEl.textContent =
+      "@font-face{font-family:'Focal Upright';src:url('" + fontDataUrl + "') format('truetype');font-weight:100 900;font-style:normal;}";
   }
 
   function drawExportSvgTexts(ctx, svgEl) {
     svgEl.querySelectorAll('text').forEach(textEl => {
-      const ctm = textEl.getCTM && textEl.getCTM();
-      if (!ctm) return;
+      const opacity = collectSvgTextOpacity(textEl);
+      if (opacity <= 0.001) return;
+
       const fontSize = parseFloat(textEl.getAttribute('font-size') || '16');
       const fontWeight = textEl.getAttribute('font-weight') || '400';
       const fill = textEl.getAttribute('fill') || '#000000';
       const anchor = textEl.getAttribute('text-anchor') || 'start';
       const baseline = textEl.getAttribute('dominant-baseline') || 'auto';
       const letterSpacing = parseFloat(textEl.getAttribute('letter-spacing') || '0');
-      const opacity = collectSvgTextOpacity(textEl);
       const family = parseFontFamily(textEl.getAttribute('font-family'));
+      const x = parseFloat(textEl.getAttribute('x') || '0');
+      const y = parseFloat(textEl.getAttribute('y') || '0');
+      const content = textEl.textContent || '';
+      if (!content) return;
 
       ctx.save();
-      ctx.transform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.e, ctm.f);
       ctx.font = fontWeight + ' ' + fontSize + 'px "' + family + '", sans-serif';
       ctx.fillStyle = fill;
       ctx.globalAlpha *= opacity;
       if (letterSpacing && 'letterSpacing' in ctx) ctx.letterSpacing = letterSpacing + 'px';
       ctx.textAlign = canvasTextAlignFromSvg(anchor);
       ctx.textBaseline = canvasTextBaselineFromSvg(baseline);
-      const x = parseFloat(textEl.getAttribute('x') || '0');
-      const y = parseFloat(textEl.getAttribute('y') || '0');
-      const content = textEl.textContent || '';
-      if (content) ctx.fillText(content, x, y);
+
+      const ctm = textEl.getCTM && textEl.getCTM();
+      if (ctm) {
+        ctx.transform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.e, ctm.f);
+        ctx.fillText(content, x, y);
+      } else {
+        ctx.fillText(content, x, y);
+      }
       ctx.restore();
     });
   }
@@ -870,6 +979,12 @@
   }
 
   async function preloadExportFonts() {
+    try {
+      const dataUrl = await loadFocalUprightDataUrl();
+      await registerExportFontFace(dataUrl);
+    } catch (e) {
+      console.warn('Lower-thirds export font load failed:', e);
+    }
     if (!document.fonts || !document.fonts.load) return;
     const fontSize = v('fontSize') || 50;
     await Promise.all([
@@ -881,12 +996,36 @@
 
   async function renderProgressToCanvas(ctx, progress, dw, dh) {
     renderAtProgress(progress);
+
+    let fontDataUrl = null;
+    try {
+      fontDataUrl = await loadFocalUprightDataUrl();
+      await registerExportFontFace(fontDataUrl);
+    } catch (e) {}
+
     const clone = svg.cloneNode(true);
-    clone.querySelectorAll('text').forEach(node => node.remove());
+    if (fontDataUrl) injectSvgExportFont(clone, fontDataUrl);
+    clone.setAttribute('width', String(W));
+    clone.setAttribute('height', String(H));
+    clone.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    clone.setAttribute('xmlns', SVG_NS);
+
+    const textNodes = [...clone.querySelectorAll('text')];
+    const textRestore = textNodes.map(node => ({
+      node,
+      parent: node.parentNode,
+      next: node.nextSibling,
+    }));
+    textNodes.forEach(node => node.remove());
+
+    const mount = getExportSvgMount();
+    mount.replaceChildren(clone);
+
     const blob = new Blob(
       [new XMLSerializer().serializeToString(clone)],
       { type: 'image/svg+xml;charset=utf-8' }
     );
+
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = 1;
@@ -894,17 +1033,25 @@
     ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, dw, dh);
     await rasterizeSvgBlobToCanvas(ctx, blob, dw, dh);
+
+    textRestore.forEach(({ node, parent, next }) => {
+      if (next && next.parentNode === parent) parent.insertBefore(node, next);
+      else parent.appendChild(node);
+    });
+
     const sx = dw / W;
     const sy = dh / H;
     if (sx !== 1 || sy !== 1) {
       ctx.save();
       ctx.scale(sx, sy);
-      drawExportSvgTexts(ctx, svg);
+      drawExportSvgTexts(ctx, clone);
       ctx.restore();
     } else {
-      drawExportSvgTexts(ctx, svg);
+      drawExportSvgTexts(ctx, clone);
     }
     ctx.restore();
+
+    mount.replaceChildren();
   }
 
   function resolveAssetUrl(rel) {
