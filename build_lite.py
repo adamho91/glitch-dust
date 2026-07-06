@@ -68,11 +68,30 @@ html = html.replace(
     1,
 )
 
-html = html.replace(
-    '  <div class="hint">fal brand combos — faded chip = suggested background.</div>\n\n  <div class="sect">Custom Weights',
-    '  <div class="hint">fal brand combos — faded chip = suggested background.</div>\n\n  <div class="lite-text-block">\n  <div class="sect">Headline</div>\n  <textarea id="overlayText" class="text-area" placeholder="Headline text…" spellcheck="false"></textarea>\n  </div>\n  <div class="lite-text-block">\n  <div class="sect">Prompt</div>\n  <textarea id="promptText" class="text-area" placeholder="Caption / prompt…" spellcheck="false" style="min-height:52px"></textarea>\n  </div>\n\n  <div class="ctrl-check lite-logo-toggle">\n    <input type="checkbox" id="liteLogoEnabled">\n    <label for="liteLogoEnabled">Show fal logo</label>\n  </div>\n\n  <div class="lite-hide">\n  <div class="sect">Custom Weights',
-    1,
-)
+LITE_SIDEBAR_TEXT = """
+  <div class="lite-text-block">
+  <div class="sect">Headline</div>
+  <textarea id="overlayText" class="text-area" placeholder="Headline text…" spellcheck="false"></textarea>
+  </div>
+  <div class="lite-text-block">
+  <div class="sect">Prompt</div>
+  <textarea id="promptText" class="text-area" placeholder="Caption / prompt…" spellcheck="false" style="min-height:52px"></textarea>
+  </div>
+
+  <div class="ctrl-check lite-logo-toggle">
+    <input type="checkbox" id="liteLogoEnabled">
+    <label for="liteLogoEnabled">Show fal logo</label>
+  </div>
+
+  <div class="lite-hide">
+"""
+
+custom_weights_marker = '  <div class="sect">Custom Weights'
+tonal_presets_pos = html.find('id="tonalPresets"')
+custom_weights_pos = html.find(custom_weights_marker)
+if tonal_presets_pos == -1 or custom_weights_pos == -1 or tonal_presets_pos > custom_weights_pos:
+    raise SystemExit("Could not find tonal presets / Custom Weights marker for lite sidebar text")
+html = html[:custom_weights_pos] + LITE_SIDEBAR_TEXT + html[custom_weights_pos:]
 
 html = html.replace(
     '    <div class="btn-row action-play">',
@@ -119,6 +138,11 @@ html = html.replace(
     "initPresetSystem();\nif (typeof initLiteUi === 'function') initLiteUi();\nupdateTextMarginLabel();",
     1,
 )
+
+if 'id="overlayText"' not in html or 'id="promptText"' not in html:
+    raise SystemExit("lite build missing overlayText/promptText in sidebar")
+if 'id="overlayTextStub"' not in html:
+    raise SystemExit("lite build missing canvas textarea stubs")
 
 (ROOT / "lite.html").write_text(html, encoding="utf-8")
 print("Wrote lite.html")
