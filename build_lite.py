@@ -68,7 +68,7 @@ html = html.replace(
 
 html = html.replace(
     '  <div class="hint">fal brand combos — faded chip = suggested background.</div>\n\n  <div class="sect">Custom Weights',
-    '  <div class="hint">fal brand combos — faded chip = suggested background.</div>\n\n  <div class="lite-text-block">\n  <div class="sect">Headline</div>\n  <textarea id="overlayText" class="text-area" placeholder="Headline text…" spellcheck="false"></textarea>\n  </div>\n  <div class="lite-text-block">\n  <div class="sect">Prompt</div>\n  <textarea id="promptText" class="text-area" placeholder="Caption / prompt…" spellcheck="false" style="min-height:52px"></textarea>\n  </div>\n\n  <div class="lite-hide">\n  <div class="sect">Custom Weights',
+    '  <div class="hint">fal brand combos — faded chip = suggested background.</div>\n\n  <div class="lite-text-block">\n  <div class="sect">Headline</div>\n  <textarea id="overlayText" class="text-area" placeholder="Headline text…" spellcheck="false"></textarea>\n  </div>\n  <div class="lite-text-block">\n  <div class="sect">Prompt</div>\n  <textarea id="promptText" class="text-area" placeholder="Caption / prompt…" spellcheck="false" style="min-height:52px"></textarea>\n  </div>\n\n  <div class="ctrl-check lite-logo-toggle">\n    <input type="checkbox" id="liteLogoEnabled">\n    <label for="liteLogoEnabled">Show fal logo</label>\n  </div>\n\n  <div class="lite-hide">\n  <div class="sect">Custom Weights',
     1,
 )
 

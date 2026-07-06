@@ -49,6 +49,7 @@
       btn.onclick = () => {
         presetStore.activeId = p.id;
         applySettings(p.settings);
+        syncLiteControlsFromSettings(p.settings);
         renderLitePresetGrid();
         if (typeof renderPresetSelect === 'function') renderPresetSelect();
         persistPresetStore();
@@ -107,7 +108,7 @@
     reader.readAsText(file);
   }
 
-  function syncLiteTextFromSettings(settings) {
+  function syncLiteControlsFromSettings(settings) {
     if (!settings) return;
     const headline = document.getElementById('overlayText');
     const prompt = document.getElementById('promptText');
@@ -119,6 +120,32 @@
     if (settings.promptText && document.getElementById('promptEnabled')) {
       document.getElementById('promptEnabled').checked = settings.promptText.enabled === true;
     }
+    const liteLogo = document.getElementById('liteLogoEnabled');
+    const logo = document.getElementById('logoEnabled');
+    if (liteLogo && logo) {
+      const enabled = settings.logo && settings.logo.enabled === true;
+      logo.checked = enabled;
+      liteLogo.checked = enabled;
+      if (typeof refreshLogoOverlay === 'function') refreshLogoOverlay();
+    }
+  }
+
+  function syncLiteTextFromSettings(settings) {
+    syncLiteControlsFromSettings(settings);
+  }
+
+  function wireLiteLogoToggle() {
+    const lite = document.getElementById('liteLogoEnabled');
+    const logo = document.getElementById('logoEnabled');
+    if (!lite || !logo || lite.dataset.liteWired === 'true') return;
+    lite.dataset.liteWired = 'true';
+    lite.checked = logo.checked;
+    lite.addEventListener('change', () => {
+      logo.checked = lite.checked;
+      if (typeof refreshLogoOverlay === 'function') refreshLogoOverlay();
+      if (typeof drawFrame === 'function') drawFrame(performance.now());
+      if (typeof schedulePresetAutosave === 'function') schedulePresetAutosave();
+    });
   }
 
   function initLiteAspectRatios() {
@@ -170,6 +197,7 @@
     renderLitePresetGrid();
     initLiteAspectRatios();
     wireLiteTextareas();
+    wireLiteLogoToggle();
 
     const importBtn = document.getElementById('litePresetImport');
     const exportBtn = document.getElementById('litePresetExport');

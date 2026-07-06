@@ -165,9 +165,19 @@
     line-height: 1;
   }
   .median-thumb svg { display: block; width: 100%; height: auto; }
-  .preset-bar { display: flex; gap: 6px; margin-bottom: 8px; align-items: center; }
-  .preset-bar select { flex: 1; min-width: 0; background: #222; border: 1px solid #3a3a3a; color: #eee; border-radius: 4px; padding: 6px 8px; font-size: 12px; }
-  .preset-bar button { padding: 6px 10px; font-size: 11px; flex-shrink: 0; }
+  .preset-bar { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+  .preset-bar-top { display: flex; gap: 6px; align-items: center; }
+  .preset-bar-top select {
+    flex: 1; min-width: 0;
+    background: #222; border: 1px solid #3a3a3a; color: #eee;
+    border-radius: 5px; padding: 9px 10px; font-size: 13px; font-weight: 500;
+  }
+  .preset-bar-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .preset-bar-actions button {
+    flex: 1; min-width: calc(50% - 3px);
+    padding: 8px 10px; font-size: 12px;
+  }
+  .preset-bar-top button { padding: 8px 11px; font-size: 12px; flex-shrink: 0; }
   .preset-bar button.danger { border-color: #5a2020; color: #f88; }
   .preset-name-input { flex: 1; background: #222; border: 1px solid #3a3a3a; border-radius: 4px; color: #eee; padding: 4px 8px; font-size: 12px; }
   .text-area {
@@ -461,23 +471,25 @@
 
   <div class="lite-hide">
   <div class="preset-bar">
-    <select id="presetSelect"></select>
-    <button type="button" id="presetSave" class="primary" title="Save current settings">Save</button>
-    <button type="button" id="presetSaveAs" title="Save as new preset">+</button>
-    <button type="button" id="presetImport" title="Import preset library JSON">Import</button>
-    <button type="button" id="presetExport" title="Export all local presets">Export</button>
-    <button type="button" id="presetDelete" class="danger" title="Delete preset">×</button>
+    <div class="preset-bar-top">
+      <select id="presetSelect"></select>
+      <button type="button" id="presetDelete" class="danger" title="Delete preset">×</button>
+    </div>
+    <div class="preset-bar-actions">
+      <button type="button" id="presetSave" class="primary" title="Save current settings">Save</button>
+      <button type="button" id="presetSaveAs" title="Save as new preset">+ New</button>
+      <button type="button" id="presetImport" title="Import preset library JSON">Import</button>
+      <button type="button" id="presetExport" title="Export all local presets">Export</button>
+    </div>
     <input type="file" id="presetImportFile" accept="application/json,.json" hidden>
   </div>
   <div class="ctrl">
     <label>Preset name</label>
     <input type="text" id="presetName" class="preset-name-input" maxlength="48" placeholder="Preset name">
   </div>
-  <div class="hint">Built-in Default loads on first visit · edits auto-save to the active preset</div>
-  </div>
+  <div class="hint">Built-in Default loads on first visit · edits auto-save to the active preset · <a href="lite.html" style="color:#AB77FF;text-decoration:none">Lite editor</a> · <a href="lower-thirds.html" style="color:#AB77FF;text-decoration:none">Lower thirds</a></div>
 
-  <div class="sect">Aspect ratio</div>
-  <div class="lite-canvas-size">
+  <div class="sect">Canvas Size</div>
 
   <div class="ctrl">
     <label>Width (px)</label>
@@ -660,6 +672,11 @@
   <textarea id="promptText" class="text-area" placeholder="Caption / prompt…" spellcheck="false" style="min-height:52px"></textarea>
   </div>
 
+  <div class="ctrl-check lite-logo-toggle">
+    <input type="checkbox" id="liteLogoEnabled">
+    <label for="liteLogoEnabled">Show fal logo</label>
+  </div>
+
   <div class="lite-hide">
   <div class="sect">Custom Weights <span style="font-weight:400;text-transform:none;color:#444">(All mode)</span></div>
   <div class="color-grid hidden" id="colorRow"></div>
@@ -715,12 +732,15 @@
       <option value="custom">Custom (draw)</option>
     </select>
   </div>
-  <div class="wave-box mode-breathe">
+  <div class="wave-box mode-breathe" id="wavePreviewBox">
     <div class="wave-label">Preview</div>
     <svg id="wavePreview" viewBox="0 0 200 56" preserveAspectRatio="none">
       <line x1="0" y1="50" x2="200" y2="50" stroke="#2a2a2a" stroke-width="1"/>
       <polyline id="wavePreviewLine" fill="none" stroke="#5718C0" stroke-width="2" points=""/>
     </svg>
+    <div class="btn-row" style="margin-top:6px">
+      <button type="button" id="waveToCustom" style="font-size:11px;padding:4px 10px;">Customize curve</button>
+    </div>
   </div>
   <div class="ctrl mode-breathe wave-timing">
     <label>Build end %</label>
@@ -803,8 +823,10 @@
       <polyline id="waveEditorLine" fill="none" stroke="#5718C0" stroke-width="2" points=""/>
       <g id="waveEditorPts"></g>
     </svg>
+    <p class="wave-editor-hint">Full loop opacity (0 → peak → 0). Used directly — even with Bake in/out on.</p>
     <p class="wave-editor-hint">Click empty space to add · drag to move · dbl-click point to remove</p>
     <div class="btn-row" style="margin-top:6px">
+      <button type="button" id="waveCapturePreset" style="font-size:11px;padding:4px 10px;">Copy from preset</button>
       <button type="button" id="waveReset" style="font-size:11px;padding:4px 10px;">Reset dome</button>
       <button type="button" id="waveBreathe" style="font-size:11px;padding:4px 10px;">Reset breathe</button>
     </div>
@@ -1100,6 +1122,11 @@
         <input type="color" id="promptBorderColor" value="#EC0648">
         <button type="button" class="btn-inline" id="promptBorderFromPalette" title="Use loop palette accent">Palette</button>
       </div>
+      <div class="ctrl">
+        <label>Text</label>
+        <input type="color" id="promptTextColor" value="#FFFFFF">
+        <button type="button" class="btn-inline" id="promptTextColorCycle" title="Cycle palette colors">Cycle</button>
+      </div>
       <div class="ctrl-check">
         <input type="checkbox" id="promptSpaceColorEnabled">
         <label for="promptSpaceColorEnabled">Color spaces between words</label>
@@ -1134,7 +1161,7 @@
         <input type="range" id="promptLineWrapOffsetPx" min="-160" max="160" value="-48" step="4">
         <span class="val" id="promptLineWrapOffsetPxV">−48px</span>
       </div>
-      <div class="hint">Below headline · per-word boxes · colored gaps shuffle · line 2+ shifts sideways</div>
+      <div class="hint">Below headline · per-word boxes · double-click palette chip to cycle prompt text color</div>
     </div>
     <div class="canvas-logo-panel lite-hide" id="canvasLogoPanel">
       <div class="sect">fal Logo</div>
@@ -1399,7 +1426,7 @@ function legacyTextMarginPx(t) {
   return 60;
 }
 
-const TEXT_SHAPE_MARGIN_PX = 5;
+const TEXT_SHAPE_MARGIN_PX = 40;
 
 function isTextClearStrict() {
   return document.getElementById('textClearStrict').checked;
@@ -1982,8 +2009,10 @@ function getTextClearBBox(progress) {
   const p = progress != null ? progress : getTextLoopProgress(lastRenderProgress);
   if (isNodesFlowDuringText() && !isOverlayTextFullyRevealed(p)) return null;
   const tw = getTypewriterState(p);
-  if (!tw.visible) return null;
-  return measureTextClearBBox(tw.visible);
+  const full = getOverlayTextRaw().trim();
+  const clearText = (isTextAnimated() && full) ? full : tw.visible;
+  if (!clearText) return null;
+  return measureTextClearBBox(clearText);
 }
 
 function syncOverlayClearZones(progress) {
@@ -2005,7 +2034,37 @@ function invalidateTextLayout() {
 const PROMPT_WRAP_CHARS = 32;
 const PROMPT_LINE_HEIGHT_PCT = 116;
 const PROMPT_PAD_PX = 8;
-const PROMPT_TEXT_COLOR = '#ffffff';
+
+function getPromptTextColor() {
+  return document.getElementById('promptTextColor').value || '#ffffff';
+}
+
+function getActivePaletteColorList() {
+  if (tonalCount === 'all') return PALETTE.map(entry => entry.hex);
+  return activeTonalColors.slice();
+}
+
+function cyclePromptTextColor(fromHex, paletteColors) {
+  const colors = (paletteColors && paletteColors.length)
+    ? paletteColors.slice()
+    : getActivePaletteColorList();
+  if (!colors.length) return;
+  const current = getPromptTextColor().toLowerCase();
+  const from = (fromHex || current).toLowerCase();
+  let idx = colors.findIndex(c => c.toLowerCase() === current);
+  if (idx < 0) idx = colors.findIndex(c => c.toLowerCase() === from);
+  const next = colors[(Math.max(0, idx) + 1) % colors.length];
+  document.getElementById('promptTextColor').value = next;
+  refreshPromptTextOverlay();
+}
+
+function bindPaletteChipCycle(chip, paletteColors, hex) {
+  chip.addEventListener('dblclick', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    cyclePromptTextColor(hex, paletteColors);
+  });
+}
 
 function isPromptTextEnabled() {
   return document.getElementById('promptEnabled').checked
@@ -2283,6 +2342,40 @@ function wrapPromptLines(raw, maxLen) {
   return wrapTextLines(raw, maxLen != null ? maxLen : PROMPT_WRAP_CHARS);
 }
 
+function overlayLinesForTypewriter(fullRaw, visibleText, canvasW, canvasH) {
+  const fullLines = wrapOverlayLines(fullRaw, canvasW, canvasH);
+  if (!fullRaw || !visibleText || visibleText.length >= fullRaw.length) {
+    return wrapOverlayLines(visibleText || fullRaw, canvasW, canvasH);
+  }
+  let flatPos = 0;
+  return fullLines.map(line => {
+    const nextPos = flatPos + line.length;
+    let slice;
+    if (visibleText.length <= flatPos) slice = '';
+    else if (visibleText.length >= nextPos) slice = line;
+    else slice = line.slice(0, visibleText.length - flatPos);
+    flatPos = nextPos;
+    return slice;
+  });
+}
+
+function promptLinesForTypewriter(fullText, visibleText) {
+  const fullLines = wrapPromptLines(fullText, PROMPT_WRAP_CHARS);
+  if (!fullText || !visibleText || visibleText.length >= fullText.length) {
+    return wrapPromptLines(visibleText || fullText, PROMPT_WRAP_CHARS);
+  }
+  let flatPos = 0;
+  return fullLines.map(line => {
+    const nextPos = flatPos + line.length;
+    let slice;
+    if (visibleText.length <= flatPos) slice = '';
+    else if (visibleText.length >= nextPos) slice = line;
+    else slice = line.slice(0, visibleText.length - flatPos);
+    flatPos = nextPos;
+    return slice;
+  });
+}
+
 function layoutPromptRaggedBlock(lines, fontSize, fontWeight, pad, layoutOpts, spaceWidthMap) {
   const ctx = getPromptMeasureCtx(fontSize, fontWeight);
   const lineHeight = fontSize * PROMPT_LINE_HEIGHT_PCT / 100;
@@ -2547,7 +2640,7 @@ function getPromptTypewriterState(progress, sampleMs) {
 function renderPromptRaggedLayout(frame, layout, style) {
   const {
     shiftX, pad, boxColor, radius, fontSize, fontWeight,
-    spaceColorEnabled, spaceColor,
+    spaceColorEnabled, spaceColor, textColor,
   } = style;
 
   layout.lineLayouts.forEach(line => {
@@ -2574,7 +2667,7 @@ function renderPromptRaggedLayout(frame, layout, style) {
         textEl.setAttribute('font-family', "'Focal Upright', sans-serif");
         textEl.setAttribute('font-size', String(fontSize));
         textEl.setAttribute('font-weight', String(fontWeight));
-        textEl.setAttribute('fill', PROMPT_TEXT_COLOR);
+        textEl.setAttribute('fill', style.textColor || getPromptTextColor());
         textEl.setAttribute('shape-rendering', 'geometricPrecision');
         textEl.textContent = item.text || '\u00a0';
         frame.appendChild(textEl);
@@ -2596,7 +2689,15 @@ function buildPromptTextNodes(visibleText, opts) {
   const fontSize = opts.fontSize != null ? opts.fontSize : getPromptFontSize();
   const fontWeight = opts.fontWeight != null ? opts.fontWeight : getPromptFontWeight();
   const opacity = opts.opacity != null ? opts.opacity : 1;
-  const lines = opts.lines || wrapPromptLines(visibleText, PROMPT_WRAP_CHARS);
+  const fullText = opts.fullText != null ? opts.fullText : getPromptTextRaw();
+  const fullLines = wrapPromptLines(fullText, PROMPT_WRAP_CHARS);
+  const reserveFullLayout = opts.reserveFullLayout !== false
+    && isPromptAnimated()
+    && visibleText.length < fullText.length;
+  const displayLines = reserveFullLayout
+    ? promptLinesForTypewriter(fullText, visibleText)
+    : wrapPromptLines(visibleText, PROMPT_WRAP_CHARS);
+  const layoutLines = reserveFullLayout ? fullLines : displayLines;
   const pad = opts.padPx != null ? opts.padPx : getPromptPadPx();
   const boxColor = opts.boxColor || getPromptBoxColor();
   const radius = opts.boxRadius != null ? opts.boxRadius : getPromptBoxRadius();
@@ -2607,25 +2708,26 @@ function buildPromptTextNodes(visibleText, opts) {
     spaceGlitchRhythm: opts.spaceGlitchRhythm,
   });
   const spaceColor = opts.spaceColor || getPromptSpaceColor();
-  const fullText = opts.fullText != null ? opts.fullText : getPromptTextRaw();
-  const fullLines = wrapPromptLines(fullText, PROMPT_WRAP_CHARS);
   const spaceAnimTick = opts.spaceAnimTick != null
     ? opts.spaceAnimTick
     : getPromptSpaceAnimTick(opts.sampleMs);
   const spaceWidthMap = layoutOpts.spaceGlitchRhythm && layoutOpts.spaceColorEnabled
     ? buildPromptSpaceWidthMap(fullLines, fontSize, fontWeight, layoutOpts, spaceAnimTick)
     : null;
-  const metrics = measurePromptBlockMetrics(lines, fontSize, fontWeight, pad, layoutOpts, spaceWidthMap);
-  const frameW = metrics.width;
-  const frameH = metrics.height;
+  const frameMetrics = measurePromptBlockMetrics(layoutLines, fontSize, fontWeight, pad, layoutOpts, spaceWidthMap);
+  const displayMetrics = reserveFullLayout
+    ? measurePromptBlockMetrics(displayLines, fontSize, fontWeight, pad, layoutOpts, spaceWidthMap)
+    : frameMetrics;
+  const frameW = frameMetrics.width;
+  const frameH = frameMetrics.height;
   const canvasW = opts.canvasW != null ? opts.canvasW : W;
   const canvasH = opts.canvasH != null ? opts.canvasH : H;
 
   const frame = document.createElementNS(SVG_NS, 'g');
   frame.setAttribute('opacity', String(Math.max(0, Math.min(1, opacity))));
 
-  renderPromptRaggedLayout(frame, metrics.layout, {
-    shiftX: metrics.layout.shiftX,
+  renderPromptRaggedLayout(frame, displayMetrics.layout, {
+    shiftX: displayMetrics.layout.shiftX,
     pad,
     boxColor,
     radius,
@@ -2633,6 +2735,7 @@ function buildPromptTextNodes(visibleText, opts) {
     fontWeight,
     spaceColorEnabled: layoutOpts.spaceColorEnabled,
     spaceColor,
+    textColor: opts.textColor || getPromptTextColor(),
   });
 
   const headlineText = opts.headlineText != null
@@ -2675,8 +2778,10 @@ function getPromptClearBBox(progress) {
   const p = progress != null ? progress : getTextLoopProgress(lastRenderProgress);
   if (isNodesFlowDuringText() && !isPromptTextFullyRevealed(p)) return null;
   const state = getPromptTypewriterState(p);
-  if (!state.visible) return null;
-  return measurePromptClearBBox(state.visible);
+  const full = getPromptTextRaw();
+  const clearText = (isPromptAnimated() && full) ? full : state.visible;
+  if (!clearText) return null;
+  return measurePromptClearBBox(clearText);
 }
 
 function renderPromptText(progress, sampleMs) {
@@ -2829,7 +2934,16 @@ function buildOverlayTextNodes(visibleText, opts) {
   const trackingEm = opts.trackingEm != null ? opts.trackingEm : getTextTrackingEm();
   const color = opts.color || getTextColor();
   const opacity = opts.opacity != null ? opts.opacity : 1;
-  const lines = opts.lines || wrapOverlayLines(visibleText, opts.canvasW, opts.canvasH);
+  const canvasW = opts.canvasW != null ? opts.canvasW : W;
+  const canvasH = opts.canvasH != null ? opts.canvasH : H;
+  const fullRaw = getOverlayTextRaw().trim();
+  const reserveFullLayout = opts.reserveFullLayout !== false
+    && isTextAnimated()
+    && fullRaw
+    && visibleText.length < fullRaw.length;
+  const lines = opts.lines || (reserveFullLayout
+    ? overlayLinesForTypewriter(fullRaw, visibleText, canvasW, canvasH)
+    : wrapOverlayLines(visibleText, canvasW, canvasH));
   const lineHeight = opts.lineHeightPx != null
     ? opts.lineHeightPx
     : getTextLineHeightPx(fontSize);
@@ -2866,8 +2980,6 @@ function buildOverlayTextNodes(visibleText, opts) {
 
   const margin = opts.marginPx != null ? opts.marginPx : getTextMarginPx();
   const pin = opts.pin || getTextPin();
-  const canvasW = opts.canvasW != null ? opts.canvasW : W;
-  const canvasH = opts.canvasH != null ? opts.canvasH : H;
   const bbox = measureOverlayNodeBBox(group);
   if (bbox && isFinite(bbox.width) && isFinite(bbox.height)) {
     const { tx, ty } = pinOffsetFromBBox(bbox, pin, margin, canvasW, canvasH);
@@ -3096,7 +3208,14 @@ document.getElementById('cornerSpread').oninput = () => {
   };
 });
 ['loopWave', 'envInCurve', 'envOutCurve', 'pulseCurve'].forEach(id => {
-  document.getElementById(id).onchange = () => { updateWaveUI(); updateMedianPreview(); beginCycle(); };
+  document.getElementById(id).onchange = () => {
+    const preset = document.getElementById('loopWave').value;
+    if (preset !== 'custom') lastLoopWavePreset = preset;
+    updateWaveUI();
+    updateMedianPreview();
+    beginCycle();
+    schedulePresetAutosave();
+  };
 });
 document.getElementById('sweepAxis').onchange = () => {
   updateMedianPreview();
@@ -3199,6 +3318,8 @@ document.getElementById('promptBorderFromPalette').onclick = () => {
   syncPromptBorderFromPalette();
   refreshPromptTextOverlay();
 };
+document.getElementById('promptTextColor').oninput = () => refreshPromptTextOverlay();
+document.getElementById('promptTextColorCycle').onclick = () => cyclePromptTextColor();
 document.getElementById('promptBorderFollowPalette').onchange = () => {
   if (document.getElementById('promptBorderFollowPalette').checked) syncPromptBorderFromPalette();
   refreshPromptTextOverlay();
@@ -3300,6 +3421,8 @@ function updateWaveUI() {
   document.querySelectorAll('.wave-env').forEach(el => { el.style.display = isBreathe ? '' : 'none'; });
   document.querySelectorAll('.wave-pulse').forEach(el => { el.style.display = isCustom ? 'none' : ''; });
   document.querySelectorAll('.wave-custom').forEach(el => { el.style.display = isCustom ? '' : 'none'; });
+  const previewBox = document.getElementById('wavePreviewBox');
+  if (previewBox) previewBox.style.display = isCustom ? 'none' : '';
   renderWavePreview();
   if (isCustom) renderWaveEditor();
 }
@@ -3410,7 +3533,8 @@ function renderTonalPreview() {
     const chip = document.createElement('div');
     chip.className = 'chip';
     chip.style.background = hex;
-    chip.title = hex;
+    chip.title = hex + ' · double-click to cycle prompt text color';
+    bindPaletteChipCycle(chip, activeTonalColors, hex);
     el.appendChild(chip);
   });
   renderPaletteMediaList();
@@ -3443,7 +3567,8 @@ function renderTonalPresets() {
       const chip = document.createElement('span');
       chip.className = 'chip';
       chip.style.background = hex;
-      chip.title = hex;
+      chip.title = hex + ' · double-click to cycle prompt text color';
+      bindPaletteChipCycle(chip, preset.colors, hex);
       chips.appendChild(chip);
     });
     btn.onclick = () => applyTonalPreset(preset);
@@ -4599,6 +4724,7 @@ let customWavePoints = [
   { x: 0, y: 0 }, { x: 0.18, y: 0.55 }, { x: 0.38, y: 0.92 },
   { x: 0.62, y: 1 }, { x: 0.82, y: 0.55 }, { x: 1, y: 0 },
 ];
+let lastLoopWavePreset = 'breathe';
 
 function sortWavePoints() {
   customWavePoints.sort((a, b) => a.x - b.x);
@@ -4631,13 +4757,13 @@ function sampleBreatheLoopOpacity(p) {
   return isBakeInOut() ? 1 : pulseMod(p, 1);
 }
 
-function sampleLoopOpacity(progress) {
-  const preset = document.getElementById('loopWave').value;
+function sampleLoopOpacity(progress, opts = {}) {
+  const preset = opts.preset ?? document.getElementById('loopWave').value;
   const p = clamp01(progress);
 
-  if (isBakeInOut()) return sampleBreatheLoopOpacity(p);
-
   if (preset === 'custom') return sampleCustomWave(p);
+
+  if (isBakeInOut()) return sampleBreatheLoopOpacity(p);
 
   if (preset === 'sine-dome') {
     const base = Math.sin(p * Math.PI);
@@ -4710,6 +4836,28 @@ function renderWaveEditor() {
   });
 }
 
+function captureCurrentWaveToCustom() {
+  const sel = document.getElementById('loopWave');
+  if (sel.value !== 'custom') lastLoopWavePreset = sel.value;
+  const pts = [];
+  const n = 32;
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    pts.push({ x: t, y: sampleLoopOpacity(t, { preset: lastLoopWavePreset }) });
+  }
+  customWavePoints = pts;
+  sel.value = 'custom';
+  updateWaveUI();
+  schedulePresetAutosave();
+  beginCycle();
+}
+
+function commitWaveEdit() {
+  updateMedianPreview();
+  schedulePresetAutosave();
+  beginCycle();
+}
+
 function setCustomWavePreset(preset) {
   if (preset === 'breathe') {
     customWavePoints = [
@@ -4725,6 +4873,7 @@ function setCustomWavePreset(preset) {
   }
   renderWaveEditor();
   renderWavePreview();
+  commitWaveEdit();
 }
 
 (function initWaveEditor() {
@@ -4765,6 +4914,7 @@ function setCustomWavePreset(preset) {
     customWavePoints.splice(idx, 1);
     renderWaveEditor();
     renderWavePreview();
+    commitWaveEdit();
   });
 
   window.addEventListener('mousemove', e => {
@@ -4781,8 +4931,25 @@ function setCustomWavePreset(preset) {
     renderWavePreview();
   });
 
-  window.addEventListener('mouseup', () => { dragPt = null; });
+  window.addEventListener('mouseup', () => {
+    if (!dragPt) return;
+    dragPt = null;
+    commitWaveEdit();
+  });
 
+  document.getElementById('waveToCustom').onclick = () => captureCurrentWaveToCustom();
+  document.getElementById('waveCapturePreset').onclick = () => {
+    const pts = [];
+    const n = 32;
+    for (let i = 0; i <= n; i++) {
+      const t = i / n;
+      pts.push({ x: t, y: sampleLoopOpacity(t, { preset: lastLoopWavePreset }) });
+    }
+    customWavePoints = pts;
+    renderWaveEditor();
+    renderWavePreview();
+    commitWaveEdit();
+  };
   document.getElementById('waveReset').onclick = () => setCustomWavePreset('dome');
   document.getElementById('waveBreathe').onclick = () => setCustomWavePreset('breathe');
   renderWavePreview();
@@ -6304,6 +6471,7 @@ function applyPromptTextSettings(prompt) {
   if (p.spaceGapShuffleMs != null) {
     document.getElementById('promptSpaceGapShuffleMs').value = String(p.spaceGapShuffleMs);
   }
+  if (p.textColor) document.getElementById('promptTextColor').value = p.textColor;
   updatePromptSpaceColorUi();
   invalidateOverlayLayout();
 }
@@ -6364,6 +6532,7 @@ const DEFAULT_PROMPT_SETTINGS = {
   spaceGlitchRhythm: false,
   spaceGapShuffle: true,
   spaceGapShuffleMs: 500,
+  textColor: '#FFFFFF',
 };
 
 const DEFAULT_LOGO_SETTINGS = {
@@ -6598,6 +6767,7 @@ function collectSettings() {
       spaceGlitchRhythm: isPromptSpaceGlitchRhythm(),
       spaceGapShuffle: isPromptSpaceGapShuffle(),
       spaceGapShuffleMs: getPromptSpaceGapShuffleMs(),
+      textColor: getPromptTextColor(),
     },
     logo: {
       enabled: document.getElementById('logoEnabled').checked,

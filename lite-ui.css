@@ -120,6 +120,15 @@ body.lite-app .lite-text-block .text-area {
   min-height: 64px;
 }
 
+body.lite-app .lite-logo-toggle {
+  margin: 4px 0 12px;
+}
+
+body.lite-app .lite-logo-toggle label {
+  font-size: 12px;
+  color: #bbb;
+}
+
 body.lite-app .lite-play-row {
   margin-top: 12px;
 }
