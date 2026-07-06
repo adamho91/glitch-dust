@@ -30,8 +30,17 @@
   .preview-wrap.halftone-bg { background: #fff; }
   .preview-wrap.isoline-bg { background: #E5ECE7; }
   .mode-dust, .mode-halftone, .mode-stream { }
-  .stage { display: block; width: 100%; max-width: 960px; max-height: none; cursor: ew-resize; position: relative; }
-  .preview-wrap.portrait .stage { width: auto; margin: 0 auto; }
+  .stage { display: flex; align-items: center; justify-content: center; width: 100%; max-width: 960px; max-height: none; cursor: ew-resize; position: relative; }
+  .preview-wrap.portrait .stage { width: 100%; max-width: none; margin: 0; }
+  .stage-canvas {
+    position: relative;
+    display: block;
+    width: 100%;
+    max-width: 960px;
+    line-height: 0;
+    overflow: hidden;
+  }
+  .preview-wrap.portrait .stage-canvas { width: auto; margin: 0 auto; }
   .stage.scrubbing { cursor: ew-resize; }
   .preview-wrap.scrub-active { cursor: ew-resize; }
   .scrub-line {
@@ -1285,6 +1294,7 @@
       </svg>
     </div>
     <div id="stage" class="stage">
+      <div id="stageCanvas" class="stage-canvas">
       <div id="scrubLine" class="scrub-line"></div>
       <svg id="s" xmlns="http://www.w3.org/2000/svg" version="1.1" preserveAspectRatio="xMidYMid meet" shape-rendering="crispEdges">
         <defs>
@@ -1306,6 +1316,7 @@
         <g id="promptTextRoot" class="overlay-text-layer"></g>
         <g id="logoRoot" class="overlay-text-layer"></g>
       </svg>
+      </div>
     </div>
   </div>
   <div id="status"></div>
@@ -3137,9 +3148,11 @@ function refreshTextOverlay() {
 
 function updatePreviewScale() {
   const stage = document.getElementById('stage');
+  const stageCanvas = document.getElementById('stageCanvas');
   const wrap = document.getElementById('previewWrap');
   const subtitle = document.querySelector('.preview-panel .subtitle');
   if (!stage || !wrap) return;
+  const canvas = stageCanvas || stage;
 
   const isPortrait = H > W;
   wrap.classList.toggle('portrait', isPortrait);
@@ -3150,19 +3163,24 @@ function updatePreviewScale() {
     const availW = Math.max(160, wrap.clientWidth - pad);
     const scale = Math.min(availW / W, availH / H, 0.48);
     const displayW = Math.max(120, Math.round(W * scale));
-    stage.style.maxWidth = displayW + 'px';
-    stage.style.width = displayW + 'px';
-    stage.style.maxHeight = '';
+    canvas.style.maxWidth = displayW + 'px';
+    canvas.style.width = displayW + 'px';
+    canvas.style.maxHeight = '';
+    stage.style.maxWidth = '';
+    stage.style.width = '';
   } else {
     const maxW = Math.min(960, Math.max(200, wrap.clientWidth - 24), Math.round(W * 0.5));
-    stage.style.maxWidth = maxW + 'px';
+    canvas.style.maxWidth = maxW + 'px';
+    canvas.style.width = '';
+    canvas.style.maxHeight = '';
+    stage.style.maxWidth = '';
     stage.style.width = '';
-    stage.style.maxHeight = '';
   }
 
   if (subtitle) {
     subtitle.textContent = `${W}×${H} · click preview to scrub · click again to play`;
   }
+  if (typeof syncScrubLineLayout === 'function') syncScrubLineLayout();
 }
 
 function syncSvgViewport() {
@@ -6147,16 +6165,35 @@ function initCanvasPanelToggles() {
 function initPreviewScrub() {
   const wrap = document.getElementById('previewWrap');
   const stage = document.getElementById('stage');
+  const stageCanvas = document.getElementById('stageCanvas');
   const line = document.getElementById('scrubLine');
+  const svgEl = document.getElementById('s');
   if (!wrap || !stage || !line) return;
 
   let scrubPointerDown = false;
   let scrubDragStarted = false;
   let scrubDownX = 0;
 
-  function stageRect() {
-    return stage.getBoundingClientRect();
+  function scrubBoundsEl() {
+    return stageCanvas || stage;
   }
+
+  function stageRect() {
+    return scrubBoundsEl().getBoundingClientRect();
+  }
+
+  window.syncScrubLineLayout = function syncScrubLineLayout() {
+    const bounds = scrubBoundsEl();
+    if (!svgEl || !bounds) return;
+    line.style.top = '0';
+    line.style.bottom = '0';
+    line.style.height = '';
+    if (svgEl.offsetHeight > 0 && bounds.offsetHeight > svgEl.offsetHeight + 1) {
+      line.style.top = '0';
+      line.style.bottom = 'auto';
+      line.style.height = svgEl.offsetHeight + 'px';
+    }
+  };
 
   function setScrubFromEvent(e) {
     const rect = stageRect();
@@ -6169,6 +6206,7 @@ function initPreviewScrub() {
 
   function syncScrubLinePosition() {
     line.style.left = (scrubProgress * 100) + '%';
+    syncScrubLineLayout();
   }
 
   function showScrubLine() {
@@ -6241,7 +6279,9 @@ function initPreviewScrub() {
   wrap.addEventListener('pointercancel', endScrubPointer);
   window.addEventListener('resize', () => {
     if (scrubMode) syncScrubLinePosition();
+    else syncScrubLineLayout();
   });
+  syncScrubLineLayout();
 }
 
 function loop(ts) {
