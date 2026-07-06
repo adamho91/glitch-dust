@@ -10,6 +10,75 @@
   --ui-accent-a22: #ADFF0022;
   --ui-accent-a18: #ADFF0018;
   --ui-font: 'Focal Upright', sans-serif;
+  --ui-mono: 'HAL Timezone Mono', ui-monospace, monospace;
+}
+
+@font-face {
+  font-family: 'HAL Timezone Mono';
+  src: url('fonts/HALTimezone-MonoRegular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+.hint,
+.wave-editor-hint,
+.media-name,
+.palette-media-name,
+.export-modal-inner p,
+.export-meta,
+.canvas-text-panel .hint,
+.canvas-logo-panel .hint {
+  font-family: var(--ui-mono);
+  font-weight: 400;
+}
+
+.hint,
+.wave-editor-hint,
+.canvas-text-panel .hint,
+.canvas-logo-panel .hint,
+.export-modal-inner p {
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.hint {
+  margin: -4px 0 9px 0;
+  padding-left: 0;
+  color: #444;
+}
+
+.wave-editor-hint {
+  color: #555;
+  margin: 4px 0 0;
+}
+
+.wave-editor-hint:last-child {
+  margin-bottom: 9px;
+}
+
+.canvas-text-panel .hint,
+.canvas-logo-panel .hint {
+  margin: 6px 0 9px 0;
+}
+
+.export-modal-inner p {
+  margin-bottom: 17px;
+}
+
+.hint a {
+  font-family: inherit;
+}
+
+.subtitle,
+#status {
+  font-family: var(--ui-mono);
+  font-weight: 400;
+}
+
+.export-meta {
+  font-family: var(--ui-mono);
+  font-weight: 400;
 }
 
 html,

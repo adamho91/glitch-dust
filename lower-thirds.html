@@ -12,13 +12,6 @@
     font-style: normal;
     font-display: swap;
   }
-  @font-face {
-    font-family: 'HAL Timezone Mono';
-    src: url('fonts/HALTimezone-MonoRegular.otf') format('opentype');
-    font-weight: 400;
-    font-style: normal;
-    font-display: swap;
-  }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; }
   body { background: #1a1a1a; color: #ccc; font-size: 13px; min-height: 100vh; overflow: hidden; }
@@ -58,7 +51,7 @@
   button:hover { background: #3a3a3a; color: #eee; }
   button.primary { border-color: var(--ui-accent); color: var(--ui-accent-light); }
   button.primary:hover { background: var(--ui-accent-a22); }
-  .hint { font-size: 11px; color: #444; margin: -4px 0 6px 0; }
+  .hint { color: #444; }
   .hint a { color: var(--ui-accent-light); text-decoration: none; }
   .dialkit-controls .dial-row { display: block; margin: 0 0 7px; }
   .dialkit-controls .dial-source {
@@ -155,7 +148,7 @@
     border-radius: 8px; padding: 18px 20px; box-shadow: 0 12px 40px rgba(0,0,0,0.5);
   }
   .export-modal-inner h2 { font-size: 13px; font-weight: 600; color: #eee; margin-bottom: 4px; letter-spacing: .04em; text-transform: uppercase; }
-  .export-modal-inner p { font-size: 12px; color: #888; margin-bottom: 14px; line-height: 1.45; }
+  .export-modal-inner p { color: #888; line-height: 1.45; }
   .export-progress { height: 6px; background: #2a2a2a; border-radius: 99px; overflow: hidden; flex: 1; min-width: 0; }
   .export-progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--ui-accent), var(--ui-accent-light)); transition: width .12s linear; }
   .export-progress-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
