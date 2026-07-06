@@ -20,6 +20,20 @@
     { id: '2-j', label: '2-J · Olive / Lime', colors: ['#403700', '#ADFF00'], bg: '#403700' },
     { id: '2-k', label: '2-K · Lime / Pink', colors: ['#C8FF66', '#FFC4D8'], bg: '#C8FF66' },
     { id: '2-l', label: '2-L · Olive / Lt brown', colors: ['#403700', '#D9D7CC'], bg: '#403700' },
+    { id: '2-m', label: '2-M · Lt blue / Royal', colors: ['#C5E9FF', '#115EF3'], bg: '#C5E9FF' },
+    { id: '2-n', label: '2-N · White / Red', colors: ['#FFFFFF', '#EC0648'], bg: '#FFFFFF' },
+    { id: '2-o', label: '2-O · Sage / Brown', colors: ['#E5ECE7', '#403700'], bg: '#E5ECE7' },
+    { id: '2-p', label: '2-P · Royal / Cyan', colors: ['#115EF3', '#99EDFF'], bg: '#115EF3' },
+    { id: '2-q', label: '2-Q · Red / Pink', colors: ['#EC0648', '#FFC4D8'], bg: '#EC0648' },
+    { id: '2-r', label: '2-R · Black / White', colors: ['#000000', '#FFFFFF'], bg: '#000000' },
+    { id: '2-s', label: '2-S · Black / Lime', colors: ['#000000', '#ADFF00'], bg: '#000000' },
+    { id: '2-t', label: '2-T · Black / Pink', colors: ['#000000', '#F57EC3'], bg: '#000000' },
+    { id: '2-u', label: '2-U · Olive / Yellow', colors: ['#403700', '#FFFF00'], bg: '#403700' },
+    { id: '2-v', label: '2-V · Lt lime / Green', colors: ['#C8FF66', '#004012'], bg: '#C8FF66' },
+    { id: '2-w', label: '2-W · Baby blue / Blue', colors: ['#3FB5FE', '#115EF3'], bg: '#C5E9FF' },
+    { id: '2-x', label: '2-X · Yellow / Blue', colors: ['#FFFF00', '#115EF3'], bg: '#FFFF00' },
+    { id: '2-y', label: '2-Y · Teal / Lt blue', colors: ['#004012', '#C5E9FF'], bg: '#004012' },
+    { id: '2-z', label: '2-Z · Pink / White', colors: ['#F57EC3', '#FFFFFF'], bg: '#F57EC3' },
   ];
 
   const FAL_LOGO_VIEW_W = 435;
@@ -51,6 +65,8 @@
   let activePresetId = '2-b';
   let activeTonalColors = ['#FFC4D8', '#EC0648'];
   let paused = false;
+  let scrubMode = false;
+  let scrubProgress = 0;
   let animId = null;
   let cycleStart = 0;
   let lastFrame = 0;
@@ -62,7 +78,7 @@
   const SLIDER_IDS = [
     'fontSize', 'barHeight', 'barPad', 'barMaxWidth', 'typeSpeed',
     'logoSize', 'logoIntro', 'marginLeft', 'marginBottom', 'logoGap',
-    'badgeGap', 'badgeOffsetX', 'pixSize', 'dustCells', 'dustOffsetX',
+    'badgeGap', 'badgeOffsetX', 'pixSize', 'shapeMin', 'shapeMax', 'dustCells', 'dustOffsetX',
     'branchLen', 'branchSplit', 'axisBias', 'circlePct', 'animDuration',
   ];
 
@@ -100,12 +116,6 @@
 
   function getAnimDurationMs() {
     return v('animDuration') * 1000;
-  }
-
-  function getLoopProgress(ts) {
-    const dur = getAnimDurationMs();
-    if (dur <= 0) return 0;
-    return ((ts - cycleStart) % dur) / dur;
   }
 
   function isHeadlineStatic() {
@@ -350,6 +360,13 @@
     });
   }
 
+  function getShapeDrawScale(raw) {
+    const lo = Math.min(v('shapeMin'), v('shapeMax')) / 100;
+    const hi = Math.max(v('shapeMin'), v('shapeMax')) / 100;
+    if (raw < 0.02) return 0;
+    return lo + clamp01(raw) * (hi - lo);
+  }
+
   function drawScaledParticle(p, scale) {
     const s = clamp01(scale);
     if (s < 0.02) {
@@ -386,8 +403,8 @@
         const pulse = 0.92 + 0.08 * Math.sin(progress * Math.PI * 8 + p.depth);
         alpha *= pulse;
       }
-      p.drawScale = alpha;
-      drawScaledParticle(p, alpha);
+      p.drawScale = getShapeDrawScale(alpha);
+      drawScaledParticle(p, p.drawScale);
     });
   }
 
@@ -480,20 +497,36 @@
     drawDustFrame(progress);
   }
 
-  function drawFrame(ts) {
-    const progress = getLoopProgress(ts);
-    renderAtProgress(progress);
-    const tw = getTypewriterState(progress);
+  function getFrameProgress(ts) {
+    const cycleMs = getAnimDurationMs();
+    if (!cycleStart) cycleStart = ts;
+    if (scrubMode) return scrubProgress;
+    if (cycleMs <= 0) return 0;
+    return ((ts - cycleStart) % cycleMs) / cycleMs;
+  }
+
+  function updateStatus(progress) {
     const status = document.getElementById('status');
-    if (status) {
-      if (!tw.total) {
-        status.textContent = 'Enter headline text';
-      } else if (isHeadlineStatic()) {
-        status.textContent = 'Static headline · ' + Math.round(progress * 100) + '%';
-      } else {
-        status.textContent = tw.count + ' / ' + tw.total + ' chars · ' + Math.round(progress * 100) + '%';
-      }
+    if (!status) return;
+    const tw = getTypewriterState(progress);
+    const cycleMs = getAnimDurationMs();
+    const frameNum = Math.floor(progress * cycleMs / FRAME_MS);
+    const frameTotal = Math.max(1, Math.floor(cycleMs / FRAME_MS));
+    const pct = Math.round(progress * 100);
+    const scrubTag = scrubMode ? ' · scrub' : '';
+    if (!tw.total) {
+      status.textContent = 'Enter headline text';
+    } else if (isHeadlineStatic()) {
+      status.textContent = 'Lower thirds · ' + W + '×' + H + ' · frame ' + frameNum + '/' + frameTotal + ' (' + pct + '%)' + scrubTag;
+    } else {
+      status.textContent = tw.count + ' / ' + tw.total + ' chars · frame ' + frameNum + '/' + frameTotal + ' (' + pct + '%)' + scrubTag;
     }
+  }
+
+  function drawFrame(ts) {
+    const progress = getFrameProgress(ts);
+    renderAtProgress(progress);
+    updateStatus(progress);
   }
 
   function loop(ts) {
@@ -504,12 +537,24 @@
     animId = requestAnimationFrame(loop);
   }
 
-  function beginCycle() {
+  function beginCycle(opts) {
+    opts = opts || {};
+    const preserveScrub = !!(opts.preserveScrub && scrubMode);
+    const savedScrubProgress = preserveScrub ? scrubProgress : null;
     const layout = getLayout(getHeadlineText());
     spawnDustCluster(layout);
-    cycleStart = performance.now();
+    if (preserveScrub) {
+      cycleStart = performance.now() - savedScrubProgress * getAnimDurationMs();
+    } else {
+      cycleStart = performance.now();
+      scrubMode = false;
+      const line = document.getElementById('scrubLine');
+      const wrap = document.getElementById('previewWrap');
+      if (line) line.style.display = 'none';
+      if (wrap) wrap.classList.remove('scrub-active');
+    }
     lastFrame = 0;
-    drawFrame(cycleStart);
+    drawFrame(preserveScrub ? performance.now() : cycleStart);
   }
 
   function startAnim() {
@@ -1072,8 +1117,126 @@
     document.getElementById('status').textContent = 'Exported ' + filename;
   }
 
+  function initPreviewScrub() {
+    const wrap = document.getElementById('previewWrap');
+    const stage = document.getElementById('stage');
+    const stageCanvas = document.getElementById('stageCanvas');
+    const line = document.getElementById('scrubLine');
+    const svgEl = document.getElementById('s');
+    if (!wrap || !stage || !line) return;
+
+    let scrubPointerDown = false;
+    let scrubDragStarted = false;
+    let scrubDownX = 0;
+
+    function scrubBoundsEl() {
+      return stageCanvas || stage;
+    }
+
+    function stageRect() {
+      return scrubBoundsEl().getBoundingClientRect();
+    }
+
+    function syncScrubLineLayout() {
+      const bounds = scrubBoundsEl();
+      if (!svgEl || !bounds) return;
+      line.style.top = '0';
+      line.style.bottom = '0';
+      line.style.height = '';
+      if (svgEl.offsetHeight > 0 && bounds.offsetHeight > svgEl.offsetHeight + 1) {
+        line.style.top = '0';
+        line.style.bottom = 'auto';
+        line.style.height = svgEl.offsetHeight + 'px';
+      }
+    }
+
+    function setScrubFromEvent(e) {
+      const rect = stageRect();
+      if (rect.width <= 0) return;
+      const x = Math.max(rect.left, Math.min(rect.right, e.clientX));
+      scrubProgress = clamp01((x - rect.left) / rect.width);
+      line.style.left = (scrubProgress * 100) + '%';
+      drawFrame(performance.now());
+    }
+
+    function syncScrubLinePosition() {
+      line.style.left = (scrubProgress * 100) + '%';
+      syncScrubLineLayout();
+    }
+
+    function showScrubLine() {
+      line.style.display = 'block';
+      wrap.classList.add('scrub-active');
+    }
+
+    function hideScrubLine() {
+      line.style.display = 'none';
+      wrap.classList.remove('scrub-active');
+    }
+
+    function enterScrubMode() {
+      const cycleMs = getAnimDurationMs();
+      if (cycleStart) {
+        scrubProgress = clamp01((performance.now() - cycleStart) / cycleMs);
+      }
+      scrubMode = true;
+      showScrubLine();
+      syncScrubLinePosition();
+      drawFrame(performance.now());
+    }
+
+    function exitScrubMode() {
+      if (!scrubMode) return;
+      scrubMode = false;
+      scrubPointerDown = false;
+      scrubDragStarted = false;
+      hideScrubLine();
+      cycleStart = performance.now() - scrubProgress * getAnimDurationMs();
+      drawFrame(performance.now());
+    }
+
+    wrap.addEventListener('click', e => {
+      if (e.target.closest('#status')) return;
+      if (scrubDragStarted) {
+        scrubDragStarted = false;
+        return;
+      }
+      if (scrubMode) exitScrubMode();
+      else enterScrubMode();
+    });
+
+    wrap.addEventListener('pointerdown', e => {
+      if (e.target.closest('#status')) return;
+      if (!scrubMode) return;
+      scrubPointerDown = true;
+      scrubDragStarted = false;
+      scrubDownX = e.clientX;
+    });
+
+    wrap.addEventListener('pointermove', e => {
+      if (e.target.closest('#status')) return;
+      if (!scrubMode || !scrubPointerDown) return;
+      if (!scrubDragStarted && Math.abs(e.clientX - scrubDownX) > 3) {
+        scrubDragStarted = true;
+      }
+      if (scrubDragStarted) setScrubFromEvent(e);
+    });
+
+    function endScrubPointer() {
+      scrubPointerDown = false;
+    }
+
+    wrap.addEventListener('pointerup', endScrubPointer);
+    wrap.addEventListener('pointercancel', endScrubPointer);
+    window.addEventListener('resize', () => {
+      if (scrubMode) syncScrubLinePosition();
+      else syncScrubLineLayout();
+    });
+    syncScrubLineLayout();
+  }
+
   function wireControls() {
-    document.getElementById('genBtn').onclick = beginCycle;
+    document.getElementById('genBtn').onclick = () => beginCycle({ preserveScrub: scrubMode });
     document.getElementById('animBtn').onclick = () => {
       if (paused) startAnim();
       else pauseAnim();
@@ -1108,7 +1271,7 @@
     [
       'marginLeft', 'marginBottom', 'logoSize', 'logoGap', 'logoIntro',
       'barHeight', 'barPad', 'barMaxWidth', 'fontSize', 'typeSpeed',
-      'animDuration', 'pixSize', 'dustCells', 'dustOffsetX', 'badgeGap',
+      'animDuration', 'pixSize', 'shapeMin', 'shapeMax', 'dustCells', 'dustOffsetX', 'badgeGap',
       'badgeOffsetX', 'branchLen', 'branchSplit', 'axisBias', 'circlePct',
     ].forEach(id => {
       const el = document.getElementById(id);
@@ -1132,6 +1295,7 @@
     updateLogoColorUi();
     updateHeadlineTypeUi();
     wireControls();
+    initPreviewScrub();
 
     if (typeof initDialSliders === 'function') {
       initDialSliders(document.getElementById('controls'));

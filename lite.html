@@ -26,10 +26,7 @@
   h1 { font-size: 14px; font-weight: 500; color: #eee; margin-bottom: 4px; letter-spacing: 0.04em; text-transform: uppercase; }
   h1 span { color: var(--ui-accent); }
   .subtitle { font-size: 11px; color: #666; margin-bottom: 12px; flex-shrink: 0; }
-  .preview-wrap { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; border: 1px solid #333; border-radius: 6px; overflow: hidden; background: #111; line-height: 0; position: relative; isolation: isolate; z-index: 1; }
-  .preview-wrap.stream-bg { background: #000; }
-  .preview-wrap.halftone-bg { background: #fff; }
-  .preview-wrap.isoline-bg { background: #E5ECE7; }
+  .preview-wrap { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; border: 1px solid #333; border-radius: 6px; overflow: hidden; background: #E5ECE7; line-height: 0; position: relative; isolation: isolate; z-index: 1; }
   .mode-dust, .mode-halftone, .mode-stream { }
   .stage { display: flex; align-items: center; justify-content: center; width: 100%; max-width: 960px; max-height: none; cursor: ew-resize; position: relative; }
   .preview-wrap.portrait .stage { width: 100%; max-width: none; margin: 0; }
@@ -79,7 +76,7 @@
   .tonal-count { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
   .tonal-count button { padding: 5px 12px; min-width: 36px; font-size: 11px; font-weight: 600; }
   .tonal-count button.active { border-color: var(--ui-accent); background: var(--ui-accent-a33); color: var(--ui-accent-pale); }
-  .tonal-presets { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; max-height: 200px; overflow-y: auto; }
+  .tonal-presets { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; max-height: 280px; overflow-y: auto; }
   .tonal-preset { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border: 1px solid #333; border-radius: 5px; background: #222; cursor: pointer; text-align: left; width: 100%; font-size: 11px; color: #bbb; }
   .tonal-preset:hover { border-color: #444; background: #2a2a2a; }
   .tonal-preset.active { border-color: var(--ui-accent); background: var(--ui-accent-a18); color: #eee; }
@@ -1000,13 +997,13 @@
     <label>Background</label>
     <select id="bgSel">
       <option value="transparent">Transparent</option>
-      <option value="#ffffff" selected>White</option>
+      <option value="#ffffff">White</option>
       <option value="#000000">Black</option>
       <option value="#004012">Dark green</option>
       <option value="#403700">Brown</option>
       <option value="#3D5A00">Dark lime</option>
       <option value="#99EDFF">Turquoise</option>
-      <option value="#E5ECE7">Light sage</option>
+      <option value="#E5ECE7" selected>Light sage</option>
       <option value="#FFC4D8">Light pink</option>
       <option value="custom">Custom…</option>
     </select>
@@ -3514,10 +3511,6 @@ function updateModeUI() {
   document.querySelectorAll('.mode-dust').forEach(el => {
     el.style.display = style === 'dust' ? '' : 'none';
   });
-  const previewWrap = document.querySelector('.preview-wrap');
-  previewWrap.classList.toggle('stream-bg', style === 'stream');
-  previewWrap.classList.toggle('halftone-bg', style === 'halftone');
-  previewWrap.classList.toggle('isoline-bg', style === 'voxel' || style === 'connected');
 
   if (style === 'voxel') {
     document.getElementById('isolinesLabel').textContent = 'Contour levels';
@@ -3547,10 +3540,7 @@ function updateWaveUI() {
 
 function applyStyleDefaults() {
   const style = getAnimStyle();
-  if (style === 'stream') bgSel.value = '#000000';
-  else if (style === 'halftone') bgSel.value = '#ffffff';
-  else if (style === 'voxel' || style === 'connected') {
-    bgSel.value = '#ffffff';
+  if (style === 'voxel' || style === 'connected') {
     bgCustom.style.display = 'none';
     tonalCount = 2;
     document.querySelectorAll('#tonalCount button').forEach(btn => {
@@ -3581,23 +3571,61 @@ const FAL_2 = [
   { id: '2-j', label: '2-J · Olive / Lime',      colors: ['#403700', '#ADFF00'], bg: '#403700' },
   { id: '2-k', label: '2-K · Lime / Pink',   colors: ['#C8FF66', '#FFC4D8'], bg: '#C8FF66' },
   { id: '2-l', label: '2-L · Olive / Lt brown',  colors: ['#403700', '#D9D7CC'], bg: '#403700' },
+  { id: '2-m', label: '2-M · Lt blue / Royal',   colors: ['#C5E9FF', '#115EF3'], bg: '#C5E9FF' },
+  { id: '2-n', label: '2-N · White / Red',       colors: ['#FFFFFF', '#EC0648'], bg: '#FFFFFF' },
+  { id: '2-o', label: '2-O · Sage / Brown',      colors: ['#E5ECE7', '#403700'], bg: '#E5ECE7' },
+  { id: '2-p', label: '2-P · Royal / Cyan',      colors: ['#115EF3', '#99EDFF'], bg: '#115EF3' },
+  { id: '2-q', label: '2-Q · Red / Pink',        colors: ['#EC0648', '#FFC4D8'], bg: '#EC0648' },
+  { id: '2-r', label: '2-R · Black / White',     colors: ['#000000', '#FFFFFF'], bg: '#000000' },
+  { id: '2-s', label: '2-S · Black / Lime',      colors: ['#000000', '#ADFF00'], bg: '#000000' },
+  { id: '2-t', label: '2-T · Black / Pink',      colors: ['#000000', '#F57EC3'], bg: '#000000' },
+  { id: '2-u', label: '2-U · Olive / Yellow',    colors: ['#403700', '#FFFF00'], bg: '#403700' },
+  { id: '2-v', label: '2-V · Lt lime / Green',   colors: ['#C8FF66', '#004012'], bg: '#C8FF66' },
+  { id: '2-w', label: '2-W · Baby blue / Blue',  colors: ['#3FB5FE', '#115EF3'], bg: '#C5E9FF' },
+  { id: '2-x', label: '2-X · Yellow / Blue',     colors: ['#FFFF00', '#115EF3'], bg: '#FFFF00' },
+  { id: '2-y', label: '2-Y · Teal / Lt blue',    colors: ['#004012', '#C5E9FF'], bg: '#004012' },
+  { id: '2-z', label: '2-Z · Pink / White',      colors: ['#F57EC3', '#FFFFFF'], bg: '#F57EC3' },
 ];
 const FAL_5 = [
   { id: '5-a', label: '5-A · Olive + accents',   colors: ['#99EDFF', '#115EF3', '#C8FF66', '#ADFF00'], bg: '#403700' },
   { id: '5-b', label: '5-B · Pink + accents',    colors: ['#C8FF66', '#FFFFFF', '#EC0648', '#ADFF00'], bg: '#FFC4D8' },
   { id: '5-c', label: '5-C · Cyan + accents',    colors: ['#FFFF00', '#C8FF66', '#115EF3', '#FFFFFF'], bg: '#99EDFF' },
   { id: '5-d', label: '5-D · White + accents',   colors: ['#115EF3', '#FFFF00', '#ADFF00', '#C8FF66'], bg: '#FFFFFF' },
+  { id: '5-e', label: '5-E · Sage + accents',    colors: ['#403700', '#ADFF00', '#FFFF00', '#115EF3'], bg: '#E5ECE7' },
+  { id: '5-f', label: '5-F · Royal + accents',   colors: ['#FFFFFF', '#99EDFF', '#FFFF00', '#ADFF00'], bg: '#115EF3' },
+  { id: '5-g', label: '5-G · Black + accents',   colors: ['#ADFF00', '#F57EC3', '#FFFFFF', '#99EDFF'], bg: '#000000' },
+  { id: '5-h', label: '5-H · Lt blue + accents', colors: ['#115EF3', '#FFFF00', '#EC0648', '#ADFF00'], bg: '#C5E9FF' },
+  { id: '5-i', label: '5-I · Green + accents',   colors: ['#C8FF66', '#FFFF00', '#99EDFF', '#ADFF00'], bg: '#004012' },
+  { id: '5-j', label: '5-J · Red + accents',     colors: ['#FFFFFF', '#FFC4D8', '#FFFF00', '#115EF3'], bg: '#EC0648' },
+  { id: '5-k', label: '5-K · Yellow + accents',  colors: ['#115EF3', '#EC0648', '#000000', '#ADFF00'], bg: '#FFFF00' },
+  { id: '5-l', label: '5-L · Lt pink + accents', colors: ['#EC0648', '#99EDFF', '#115EF3', '#FFFF00'], bg: '#FFC4D8' },
+  { id: '5-m', label: '5-M · Olive / yellow',    colors: ['#FFFF00', '#ADFF00', '#D9D7CC', '#EC0648'], bg: '#403700' },
+  { id: '5-n', label: '5-N · Teal / cyan',       colors: ['#99EDFF', '#C5E9FF', '#C8FF66', '#FFFFFF'], bg: '#004012' },
+  { id: '5-o', label: '5-O · Hot pink + lime',   colors: ['#ADFF00', '#FFFFFF', '#115EF3', '#FFFF00'], bg: '#F57EC3' },
+  { id: '5-p', label: '5-P · White / multi',     colors: ['#115EF3', '#EC0648', '#ADFF00', '#403700'], bg: '#FFFFFF' },
+];
+const FAL_3 = [
+  { id: '3-a', label: '3-A · Olive / cyan / lime',   colors: ['#99EDFF', '#ADFF00', '#C8FF66'], bg: '#403700' },
+  { id: '3-b', label: '3-B · Pink / white / red',    colors: ['#FFFFFF', '#EC0648', '#ADFF00'], bg: '#FFC4D8' },
+  { id: '3-c', label: '3-C · Cyan / blue / yellow',  colors: ['#115EF3', '#FFFF00', '#FFFFFF'], bg: '#99EDFF' },
+  { id: '3-d', label: '3-D · White / blue / lime',   colors: ['#115EF3', '#ADFF00', '#C8FF66'], bg: '#FFFFFF' },
+  { id: '3-e', label: '3-E · Lt blue / royal / yellow', colors: ['#115EF3', '#3FB5FE', '#FFFF00'], bg: '#C5E9FF' },
+  { id: '3-f', label: '3-F · Sage / brown / lime',   colors: ['#403700', '#ADFF00', '#FFFF00'], bg: '#E5ECE7' },
+  { id: '3-g', label: '3-G · Royal / white / cyan',  colors: ['#FFFFFF', '#99EDFF', '#FFFF00'], bg: '#115EF3' },
+  { id: '3-h', label: '3-H · Black / lime / pink',   colors: ['#ADFF00', '#F57EC3', '#FFFFFF'], bg: '#000000' },
+  { id: '3-i', label: '3-I · Green / lime / yellow', colors: ['#ADFF00', '#FFFF00', '#C8FF66'], bg: '#004012' },
+  { id: '3-j', label: '3-J · Red / pink / white',    colors: ['#FFC4D8', '#FFFFFF', '#FFFF00'], bg: '#EC0648' },
+  { id: '3-k', label: '3-K · Yellow / blue / red',   colors: ['#115EF3', '#EC0648', '#000000'], bg: '#FFFF00' },
+  { id: '3-l', label: '3-L · Olive / yellow / pink', colors: ['#FFFF00', '#F57EC3', '#99EDFF'], bg: '#403700' },
+  { id: '3-m', label: '3-M · Lt pink / red / cyan',  colors: ['#EC0648', '#99EDFF', '#FFFF00'], bg: '#FFC4D8' },
+  { id: '3-n', label: '3-N · Teal / cyan / lime',    colors: ['#99EDFF', '#C8FF66', '#FFFF00'], bg: '#004012' },
+  { id: '3-o', label: '3-O · Black / white / blue',  colors: ['#FFFFFF', '#115EF3', '#ADFF00'], bg: '#000000' },
+  { id: '3-p', label: '3-P · Baby blue / royal / pink', colors: ['#115EF3', '#F57EC3', '#FFFF00'], bg: '#C5E9FF' },
 ];
 const FAL_4 = FAL_5.map(p => ({
   id: p.id.replace('5', '4'),
-  label: p.label.replace('5', '4').replace('accents', '4 accents'),
+  label: p.label.replace(/^5-/, '4-'),
   colors: p.colors.slice(0, 4),
-  bg: p.bg,
-}));
-const FAL_3 = FAL_5.map(p => ({
-  id: p.id.replace('5', '3'),
-  label: p.label.replace('5', '3').replace('accents', '3 accents'),
-  colors: p.colors.slice(0, 3),
   bg: p.bg,
 }));
 const TONAL_BY_COUNT = { 2: FAL_2, 3: FAL_3, 4: FAL_4, 5: FAL_5 };

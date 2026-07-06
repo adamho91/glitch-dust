@@ -112,6 +112,10 @@ textarea {
   margin-top: 16px;
 }
 
+.action-panel + .hint {
+  margin-top: 12px;
+}
+
 .action-play {
   margin-top: 0;
 }

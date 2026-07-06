@@ -24,11 +24,25 @@
   .preview-panel { display: flex; flex-direction: column; padding: 16px 20px; min-width: 0; overflow: hidden; }
   h1 { font-size: 14px; font-weight: 500; color: #eee; margin-bottom: 4px; letter-spacing: 0.04em; text-transform: uppercase; }
   h1 span { color: var(--ui-accent); }
-  .subtitle { font-size: 11px; color: #666; margin-bottom: 12px; }
-  .preview-wrap { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; border: 1px solid #333; border-radius: 6px; overflow: hidden; background: #111; line-height: 0; }
-  .stage { display: block; width: 100%; max-width: 960px; }
-  .stage svg { display: block; width: 100%; height: auto; }
-  #status { font-size: 11px; color: #666; margin-top: 10px; min-height: 14px; }
+  .subtitle { font-size: 11px; color: #666; margin-bottom: 12px; flex-shrink: 0; }
+  .preview-wrap { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; border: 1px solid #333; border-radius: 6px; overflow: hidden; background: #111; line-height: 0; position: relative; }
+  .preview-wrap.scrub-active { cursor: ew-resize; }
+  .stage { display: flex; align-items: center; justify-content: center; width: 100%; max-width: 960px; cursor: ew-resize; position: relative; }
+  .stage-canvas { position: relative; display: block; width: 100%; max-width: 960px; line-height: 0; overflow: hidden; }
+  .scrub-line {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    margin-left: -0.5px;
+    background: #888;
+    opacity: 0.9;
+    pointer-events: none;
+    z-index: 4;
+    display: none;
+  }
+  .stage svg { display: block; width: 100%; height: auto; position: relative; z-index: 1; }
+  #status { font-size: 11px; color: #666; margin-top: 10px; min-height: 14px; flex-shrink: 0; }
   .layout { display: flex; flex-direction: column; }
   .sect { font-size: 10px; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: .08em; margin: 16px 0 8px; }
   .sect:first-child { margin-top: 0; }
@@ -282,6 +296,17 @@
     <span class="val" id="pixSizeV">21px</span>
   </div>
   <div class="ctrl">
+    <label>Min shape %</label>
+    <input type="range" id="shapeMin" min="0" max="100" step="1" value="0">
+    <span class="val" id="shapeMinV">0</span>
+  </div>
+  <div class="ctrl">
+    <label>Max shape %</label>
+    <input type="range" id="shapeMax" min="0" max="100" step="1" value="100">
+    <span class="val" id="shapeMaxV">100</span>
+  </div>
+  <div class="hint">Clamp animated square/circle size within each grid cell</div>
+  <div class="ctrl">
     <label>Cells</label>
     <input type="range" id="dustCells" min="6" max="36" step="1" value="18">
     <span class="val" id="dustCellsV">18</span>
@@ -348,14 +373,18 @@
 </aside>
 
 <div class="preview-panel">
-  <div class="preview-wrap">
-    <div class="stage">
-      <svg id="s" viewBox="0 0 1920 1080" xmlns="http://www.w3.org/2000/svg">
-        <rect width="1920" height="1080" fill="#000000"/>
-        <g id="particleRoot"></g>
-        <g id="overlayRoot"></g>
-        <g id="logoRoot"></g>
-      </svg>
+  <p class="subtitle">1920×1080 · click preview to scrub · click again to play</p>
+  <div class="preview-wrap" id="previewWrap">
+    <div class="stage" id="stage">
+      <div id="stageCanvas" class="stage-canvas">
+        <div id="scrubLine" class="scrub-line"></div>
+        <svg id="s" viewBox="0 0 1920 1080" xmlns="http://www.w3.org/2000/svg">
+          <rect width="1920" height="1080" fill="#000000"/>
+          <g id="particleRoot"></g>
+          <g id="overlayRoot"></g>
+          <g id="logoRoot"></g>
+        </svg>
+      </div>
     </div>
   </div>
   <div id="status">Ready</div>
