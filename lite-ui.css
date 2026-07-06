@@ -130,7 +130,8 @@ body.lite-app .lite-logo-toggle label {
 }
 
 body.lite-app .action-export,
-body.lite-app .action-group-label {
+body.lite-app .action-group-label,
+body.lite-app .preview-action-export {
   display: none !important;
 }
 

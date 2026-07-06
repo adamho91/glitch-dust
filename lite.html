@@ -67,6 +67,23 @@
     user-select: none;
   }
   #status { font-size: 11px; color: #666; margin-top: 10px; min-height: 14px; flex-shrink: 0; }
+  .preview-action-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 20px;
+    flex-shrink: 0;
+  }
+  .preview-action-bar button {
+    flex: 1 1 0;
+    min-width: 72px;
+    padding: 9px 12px;
+    font-size: 11px;
+    line-height: 1.25;
+  }
+  .preview-action-bar button.primary {
+    flex: 1.4 1 0;
+  }
   .layout { display: flex; flex-direction: column; }
   .sect { font-size: 10px; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: .08em; margin: 16px 0 8px; }
   .sect:first-child { margin-top: 0; }
@@ -1239,10 +1256,10 @@
         </div>
       </div>
     </div>
-    <div class="canvas-logo-panel lite-hide" id="canvasLogoPanel">
+    <div class="canvas-logo-panel lite-hide is-collapsed" id="canvasLogoPanel">
       <div class="canvas-panel-head">
         <div class="sect">fal Logo</div>
-        <button type="button" class="canvas-panel-toggle" data-panel-toggle aria-expanded="true" aria-label="Collapse fal logo panel" title="Collapse">−</button>
+        <button type="button" class="canvas-panel-toggle" data-panel-toggle aria-expanded="false" aria-label="Expand fal logo panel" title="Expand">+</button>
       </div>
       <div class="canvas-panel-body">
       <div class="ctrl-check">
@@ -1352,6 +1369,12 @@
       </svg>
       </div>
     </div>
+  </div>
+  <div class="preview-action-bar" id="previewActionBar">
+    <button type="button" class="primary" id="previewGenBtn">Generate</button>
+    <button type="button" id="previewMp4ExportBtn" class="preview-action-export">MP4</button>
+    <button type="button" id="previewGifExportBtn" class="preview-action-export">GIF</button>
+    <button type="button" id="previewWebmExportBtn" class="preview-action-export">WebM</button>
   </div>
   <div id="status"></div>
 </main>
@@ -6417,6 +6440,10 @@ function startAnim() {
 }
 
 document.getElementById('genBtn').onclick = () => { beginCycle({ preserveScrub: scrubMode }); };
+const previewGenBtn = document.getElementById('previewGenBtn');
+if (previewGenBtn) {
+  previewGenBtn.onclick = () => { beginCycle({ preserveScrub: scrubMode }); };
+}
 document.getElementById('animBtn').onclick = () => {
   paused = !paused;
   document.getElementById('animBtn').textContent = paused ? 'Resume' : 'Pause';
@@ -6792,7 +6819,7 @@ let exportInProgress = false;
 let exportRunMeta = { format: '', fps: 0, totalFrames: 0 };
 
 function setExportButtonsBusy(busy) {
-  ['mp4ExportBtn', 'webmExportBtn', 'gifExportBtn'].forEach(id => {
+  ['mp4ExportBtn', 'webmExportBtn', 'gifExportBtn', 'previewMp4ExportBtn', 'previewGifExportBtn', 'previewWebmExportBtn'].forEach(id => {
     const btn = document.getElementById(id);
     if (btn) btn.classList.toggle('exporting', !!busy);
   });
@@ -8107,30 +8134,26 @@ async function exportVideoLoop(format) {
 }
 
 document.getElementById('exportCancel').onclick = () => { exportCancelRequested = true; };
-document.getElementById('mp4ExportBtn').onclick = () => {
-  if (typeof exportVideoLoop !== 'function') {
-    document.getElementById('status').textContent =
-      'Export unavailable — reload the page. If opened from Dropbox, use a local server (python3 -m http.server).';
-    return;
-  }
-  exportVideoLoop('mp4');
-};
-document.getElementById('webmExportBtn').onclick = () => {
-  if (typeof exportVideoLoop !== 'function') {
-    document.getElementById('status').textContent =
-      'Export unavailable — reload the page. If opened from Dropbox, use a local server (python3 -m http.server).';
-    return;
-  }
-  exportVideoLoop('webm');
-};
-document.getElementById('gifExportBtn').onclick = () => {
-  if (typeof exportVideoLoop !== 'function') {
-    document.getElementById('status').textContent =
-      'Export unavailable — reload the page. If opened from Dropbox, use a local server (python3 -m http.server).';
-    return;
-  }
-  exportVideoLoop('gif');
-};
+
+function bindVideoExportButton(id, format) {
+  const btn = document.getElementById(id);
+  if (!btn) return;
+  btn.onclick = () => {
+    if (typeof exportVideoLoop !== 'function') {
+      document.getElementById('status').textContent =
+        'Export unavailable — reload the page. If opened from Dropbox, use a local server (python3 -m http.server).';
+      return;
+    }
+    exportVideoLoop(format);
+  };
+}
+
+bindVideoExportButton('mp4ExportBtn', 'mp4');
+bindVideoExportButton('previewMp4ExportBtn', 'mp4');
+bindVideoExportButton('webmExportBtn', 'webm');
+bindVideoExportButton('previewWebmExportBtn', 'webm');
+bindVideoExportButton('gifExportBtn', 'gif');
+bindVideoExportButton('previewGifExportBtn', 'gif');
 
 document.getElementById('svgBtn').onclick = () => {
   syncOverlayClearZones(getTextLoopProgress(lastRenderProgress));

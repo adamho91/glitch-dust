@@ -86,15 +86,15 @@ html = html.replace(
     1,
 )
 html = html.replace(
-    '<div class="canvas-logo-panel" id="canvasLogoPanel">',
-    '<div class="canvas-logo-panel lite-hide" id="canvasLogoPanel">',
+    '<div class="canvas-logo-panel is-collapsed" id="canvasLogoPanel">',
+    '<div class="canvas-logo-panel lite-hide is-collapsed" id="canvasLogoPanel">',
     1,
 )
 
 # Remove duplicate textareas from hidden canvas panel (keep ids in sidebar only)
 import re
 panel_start = html.find('<div class="canvas-text-panel lite-hide"')
-panel_end = html.find('<div class="canvas-logo-panel lite-hide"')
+panel_end = html.find('<div class="canvas-logo-panel lite-hide')
 if panel_start == -1 or panel_end == -1:
     raise SystemExit("Could not find canvas panels")
 panel = html[panel_start:panel_end]
