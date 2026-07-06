@@ -14,7 +14,7 @@
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; }
-  body { background: #1a1a1a; color: #ccc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 13px; min-height: 100vh; overflow: hidden; }
+  body { background: #1a1a1a; color: #ccc; font-size: 13px; min-height: 100vh; overflow: hidden; }
   .app { display: grid; grid-template-columns: minmax(300px, 380px) 1fr; height: 100vh; }
   @media (max-width: 900px) {
     body { overflow: auto; }
@@ -162,7 +162,6 @@
     letter-spacing: .05em;
     z-index: 1;
     text-transform: uppercase;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     line-height: 1;
   }
   .median-thumb svg { display: block; width: 100%; height: auto; }
@@ -185,7 +184,7 @@
     width: 100%; min-height: 72px; resize: vertical;
     background: #222; border: 1px solid #3a3a3a; border-radius: 4px;
     color: #eee; padding: 8px 10px; font-size: 13px; line-height: 1.35;
-    font-family: 'Focal Upright', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: inherit;
     font-weight: 480; letter-spacing: -0.02em;
   }
   .text-area:focus { outline: none; border-color: var(--ui-accent); }
@@ -437,7 +436,6 @@
     right: 9px;
     top: 50%;
     transform: translateY(-50%);
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 10px;
     font-weight: 500;
     color: rgba(255, 255, 255, 0.68);
@@ -977,18 +975,27 @@
   </div>
   <div class="hint">MP4 = H.264 for QuickTime · WebM = preview share · open via local server if export fails from Dropbox</div>
 
-  </div>
-
-  <div class="btn-row lite-play-row">
-    <button class="primary" id="genBtn">Generate</button>
-    <button id="animBtn">Pause</button>
-    <button id="mp4ExportBtn">Export MP4</button>
-    <button id="webmExportBtn">Export WebM</button>
-    <button id="svgBtn">Copy SVG</button>
-    <button id="webflowBtn">Copy Webflow embed</button>
-    <button id="webflowExportBtn">Export Webflow embed</button>
-    <button id="jsonBtn">Copy Lottie</button>
-    <button id="jsonExportBtn">Export Lottie</button>
+  <div class="action-panel">
+    <div class="btn-row action-play lite-play-row">
+      <button class="primary" id="genBtn">Generate</button>
+      <button id="animBtn">Pause</button>
+    </div>
+    <div class="action-group-label">Video</div>
+    <div class="btn-grid action-export">
+      <button id="mp4ExportBtn">Export MP4</button>
+      <button id="webmExportBtn">Export WebM</button>
+    </div>
+    <div class="action-group-label">Copy</div>
+    <div class="btn-grid action-export">
+      <button id="svgBtn">Copy SVG</button>
+      <button id="jsonBtn">Copy Lottie</button>
+      <button id="webflowBtn" class="span-2">Copy Webflow embed</button>
+    </div>
+    <div class="action-group-label">Download</div>
+    <div class="btn-grid action-export">
+      <button id="jsonExportBtn">Export Lottie</button>
+      <button id="webflowExportBtn">Export Webflow</button>
+    </div>
   </div>
 
 </div>

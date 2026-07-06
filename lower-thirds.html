@@ -21,7 +21,7 @@
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; }
-  body { background: #1a1a1a; color: #ccc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 13px; min-height: 100vh; overflow: hidden; }
+  body { background: #1a1a1a; color: #ccc; font-size: 13px; min-height: 100vh; overflow: hidden; }
   .app { display: grid; grid-template-columns: minmax(300px, 380px) 1fr; height: 100vh; }
   @media (max-width: 900px) {
     body { overflow: auto; }
@@ -138,7 +138,6 @@
     right: 9px;
     top: 50%;
     transform: translateY(-50%);
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 10px;
     font-weight: 500;
     color: rgba(255, 255, 255, 0.68);
@@ -338,12 +337,17 @@
   </div>
   <div class="hint">MP4 = H.264 · WebM = preview · JSON = settings preset</div>
 
-  <div class="btn-row">
-    <button class="primary" id="genBtn">Generate</button>
-    <button id="animBtn">Pause</button>
-    <button id="mp4ExportBtn">Export MP4</button>
-    <button id="webmExportBtn">Export WebM</button>
-    <button id="jsonExportBtn">Export JSON</button>
+  <div class="action-panel">
+    <div class="btn-row action-play">
+      <button class="primary" id="genBtn">Generate</button>
+      <button id="animBtn">Pause</button>
+    </div>
+    <div class="action-group-label">Video</div>
+    <div class="btn-grid action-export">
+      <button id="mp4ExportBtn">Export MP4</button>
+      <button id="webmExportBtn">Export WebM</button>
+      <button id="jsonExportBtn" class="span-2">Export JSON</button>
+    </div>
   </div>
   <p class="hint">⇧1 Glitch Dust · ⇧2 Lite · ⇧3 Lower Thirds</p>
 </div>

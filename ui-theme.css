@@ -9,4 +9,71 @@
   --ui-accent-a33: #ADFF0033;
   --ui-accent-a22: #ADFF0022;
   --ui-accent-a18: #ADFF0018;
+  --ui-font: 'Focal Upright', sans-serif;
+}
+
+html,
+body {
+  font-family: var(--ui-font);
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+.median-thumb-label,
+.dialkit-controls .dial-label,
+.dialkit-controls .dial-value {
+  font-family: inherit;
+}
+
+.dialkit-controls .dial-value {
+  font-variant-numeric: tabular-nums;
+}
+
+.action-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.action-play {
+  margin-top: 0;
+}
+
+.action-play button {
+  flex: 1;
+}
+
+.btn-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.btn-grid button {
+  width: 100%;
+  min-width: 0;
+  padding: 8px 10px;
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.btn-grid .span-2 {
+  grid-column: 1 / -1;
+}
+
+.action-group-label {
+  font-size: 9px;
+  font-weight: 600;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 2px 0 -2px;
 }

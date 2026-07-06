@@ -129,16 +129,17 @@ body.lite-app .lite-logo-toggle label {
   color: #bbb;
 }
 
-body.lite-app .lite-play-row {
+body.lite-app .action-export,
+body.lite-app .action-group-label {
+  display: none !important;
+}
+
+body.lite-app .action-panel {
   margin-top: 12px;
 }
 
-body.lite-app .lite-play-row button {
+body.lite-app .action-play button {
   flex: 1;
-}
-
-body.lite-app .lite-play-row button:not(#genBtn):not(#animBtn) {
-  display: none !important;
 }
 
 body.lite-app #controls > .sect:first-of-type {

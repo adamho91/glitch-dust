@@ -75,8 +75,8 @@ html = html.replace(
 )
 
 html = html.replace(
-    '  <div class="btn-row">\n    <button class="primary" id="genBtn">Generate</button>\n    <button id="animBtn">Pause</button>',
-    '  </div>\n\n  <div class="btn-row lite-play-row">\n    <button class="primary" id="genBtn">Generate</button>\n    <button id="animBtn">Pause</button>',
+    '    <div class="btn-row action-play">',
+    '    <div class="btn-row action-play lite-play-row">',
     1,
 )
 
