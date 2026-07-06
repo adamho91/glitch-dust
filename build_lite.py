@@ -100,6 +100,14 @@ html = html.replace(
 )
 
 html = html.replace(
+    '    <div class="action-group-label">Video</div>\n    <div class="btn-grid action-export">',
+    '    <div class="action-group-label lite-video-label">Video</div>\n    <div class="btn-grid action-export lite-video-export">',
+    1,
+)
+if 'lite-video-export' not in html:
+    raise SystemExit("Could not tag lite video export buttons")
+
+html = html.replace(
     '<div class="canvas-text-panel" id="canvasTextPanel">',
     '<div class="canvas-text-panel lite-hide" id="canvasTextPanel">',
     1,
