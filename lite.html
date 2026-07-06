@@ -1511,6 +1511,12 @@ function legacyTextMarginPx(t) {
 }
 
 const TEXT_SHAPE_MARGIN_PX = 40;
+const TEXT_CLEAR_MARGIN_MIN_PX = 20;
+const TEXT_CLEAR_MARGIN_MAX_PX = 40;
+
+function getTextClearMarginPx() {
+  return Math.max(TEXT_CLEAR_MARGIN_MIN_PX, Math.min(TEXT_CLEAR_MARGIN_MAX_PX, TEXT_SHAPE_MARGIN_PX));
+}
 
 function isTextClearStrict() {
   return document.getElementById('textClearStrict').checked;
@@ -1535,7 +1541,11 @@ function isPromptTextFullyRevealed(progress) {
 }
 
 function getTextClearPadding() {
-  return isTextClearStrict() ? getNodeSizePx() : TEXT_SHAPE_MARGIN_PX;
+  return getTextClearMarginPx() + getNodeSizePx();
+}
+
+function getTextInkDescenderPadPx() {
+  return Math.max(6, Math.round(getTextFontSize() * 0.08));
 }
 
 function inflateBBox(bbox, px) {
@@ -1599,15 +1609,17 @@ function refineInkBBoxWithMetrics(inkBox, visibleText, canvasW, canvasH) {
 
 function buildTextExclusionBBox(inkBox) {
   if (!inkBox || !isFinite(inkBox.width) || !isFinite(inkBox.height)) return null;
-  let bbox = expandClearBBoxToGrid(inflateBBox(inkBox, getTextClearPadding()));
+  const ink = {
+    x: inkBox.x,
+    y: inkBox.y,
+    width: inkBox.width,
+    height: inkBox.height + getTextInkDescenderPadPx(),
+  };
+  let bbox = expandClearBBoxToGrid(inflateBBox(ink, getTextClearPadding()));
+  const sz = getNodeSizePx();
+  bbox = expandClearBBoxToGrid(inflateBBox(bbox, sz));
   if (isTextClearStrict() && bbox) {
-    const sz = getNodeSizePx();
-    bbox = expandClearBBoxToGrid({
-      x: bbox.x - sz,
-      y: bbox.y - sz,
-      width: bbox.width + sz * 2,
-      height: bbox.height + sz * 2,
-    });
+    bbox = expandClearBBoxToGrid(inflateBBox(bbox, sz));
   }
   return bbox;
 }
@@ -1832,7 +1844,7 @@ function getLogoMarginPx() {
 }
 
 function getLogoClearPadding() {
-  return getNodeSizePx();
+  return getTextClearMarginPx() + getNodeSizePx();
 }
 
 function updateLogoMarginLabel() {
@@ -2091,7 +2103,6 @@ function getTextColor() {
 function getTextClearBBox(progress) {
   if (!isTextEnabled() || !document.getElementById('textClearPattern').checked) return null;
   const p = progress != null ? progress : getTextLoopProgress(lastRenderProgress);
-  if (isNodesFlowDuringText() && !isOverlayTextFullyRevealed(p)) return null;
   const tw = getTypewriterState(p);
   const full = getOverlayTextRaw().trim();
   const clearText = (isTextAnimated() && full) ? full : tw.visible;
@@ -2860,7 +2871,6 @@ function measurePromptClearBBox(visibleText) {
 function getPromptClearBBox(progress) {
   if (!isPromptTextEnabled() || !document.getElementById('textClearPattern').checked) return null;
   const p = progress != null ? progress : getTextLoopProgress(lastRenderProgress);
-  if (isNodesFlowDuringText() && !isPromptTextFullyRevealed(p)) return null;
   const state = getPromptTypewriterState(p);
   const full = getPromptTextRaw();
   const clearText = (isPromptAnimated() && full) ? full : state.visible;
@@ -3137,7 +3147,23 @@ function particleIntersectsClearBBox(px, py, sz, bbox) {
 }
 
 function particleInTextClearZone(px, py, sz, bbox) {
+  if (!bbox || !sz) return false;
   return particleIntersectsClearBBox(px, py, sz, bbox);
+}
+
+function suppressParticleNearOverlayText(p) {
+  if (!document.getElementById('textClearPattern').checked) return false;
+  const sz = p.sz || getNodeSizePx();
+  const snap = p.snapPx != null ? { px: p.snapPx, py: p.snapPy } : snapNode(p.x, p.y, sz);
+  p.snapPx = snap.px;
+  p.snapPy = snap.py;
+  return particleInOverlayClearZones(snap.px, snap.py, sz);
+}
+
+function applyOverlayTextExclusionToParticle(p, sz) {
+  if (!suppressParticleNearOverlayText(p)) return;
+  p.drawScale = 0;
+  p.on = 0;
 }
 
 function renderOverlayText(progress) {
@@ -5531,13 +5557,11 @@ function updateMedianPreview() {
   const ts = getAnimDurationMs() * loopProgress;
   const medianTw = getTypewriterState(textProgress);
   const medianClear = document.getElementById('textClearPattern').checked && isTextEnabled() && medianTw.visible
-    && (!isNodesFlowDuringText() || isOverlayTextFullyRevealed(textProgress))
-    ? measureTextClearBBox(medianTw.visible)
+    ? measureTextClearBBox((isTextAnimated() && getOverlayTextRaw().trim()) ? getOverlayTextRaw().trim() : medianTw.visible)
     : null;
   const medianPromptTw = getPromptTypewriterState(textProgress);
   const medianPromptClear = document.getElementById('textClearPattern').checked && medianPromptTw.visible
-    && (!isNodesFlowDuringText() || isPromptTextFullyRevealed(textProgress))
-    ? measurePromptClearBBox(medianPromptTw.visible)
+    ? measurePromptClearBBox((isPromptAnimated() && getPromptTextRaw()) ? getPromptTextRaw() : medianPromptTw.visible)
     : null;
   const medianLogoClear = document.getElementById('logoClearPattern').checked && isLogoEnabled()
     ? measureLogoClearBBox()
@@ -5732,6 +5756,9 @@ function drawVoxelFrame(progress) {
     const alpha = bandScale * breathe * diffMod;
     p.on = alpha >= 0.02 ? 1 : 0;
     p.drawScale = alpha;
+    p.snapPx = p.baseX;
+    p.snapPy = p.baseY;
+    applyOverlayTextExclusionToParticle(p, sz);
   });
 
   drawParticlesDeduped();
@@ -5774,6 +5801,9 @@ function drawConnectedFrame(progress, exportMode) {
     diffMod = softenDiffusionForLoop(progress, diffMod);
     p.on = breathe >= 0.02 && diffMod >= 0.02 ? 1 : 0;
     p.drawScale = breathe * diffMod;
+    p.snapPx = snap.px;
+    p.snapPy = snap.py;
+    applyOverlayTextExclusionToParticle(p, sz);
   });
 
   drawParticlesDeduped();
@@ -5961,6 +5991,9 @@ function drawHalftoneFrame(ts, loopProgress) {
     const alpha = eased * diffMod * loopEnv;
     p.on = alpha >= 0.03 ? 1 : 0;
     p.drawScale = alpha;
+    p.snapPx = p.baseX;
+    p.snapPy = p.baseY;
+    applyOverlayTextExclusionToParticle(p, sz);
   });
   drawParticlesDeduped();
 }
@@ -5993,6 +6026,9 @@ function drawStreamFrame(ts, loopProgress) {
     const outAlpha = (show ? Math.min(1, alpha * 1.15) : 0) * diffMod * loopEnv;
     p.on = outAlpha >= 0.03 ? 1 : 0;
     p.drawScale = outAlpha;
+    p.snapPx = p.baseX;
+    p.snapPy = p.baseY;
+    applyOverlayTextExclusionToParticle(p, sz);
   });
   drawParticlesDeduped();
 }
@@ -6012,6 +6048,9 @@ function drawClusterFrame(ts, frameOpts) {
     const loopEnv = getStyleLoopEnvelope(progress);
     p.drawScale = (p.on ? 1 : 0) * diffMod * loopEnv;
     p.on = p.on && diffMod >= 0.03 ? 1 : 0;
+    p.snapPx = snap.px;
+    p.snapPy = snap.py;
+    applyOverlayTextExclusionToParticle(p, sz);
   });
 
   const occupiedNodes = new Set();
