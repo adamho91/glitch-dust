@@ -940,7 +940,7 @@
       <option value="60">60</option>
     </select>
   </div>
-  <div class="hint">MP4 = H.264 for QuickTime · WebM = preview share · open via local server if export fails from Dropbox</div>
+  <div class="hint">MP4 = H.264 · WebM = preview · GIF = animated loop · use local server if export fails from Dropbox</div>
 
   <div class="action-panel">
     <div class="btn-row action-play">
@@ -951,6 +951,7 @@
     <div class="btn-grid action-export">
       <button id="mp4ExportBtn">Export MP4</button>
       <button id="webmExportBtn">Export WebM</button>
+      <button id="gifExportBtn" class="span-2">Export GIF</button>
     </div>
     <div class="action-group-label">Copy</div>
     <div class="btn-grid action-export">
@@ -3934,7 +3935,8 @@ function repaintAllPaletteMediaSources() {
   });
 }
 
-function syncPaletteMediaVideoTime(slot, progress) {
+function syncPaletteMediaVideoTime(slot, progress, opts) {
+  opts = opts || {};
   if (!slot || slot.type !== 'video' || !slot.source) return Promise.resolve();
   const vid = slot.source;
   const dur = vid.duration;
@@ -3956,7 +3958,7 @@ function syncPaletteMediaVideoTime(slot, progress) {
       clearTimeout(timer);
       resolve();
     };
-    const timer = setTimeout(finish, 150);
+    const timer = setTimeout(finish, opts.forExport ? 750 : 150);
     vid.addEventListener('seeked', finish);
     vid.addEventListener('error', finish);
     try {
@@ -3991,7 +3993,7 @@ async function prepareNodeMediaFrameAsync(progress, opts) {
   paletteMediaMap.forEach(slot => {
     if (slot.ready && slot.type === 'video') videoSlots.push(slot);
   });
-  await Promise.all(videoSlots.map(slot => syncPaletteMediaVideoTime(slot, progress)));
+  await Promise.all(videoSlots.map(slot => syncPaletteMediaVideoTime(slot, progress, opts)));
   if (!opts.forExport && serial !== paletteMediaFrameSerial) return;
 
   paletteMediaMap.forEach(slot => {
@@ -4060,7 +4062,9 @@ function compositePaletteMediaOntoCanvas(ctx, dw, dh) {
 
     layerCtx.clearRect(0, 0, W, H);
     layerCtx.globalCompositeOperation = 'source-over';
-    if (slot.type === 'gif' && slot.source && slot.source.complete && slot.source.naturalWidth > 0) {
+    if (slot.canvas && slot.canvas.width > 0 && slot.canvas.height > 0) {
+      layerCtx.drawImage(slot.canvas, 0, 0);
+    } else if (slot.type === 'gif' && slot.source && slot.source.complete && slot.source.naturalWidth > 0) {
       drawPaletteMediaCover(layerCtx, slot.source, slot.source.naturalWidth, slot.source.naturalHeight);
     } else if (slot.canvas) {
       layerCtx.drawImage(slot.canvas, 0, 0);
@@ -6030,6 +6034,7 @@ function renderFrameContent(loopProgress, sampleTs, ts, opts) {
 }
 
 function drawFrame(ts) {
+  if (exportInProgress) return;
   const cycleMs = getAnimDurationMs();
   if (!cycleStart) cycleStart = ts;
 
@@ -6174,18 +6179,36 @@ function loop(ts) {
 function beginCycle(opts) {
   opts = opts || {};
   if (opts.noiseSeed != null) pendingNoiseSeed = opts.noiseSeed;
-  spawnDust();
+  if (!opts.skipRegen) spawnDust();
   cycleStart = performance.now();
   scrubMode = false;
   scrubActive = false;
   dustScrubAt = -1;
   document.getElementById('scrubLine').style.display = 'none';
   document.getElementById('previewWrap').classList.remove('scrub-active');
-  startAnim();
+  if (!opts.skipAnim) startAnim();
   if (!opts.skipPresetSave && !presetApplyInProgress) schedulePresetAutosave();
 }
 
+function pauseAnim() {
+  paused = true;
+  if (animId) {
+    cancelAnimationFrame(animId);
+    animId = null;
+  }
+  document.getElementById('animBtn').textContent = 'Resume';
+}
+
+function pausePaletteMediaForExport() {
+  paletteMediaMap.forEach(slot => {
+    if (slot.ready && slot.type === 'video' && slot.source) {
+      try { slot.source.pause(); } catch (e) {}
+    }
+  });
+}
+
 function startAnim() {
+  if (exportInProgress) return;
   if (animId) cancelAnimationFrame(animId);
   paused = false;
   document.getElementById('animBtn').textContent = 'Pause';
@@ -6566,10 +6589,11 @@ let presetStore = null;
 let presetApplyInProgress = false;
 let presetAutosaveTimer = null;
 let exportCancelRequested = false;
+let exportInProgress = false;
 let exportRunMeta = { format: '', fps: 0, totalFrames: 0 };
 
 function setExportButtonsBusy(busy) {
-  ['mp4ExportBtn', 'webmExportBtn'].forEach(id => {
+  ['mp4ExportBtn', 'webmExportBtn', 'gifExportBtn'].forEach(id => {
     const btn = document.getElementById(id);
     if (btn) btn.classList.toggle('exporting', !!busy);
   });
@@ -7431,6 +7455,36 @@ function getMp4MuxerExports(mod) {
   return { Muxer, ArrayBufferTarget };
 }
 
+let gifencModule = null;
+
+async function loadGifenc() {
+  if (gifencModule) return gifencModule;
+  const attempts = [
+    () => importModuleFromFetchedUrl(resolveAssetUrl('vendor/gifenc.mjs')),
+    () => importModuleFromUrl('https://cdn.jsdelivr.net/npm/gifenc@1.0.3/dist/gifenc.esm.js'),
+    () => importModuleFromUrl('https://esm.sh/gifenc@1.0.3'),
+  ];
+  let lastErr;
+  for (const attempt of attempts) {
+    try {
+      gifencModule = await attempt();
+      return gifencModule;
+    } catch (e) {
+      lastErr = e;
+      console.warn('gifenc load failed:', e);
+    }
+  }
+  throw lastErr || new Error('gifenc-load-failed');
+}
+
+function getGifencExports(mod) {
+  const GIFEncoder = mod.GIFEncoder || mod.default;
+  const quantize = mod.quantize;
+  const applyPalette = mod.applyPalette;
+  if (!GIFEncoder || !quantize || !applyPalette) throw new Error('gifenc exports missing');
+  return { GIFEncoder, quantize, applyPalette };
+}
+
 async function getH264EncoderConfig(width, height, fps) {
   if (typeof VideoEncoder === 'undefined' || typeof VideoFrame === 'undefined') return null;
   const evenW = width & ~1;
@@ -7603,11 +7657,6 @@ async function exportVideoMp4Recorder(fps, cycleMs, totalFrames, canvas, ctx, ex
   });
 
   recorder.start();
-  const frameStart = performance.now();
-
-  renderFrameContent(0, 0, 0, { exportMode: true, skipPaletteMedia: true });
-  await syncPaletteMediaForExport(getNodeLoopProgress(0));
-  await renderSvgToCanvas(ctx, svg, rasterOpts);
 
   for (let i = 0; i < totalFrames; i++) {
     if (exportCancelRequested) throw new Error('cancelled');
@@ -7618,9 +7667,7 @@ async function exportVideoMp4Recorder(fps, cycleMs, totalFrames, canvas, ctx, ex
     await renderSvgToCanvas(ctx, svg, rasterOpts);
     if (track && track.requestFrame) track.requestFrame();
     setExportModal(true, (i + 1) / totalFrames, `Recording MP4 · ${i + 1} / ${totalFrames} frames…`, i + 1);
-    const targetAt = frameStart + (i + 1) * (1000 / fps);
-    const waitMs = Math.max(0, targetAt - performance.now());
-    if (waitMs) await new Promise(r => setTimeout(r, waitMs));
+    await new Promise(r => setTimeout(r, Math.ceil(1000 / fps)));
   }
 
   recorder.stop();
@@ -7656,11 +7703,6 @@ async function exportVideoWebM(fps, cycleMs, totalFrames, canvas, ctx, exportOpt
   });
 
   recorder.start();
-  const frameStart = performance.now();
-
-  renderFrameContent(0, 0, 0, { exportMode: true, skipPaletteMedia: true });
-  await syncPaletteMediaForExport(getNodeLoopProgress(0));
-  await renderSvgToCanvas(ctx, svg, rasterOpts);
 
   for (let i = 0; i < totalFrames; i++) {
     if (exportCancelRequested) throw new Error('cancelled');
@@ -7671,9 +7713,7 @@ async function exportVideoWebM(fps, cycleMs, totalFrames, canvas, ctx, exportOpt
     await renderSvgToCanvas(ctx, svg, rasterOpts);
     if (track && track.requestFrame) track.requestFrame();
     setExportModal(true, (i + 1) / totalFrames, `Encoding WebM · ${i + 1} / ${totalFrames} frames…`, i + 1);
-    const targetAt = frameStart + (i + 1) * (1000 / fps);
-    const waitMs = Math.max(0, targetAt - performance.now());
-    if (waitMs) await new Promise(r => setTimeout(r, waitMs));
+    await new Promise(r => setTimeout(r, Math.ceil(1000 / fps)));
   }
 
   recorder.stop();
@@ -7687,35 +7727,83 @@ async function exportVideoWebM(fps, cycleMs, totalFrames, canvas, ctx, exportOpt
   };
 }
 
+async function exportVideoGif(fps, cycleMs, totalFrames, canvas, ctx, exportOpts) {
+  exportOpts = exportOpts || {};
+  const rasterOpts = {
+    solidBg: '#ffffff',
+    width: canvas.width,
+    height: canvas.height,
+    fontDataUrl: exportOpts.fontDataUrl,
+  };
+  const { GIFEncoder, quantize, applyPalette } = getGifencExports(await loadGifenc());
+  const gif = GIFEncoder();
+  const w = canvas.width;
+  const h = canvas.height;
+  const frameDelay = Math.max(20, Math.round(1000 / fps));
+  const rgba = new Uint8Array(w * h * 4);
+
+  for (let i = 0; i < totalFrames; i++) {
+    if (exportCancelRequested) throw new Error('cancelled');
+    const progress = i / totalFrames;
+    const sampleTs = progress * cycleMs;
+    renderFrameContent(progress, sampleTs, sampleTs, { exportMode: true, skipPaletteMedia: true });
+    await syncPaletteMediaForExport(getNodeLoopProgress(progress));
+    await renderSvgToCanvas(ctx, svg, rasterOpts);
+    rgba.set(ctx.getImageData(0, 0, w, h).data);
+    const palette = quantize(rgba, 256);
+    const index = applyPalette(rgba, palette);
+    const frameOpts = { palette, delay: frameDelay };
+    if (i === 0) frameOpts.first = true;
+    gif.writeFrame(index, w, h, frameOpts);
+    setExportModal(true, (i + 1) / totalFrames, `Encoding GIF · ${i + 1} / ${totalFrames} frames…`, i + 1);
+    await new Promise(r => setTimeout(r, 0));
+  }
+
+  gif.finish();
+  const bytes = gif.bytes();
+  if (!bytes || !bytes.byteLength) throw new Error('GIF output empty');
+  return {
+    blob: new Blob([bytes], { type: 'image/gif' }),
+    filename: `fal-glitch-dust-${W}x${H}-${fps}fps-${Date.now()}.gif`,
+    format: 'gif',
+  };
+}
+
 async function exportVideoLoop(format) {
   const fps = parseInt(document.getElementById('exportFps').value, 10) || 30;
   const cycleMs = getAnimDurationMs();
   const totalFrames = Math.max(1, Math.round(cycleMs / 1000 * fps));
   const isMp4 = format === 'mp4';
+  const isGif = format === 'gif';
 
   exportCancelRequested = false;
   exportRunMeta = { format, fps, totalFrames };
   setExportButtonsBusy(true);
   const titleEl = document.getElementById('exportModalTitle');
-  if (titleEl) titleEl.textContent = isMp4 ? 'Exporting MP4' : 'Exporting WebM';
+  if (titleEl) {
+    titleEl.textContent = isMp4 ? 'Exporting MP4' : isGif ? 'Exporting GIF' : 'Exporting WebM';
+  }
 
   const wasPaused = paused;
-  paused = true;
-  if (animId) cancelAnimationFrame(animId);
+  exportInProgress = true;
+  pauseAnim();
   dustScrubAt = -1;
-  beginCycle({ noiseSeed, skipPresetSave: true });
+  if (getAnimStyle() === 'dust' && !dustSpawnState) captureDustSpawnState();
+  pausePaletteMediaForExport();
 
   const canvas = document.createElement('canvas');
   canvas.width = W & ~1;
   canvas.height = H & ~1;
   const ctx = canvas.getContext('2d', { alpha: false });
 
-  setExportModal(true, 0, isMp4 ? 'Preparing H.264 MP4…' : 'Preparing WebM…');
+  setExportModal(true, 0, isMp4 ? 'Preparing H.264 MP4…' : isGif ? 'Preparing GIF…' : 'Preparing WebM…');
   const exportDesc = document.getElementById('exportModalDesc');
   if (exportDesc) {
     exportDesc.textContent = isMp4
       ? 'Encoding H.264 MP4 for QuickTime · works offline (muxer embedded in page).'
-      : 'Encoding WebM via MediaRecorder · good for web previews.';
+      : isGif
+        ? 'Encoding animated GIF · one loop at export FPS · large files at full resolution.'
+        : 'Encoding WebM via MediaRecorder · good for web previews.';
   }
 
   let exportOpts = {};
@@ -7726,7 +7814,7 @@ async function exportVideoLoop(format) {
     exportOpts = { fontDataUrl: exportFontDataUrl };
   } catch (e) {
     console.warn('Export font load failed, continuing without embedded font:', e);
-    setExportModal(true, 0, isMp4 ? 'Preparing H.264 MP4…' : 'Preparing WebM…');
+    setExportModal(true, 0, isMp4 ? 'Preparing H.264 MP4…' : isGif ? 'Preparing GIF…' : 'Preparing WebM…');
     exportOpts = {};
   }
 
@@ -7756,6 +7844,9 @@ async function exportVideoLoop(format) {
           throw webcodecsErr;
         }
       }
+    } else if (isGif) {
+      setExportModal(true, 0, `Encoding GIF · 0 / ${totalFrames} frames…`);
+      result = await exportVideoGif(fps, cycleMs, totalFrames, canvas, ctx, exportOpts);
     } else {
       if (!pickWebmMimeType()) {
         throw new Error('WebM export not supported in this browser.');
@@ -7778,6 +7869,8 @@ async function exportVideoLoop(format) {
       document.getElementById('status').textContent = mp4Method === 'mediarecorder'
         ? `Exported ${result.filename} · MP4 via MediaRecorder (QuickTime compatible).`
         : `Exported ${result.filename} · H.264 MP4 (QuickTime compatible).`;
+    } else if (isGif) {
+      document.getElementById('status').textContent = `Exported ${result.filename} · animated GIF.`;
     } else {
       document.getElementById('status').textContent = `Exported ${result.filename} · WebM.`;
     }
@@ -7787,26 +7880,30 @@ async function exportVideoLoop(format) {
     } else if (isMp4 && (err?.message === 'mp4-muxer-load-failed' || String(err).includes('mp4-muxer'))) {
       document.getElementById('status').textContent =
         'MP4 export failed — keep vendor/mp4-muxer.mjs next to index.html, or use Chrome online.';
-    } else if (!isMp4 && err?.message === 'no-webm') {
+    } else if (isGif && (err?.message === 'gifenc-load-failed' || String(err).includes('gifenc'))) {
+      document.getElementById('status').textContent =
+        'GIF export failed — keep vendor/gifenc.mjs next to index.html, or use Chrome online.';
+    } else if (!isMp4 && !isGif && err?.message === 'no-webm') {
       document.getElementById('status').textContent = 'WebM export not supported in this browser.';
     } else {
       document.getElementById('status').textContent = isMp4
         ? `MP4 export failed — ${err?.message || 'try Chrome/Safari.'}`
-        : `WebM export failed — ${err?.message || 'try a shorter loop.'}`;
+        : isGif
+          ? `GIF export failed — ${err?.message || 'try a shorter loop or lower FPS.'}`
+          : `WebM export failed — ${err?.message || 'try a shorter loop.'}`;
       console.error(err);
     }
   } finally {
     setExportModal(false);
     setExportButtonsBusy(false);
     exportRunMeta = { format: '', fps: 0, totalFrames: 0 };
+    exportInProgress = false;
     dustScrubAt = -1;
-    beginCycle({ noiseSeed, skipPresetSave: true });
+    cycleStart = performance.now();
     syncPaletteGifTicker();
+    drawFrame(performance.now());
     if (!wasPaused) startAnim();
-    else {
-      paused = true;
-      document.getElementById('animBtn').textContent = 'Resume';
-    }
+    else pauseAnim();
   }
 }
 
@@ -7826,6 +7923,14 @@ document.getElementById('webmExportBtn').onclick = () => {
     return;
   }
   exportVideoLoop('webm');
+};
+document.getElementById('gifExportBtn').onclick = () => {
+  if (typeof exportVideoLoop !== 'function') {
+    document.getElementById('status').textContent =
+      'Export unavailable — reload the page. If opened from Dropbox, use a local server (python3 -m http.server).';
+    return;
+  }
+  exportVideoLoop('gif');
 };
 
 document.getElementById('svgBtn').onclick = () => {

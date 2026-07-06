@@ -585,7 +585,7 @@
   }
 
   function setExportButtonsBusy(busy) {
-    ['mp4ExportBtn', 'webmExportBtn'].forEach(id => {
+    ['mp4ExportBtn', 'webmExportBtn', 'gifExportBtn'].forEach(id => {
       const btn = document.getElementById(id);
       if (btn) btn.classList.toggle('exporting', !!busy);
     });
@@ -790,6 +790,31 @@
     return { Muxer, ArrayBufferTarget };
   }
 
+  let gifencModule = null;
+
+  async function loadGifenc() {
+    if (gifencModule) return gifencModule;
+    const url = resolveAssetUrl('vendor/gifenc.mjs');
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('gifenc-load-failed');
+    const code = await res.text();
+    const blobUrl = URL.createObjectURL(new Blob([code], { type: 'text/javascript' }));
+    try {
+      gifencModule = await import(blobUrl);
+      return gifencModule;
+    } finally {
+      URL.revokeObjectURL(blobUrl);
+    }
+  }
+
+  function getGifencExports(mod) {
+    const GIFEncoder = mod.GIFEncoder || mod.default;
+    const quantize = mod.quantize;
+    const applyPalette = mod.applyPalette;
+    if (!GIFEncoder || !quantize || !applyPalette) throw new Error('gifenc exports missing');
+    return { GIFEncoder, quantize, applyPalette };
+  }
+
   async function getH264EncoderConfig(width, height, fps) {
     if (typeof VideoEncoder === 'undefined' || typeof VideoFrame === 'undefined') return null;
     const evenW = width & ~1;
@@ -929,6 +954,36 @@
     };
   }
 
+  async function exportVideoGif(fps, totalFrames, canvas, ctx) {
+    const { GIFEncoder, quantize, applyPalette } = getGifencExports(await loadGifenc());
+    const gif = GIFEncoder();
+    const w = canvas.width;
+    const h = canvas.height;
+    const frameDelay = Math.max(20, Math.round(1000 / fps));
+    const rgba = new Uint8Array(w * h * 4);
+
+    for (let i = 0; i < totalFrames; i++) {
+      if (exportCancelRequested) throw new Error('cancelled');
+      await renderProgressToCanvas(ctx, i / totalFrames, w, h);
+      rgba.set(ctx.getImageData(0, 0, w, h).data);
+      const palette = quantize(rgba, 256);
+      const index = applyPalette(rgba, palette);
+      const frameOpts = { palette, delay: frameDelay };
+      if (i === 0) frameOpts.first = true;
+      gif.writeFrame(index, w, h, frameOpts);
+      setExportModal(true, (i + 1) / totalFrames, 'Encoding GIF · ' + (i + 1) + ' / ' + totalFrames + ' frames…', i + 1);
+      await new Promise(r => setTimeout(r, 0));
+    }
+
+    gif.finish();
+    const bytes = gif.bytes();
+    if (!bytes || !bytes.byteLength) throw new Error('GIF output empty');
+    return {
+      blob: new Blob([bytes], { type: 'image/gif' }),
+      filename: 'fal-lower-thirds-' + W + 'x' + H + '-' + fps + 'fps-' + Date.now() + '.gif',
+    };
+  }
+
   function downloadBlob(blob, filename) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -952,6 +1007,7 @@
     const totalFrames = Math.max(1, Math.round((cycleMs / 1000) * fps));
     exportRunMeta = { format, fps, totalFrames };
     const isMp4 = format === 'mp4';
+    const isGif = format === 'gif';
     const canvas = document.createElement('canvas');
     canvas.width = W & ~1;
     canvas.height = H & ~1;
@@ -978,6 +1034,9 @@
             throw webcodecsErr;
           }
         }
+      } else if (isGif) {
+        setExportModal(true, 0, 'Encoding GIF…');
+        result = await exportVideoGif(fps, totalFrames, canvas, ctx);
       } else {
         if (!pickWebmMimeType()) throw new Error('no-webm');
         setExportModal(true, 0, 'Encoding WebM…');
@@ -991,8 +1050,10 @@
         document.getElementById('status').textContent = 'Video export cancelled.';
       } else if (isMp4 && String(err).includes('mp4-muxer')) {
         document.getElementById('status').textContent = 'MP4 export failed — keep vendor/mp4-muxer.mjs next to this page.';
+      } else if (isGif && String(err).includes('gifenc')) {
+        document.getElementById('status').textContent = 'GIF export failed — keep vendor/gifenc.mjs next to this page.';
       } else {
-        document.getElementById('status').textContent = (isMp4 ? 'MP4' : 'WebM') + ' export failed — ' + (err?.message || 'try Chrome.');
+        document.getElementById('status').textContent = (isMp4 ? 'MP4' : isGif ? 'GIF' : 'WebM') + ' export failed — ' + (err?.message || 'try Chrome.');
         console.error(err);
       }
     } finally {
@@ -1040,6 +1101,7 @@
     document.getElementById('exportCancel').onclick = () => { exportCancelRequested = true; };
     document.getElementById('mp4ExportBtn').onclick = () => exportVideoLoop('mp4');
     document.getElementById('webmExportBtn').onclick = () => exportVideoLoop('webm');
+    document.getElementById('gifExportBtn').onclick = () => exportVideoLoop('gif');
     document.getElementById('jsonExportBtn').onclick = () => exportSettingsJson();
 
     const rerender = () => drawFrame(performance.now());
