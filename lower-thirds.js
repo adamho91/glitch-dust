@@ -55,6 +55,16 @@
   let cycleStart = 0;
   let lastFrame = 0;
   let measureCtx = null;
+  let exportCancelRequested = false;
+  let exportRunMeta = { format: '', fps: 0, totalFrames: 0 };
+  let mp4MuxerModule = null;
+
+  const SLIDER_IDS = [
+    'fontSize', 'barHeight', 'barPad', 'barMaxWidth', 'typeSpeed',
+    'logoSize', 'logoIntro', 'marginLeft', 'marginBottom', 'logoGap',
+    'badgeGap', 'badgeOffsetX', 'pixSize', 'dustCells', 'dustOffsetX',
+    'branchLen', 'branchSplit', 'axisBias', 'circlePct', 'animDuration',
+  ];
 
   function v(id) {
     const el = document.getElementById(id);
@@ -96,6 +106,16 @@
     const dur = getAnimDurationMs();
     if (dur <= 0) return 0;
     return ((ts - cycleStart) % dur) / dur;
+  }
+
+  function isHeadlineStatic() {
+    const el = document.getElementById('headlineStatic');
+    return el && el.checked;
+  }
+
+  function updateHeadlineTypeUi() {
+    const row = document.getElementById('typeSpeedRow');
+    if (row) row.style.display = isHeadlineStatic() ? 'none' : '';
   }
 
   function getHeadlineText() {
@@ -269,6 +289,9 @@
     const full = getHeadlineText();
     if (!full) return { visible: '', count: 0, total: 0 };
     const total = full.length;
+    if (isHeadlineStatic()) {
+      return { visible: full, count: total, total };
+    }
     const speed = v('typeSpeed') / 100;
     const introEnd = v('logoIntro') / 100;
     const typeStart = introEnd * 0.6;
@@ -450,18 +473,26 @@
     overlayRoot.appendChild(group);
   }
 
-  function drawFrame(ts) {
-    const progress = getLoopProgress(ts);
+  function renderAtProgress(progress) {
     const layout = getLayout(getHeadlineText());
     renderLogo(progress, layout);
     renderOverlay(progress);
     drawDustFrame(progress);
+  }
+
+  function drawFrame(ts) {
+    const progress = getLoopProgress(ts);
+    renderAtProgress(progress);
     const tw = getTypewriterState(progress);
     const status = document.getElementById('status');
     if (status) {
-      status.textContent = tw.total
-        ? tw.count + ' / ' + tw.total + ' chars · ' + Math.round(progress * 100) + '%'
-        : 'Enter headline text';
+      if (!tw.total) {
+        status.textContent = 'Enter headline text';
+      } else if (isHeadlineStatic()) {
+        status.textContent = 'Static headline · ' + Math.round(progress * 100) + '%';
+      } else {
+        status.textContent = tw.count + ' / ' + tw.total + ' chars · ' + Math.round(progress * 100) + '%';
+      }
     }
   }
 
@@ -527,6 +558,459 @@
     if (detailRow) detailRow.style.display = style === 'light' ? 'none' : '';
   }
 
+  function collectSettings() {
+    const sliders = {};
+    SLIDER_IDS.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) sliders[id] = el.value;
+    });
+    return {
+      v: 1,
+      type: 'fal-lower-thirds',
+      headline: getHeadlineText(),
+      headlineStatic: isHeadlineStatic(),
+      noiseSeed,
+      activePresetId,
+      activeTonalColors: activeTonalColors.slice(),
+      logoStyle: getLogoStyle(),
+      showBadge: document.getElementById('showBadge').checked,
+      colors: {
+        bar: document.getElementById('barColor').value,
+        text: document.getElementById('textColor').value,
+        logoAccent: document.getElementById('logoColorAccent').value,
+        logoDetail: document.getElementById('logoColorDetail').value,
+      },
+      sliders,
+    };
+  }
+
+  function setExportButtonsBusy(busy) {
+    ['mp4ExportBtn', 'webmExportBtn'].forEach(id => {
+      const btn = document.getElementById(id);
+      if (btn) btn.classList.toggle('exporting', !!busy);
+    });
+  }
+
+  function updateExportProgress(pct, msg, frame) {
+    const rounded = Math.min(100, Math.max(0, Math.round(pct * 100)));
+    const fill = document.getElementById('exportProgressFill');
+    const pctEl = document.getElementById('exportProgressPct');
+    const status = document.getElementById('exportStatus');
+    const meta = document.getElementById('exportMeta');
+    if (fill) fill.style.width = rounded + '%';
+    if (pctEl) pctEl.textContent = rounded + '%';
+    if (msg != null && status) status.textContent = msg;
+    const tf = exportRunMeta.totalFrames;
+    const fps = exportRunMeta.fps;
+    const fmt = exportRunMeta.format ? exportRunMeta.format.toUpperCase() : 'VIDEO';
+    if (meta) {
+      if (frame != null && tf) {
+        meta.textContent = fmt + ' · frame ' + frame + ' / ' + tf + ' · ' + W + '×' + H + ' · ' + fps + ' fps';
+      } else if (tf) {
+        meta.textContent = fmt + ' · ' + tf + ' frames · ' + W + '×' + H + ' · ' + fps + ' fps';
+      } else {
+        meta.textContent = '';
+      }
+    }
+    const statusBar = document.getElementById('status');
+    if (statusBar && msg) statusBar.textContent = 'Exporting ' + fmt + ' · ' + rounded + '% · ' + msg;
+  }
+
+  function setExportModal(open, pct, msg, frame) {
+    const modal = document.getElementById('exportModal');
+    if (!modal) return;
+    modal.classList.toggle('open', open);
+    modal.setAttribute('aria-hidden', open ? 'false' : 'true');
+    if (open && pct != null) updateExportProgress(pct, msg, frame);
+    else if (!open) {
+      const fill = document.getElementById('exportProgressFill');
+      const pctEl = document.getElementById('exportProgressPct');
+      const meta = document.getElementById('exportMeta');
+      if (fill) fill.style.width = '0%';
+      if (pctEl) pctEl.textContent = '0%';
+      if (meta) meta.textContent = '';
+    } else if (msg != null) {
+      const status = document.getElementById('exportStatus');
+      if (status) status.textContent = msg;
+    }
+  }
+
+  function collectSvgTextOpacity(el) {
+    let opacity = 1;
+    let node = el;
+    while (node && node.nodeType === 1 && node.localName !== 'svg') {
+      if (node.hasAttribute('opacity')) {
+        const val = parseFloat(node.getAttribute('opacity'));
+        if (isFinite(val)) opacity *= Math.max(0, Math.min(1, val));
+      }
+      node = node.parentNode;
+    }
+    return opacity;
+  }
+
+  function canvasTextAlignFromSvg(anchor) {
+    if (anchor === 'middle') return 'center';
+    if (anchor === 'end') return 'right';
+    return 'left';
+  }
+
+  function canvasTextBaselineFromSvg(baseline) {
+    if (baseline === 'hanging') return 'hanging';
+    if (baseline === 'middle' || baseline === 'central') return 'middle';
+    return 'alphabetic';
+  }
+
+  function parseFontFamily(raw) {
+    if (!raw) return '"Focal Upright", sans-serif';
+    return raw.replace(/^['"]|['"]$/g, '').split(',')[0].trim();
+  }
+
+  function drawExportSvgTexts(ctx, svgEl) {
+    svgEl.querySelectorAll('text').forEach(textEl => {
+      const ctm = textEl.getCTM && textEl.getCTM();
+      if (!ctm) return;
+      const fontSize = parseFloat(textEl.getAttribute('font-size') || '16');
+      const fontWeight = textEl.getAttribute('font-weight') || '400';
+      const fill = textEl.getAttribute('fill') || '#000000';
+      const anchor = textEl.getAttribute('text-anchor') || 'start';
+      const baseline = textEl.getAttribute('dominant-baseline') || 'auto';
+      const letterSpacing = parseFloat(textEl.getAttribute('letter-spacing') || '0');
+      const opacity = collectSvgTextOpacity(textEl);
+      const family = parseFontFamily(textEl.getAttribute('font-family'));
+
+      ctx.save();
+      ctx.transform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.e, ctm.f);
+      ctx.font = fontWeight + ' ' + fontSize + 'px "' + family + '", sans-serif';
+      ctx.fillStyle = fill;
+      ctx.globalAlpha *= opacity;
+      if (letterSpacing && 'letterSpacing' in ctx) ctx.letterSpacing = letterSpacing + 'px';
+      ctx.textAlign = canvasTextAlignFromSvg(anchor);
+      ctx.textBaseline = canvasTextBaselineFromSvg(baseline);
+      const x = parseFloat(textEl.getAttribute('x') || '0');
+      const y = parseFloat(textEl.getAttribute('y') || '0');
+      const content = textEl.textContent || '';
+      if (content) ctx.fillText(content, x, y);
+      ctx.restore();
+    });
+  }
+
+  async function rasterizeSvgBlobToCanvas(ctx, blob, dw, dh) {
+    if (typeof createImageBitmap === 'function') {
+      try {
+        const bitmap = await createImageBitmap(blob);
+        try {
+          ctx.drawImage(bitmap, 0, 0, dw, dh);
+          return;
+        } finally {
+          bitmap.close();
+        }
+      } catch (e) {}
+    }
+    await new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(blob);
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, dw, dh);
+        URL.revokeObjectURL(url);
+        resolve();
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error('svg rasterize failed'));
+      };
+      img.src = url;
+    });
+  }
+
+  async function preloadExportFonts() {
+    if (!document.fonts || !document.fonts.load) return;
+    const fontSize = v('fontSize') || 50;
+    await Promise.all([
+      document.fonts.load('480 ' + fontSize + 'px "Focal Upright"'),
+      document.fonts.load('400 25px "HAL Timezone Mono"'),
+    ].map(p => p.catch(() => {})));
+    await document.fonts.ready;
+  }
+
+  async function renderProgressToCanvas(ctx, progress, dw, dh) {
+    renderAtProgress(progress);
+    const clone = svg.cloneNode(true);
+    clone.querySelectorAll('text').forEach(node => node.remove());
+    const blob = new Blob(
+      [new XMLSerializer().serializeToString(clone)],
+      { type: 'image/svg+xml;charset=utf-8' }
+    );
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, dw, dh);
+    await rasterizeSvgBlobToCanvas(ctx, blob, dw, dh);
+    const sx = dw / W;
+    const sy = dh / H;
+    if (sx !== 1 || sy !== 1) {
+      ctx.save();
+      ctx.scale(sx, sy);
+      drawExportSvgTexts(ctx, svg);
+      ctx.restore();
+    } else {
+      drawExportSvgTexts(ctx, svg);
+    }
+    ctx.restore();
+  }
+
+  function resolveAssetUrl(rel) {
+    try {
+      return new URL(rel, document.baseURI || window.location.href).href;
+    } catch (e) {
+      return rel;
+    }
+  }
+
+  async function loadMp4Muxer() {
+    if (mp4MuxerModule) return mp4MuxerModule;
+    const url = resolveAssetUrl('vendor/mp4-muxer.mjs');
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('mp4-muxer-load-failed');
+    const code = await res.text();
+    const blobUrl = URL.createObjectURL(new Blob([code], { type: 'text/javascript' }));
+    try {
+      mp4MuxerModule = await import(blobUrl);
+      return mp4MuxerModule;
+    } finally {
+      URL.revokeObjectURL(blobUrl);
+    }
+  }
+
+  function getMp4MuxerExports(mod) {
+    const Muxer = mod.Muxer || mod.default?.Muxer;
+    const ArrayBufferTarget = mod.ArrayBufferTarget || mod.default?.ArrayBufferTarget;
+    if (!Muxer || !ArrayBufferTarget) throw new Error('mp4-muxer exports missing');
+    return { Muxer, ArrayBufferTarget };
+  }
+
+  async function getH264EncoderConfig(width, height, fps) {
+    if (typeof VideoEncoder === 'undefined' || typeof VideoFrame === 'undefined') return null;
+    const evenW = width & ~1;
+    const evenH = height & ~1;
+    const codecs = ['avc1.42E01E', 'avc1.4D401E', 'avc1.64001E', 'avc1.640028'];
+    for (const codec of codecs) {
+      const base = {
+        codec,
+        width: evenW,
+        height: evenH,
+        bitrate: Math.min(24_000_000, Math.round(evenW * evenH * fps * 0.14)),
+        framerate: fps,
+      };
+      const candidates = [{ ...base, avc: { format: 'avc' } }, base];
+      for (const config of candidates) {
+        try {
+          const support = await VideoEncoder.isConfigSupported(config);
+          if (support.supported) {
+            return {
+              codec,
+              evenW,
+              evenH,
+              bitrate: base.bitrate,
+              encoderConfig: support.config || config,
+            };
+          }
+        } catch (e) {}
+      }
+    }
+    return null;
+  }
+
+  function pickWebmMimeType() {
+    const candidates = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+    return candidates.find(m => typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(m)) || '';
+  }
+
+  function pickMp4MimeType() {
+    const candidates = [
+      'video/mp4;codecs="avc1.42E01E"',
+      'video/mp4;codecs="avc1.4D401E"',
+      'video/mp4;codecs="avc1.640028"',
+      'video/mp4;codecs="avc1"',
+      'video/mp4',
+    ];
+    return candidates.find(m => typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(m)) || '';
+  }
+
+  async function exportVideoH264(config, fps, totalFrames, canvas, ctx) {
+    const mod = await loadMp4Muxer();
+    const { Muxer, ArrayBufferTarget } = getMp4MuxerExports(mod);
+    const target = new ArrayBufferTarget();
+    const muxer = new Muxer({
+      target,
+      video: { codec: 'avc', width: config.evenW, height: config.evenH, frameRate: fps },
+      fastStart: 'in-memory',
+      firstTimestampBehavior: 'offset',
+    });
+    let encoderError = null;
+    let encodedChunks = 0;
+    const encoder = new VideoEncoder({
+      output: (chunk, meta) => {
+        try {
+          encodedChunks++;
+          muxer.addVideoChunk(chunk, meta);
+        } catch (e) {
+          encoderError = e;
+        }
+      },
+      error: e => { encoderError = e; },
+    });
+    encoder.configure(config.encoderConfig || {
+      codec: config.codec,
+      width: config.evenW,
+      height: config.evenH,
+      bitrate: config.bitrate,
+      framerate: fps,
+      latencyMode: 'quality',
+    });
+    const frameDurUs = Math.round(1_000_000 / fps);
+    const keyEvery = Math.max(1, fps * 2);
+    const dw = canvas.width;
+    const dh = canvas.height;
+    try {
+      for (let i = 0; i < totalFrames; i++) {
+        if (exportCancelRequested) throw new Error('cancelled');
+        if (encoderError) throw encoderError;
+        await renderProgressToCanvas(ctx, i / totalFrames, dw, dh);
+        const frame = new VideoFrame(canvas, { timestamp: i * frameDurUs, duration: frameDurUs });
+        encoder.encode(frame, { keyFrame: i % keyEvery === 0 });
+        frame.close();
+        setExportModal(true, (i + 1) / totalFrames, 'Encoding H.264 · ' + (i + 1) + ' / ' + totalFrames + ' frames…', i + 1);
+        await new Promise(r => setTimeout(r, 0));
+      }
+      if (encoderError) throw encoderError;
+      updateExportProgress(0.99, 'Finalizing MP4 file…');
+      await encoder.flush();
+      if (!encodedChunks) throw new Error('H.264 encoder produced no frames.');
+      muxer.finalize();
+      const buffer = target.buffer;
+      if (!buffer || buffer.byteLength < 256) throw new Error('MP4 output empty');
+      return {
+        blob: new Blob([buffer], { type: 'video/mp4' }),
+        filename: 'fal-lower-thirds-' + W + 'x' + H + '-' + fps + 'fps-' + Date.now() + '.mp4',
+      };
+    } finally {
+      try { encoder.close(); } catch (e) {}
+    }
+  }
+
+  async function exportVideoRecorder(format, fps, totalFrames, canvas, ctx) {
+    const mimeType = format === 'mp4' ? pickMp4MimeType() : pickWebmMimeType();
+    if (!mimeType) throw new Error(format === 'mp4' ? 'no-mp4-recorder' : 'no-webm');
+    const stream = canvas.captureStream(fps);
+    const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 14_000_000 });
+    const chunks = [];
+    const recordingDone = new Promise(resolve => {
+      recorder.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+      recorder.onstop = resolve;
+    });
+    recorder.start();
+    const dw = canvas.width;
+    const dh = canvas.height;
+    const frameDelay = 1000 / fps;
+    for (let i = 0; i < totalFrames; i++) {
+      if (exportCancelRequested) throw new Error('cancelled');
+      await renderProgressToCanvas(ctx, i / totalFrames, dw, dh);
+      setExportModal(true, (i + 1) / totalFrames, 'Recording · ' + (i + 1) + ' / ' + totalFrames + ' frames…', i + 1);
+      await new Promise(r => setTimeout(r, frameDelay));
+    }
+    recorder.stop();
+    await recordingDone;
+    const ext = format === 'mp4' ? 'mp4' : 'webm';
+    return {
+      blob: new Blob(chunks, { type: mimeType.split(';')[0] }),
+      filename: 'fal-lower-thirds-' + W + 'x' + H + '-' + fps + 'fps-' + Date.now() + '.' + ext,
+    };
+  }
+
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
+
+  async function exportVideoLoop(format) {
+    if (!particles.length) beginCycle();
+    exportCancelRequested = false;
+    const wasPaused = paused;
+    pauseAnim();
+    setExportButtonsBusy(true);
+    const fps = parseInt(document.getElementById('exportFps').value, 10) || 24;
+    const cycleMs = getAnimDurationMs();
+    const totalFrames = Math.max(1, Math.round((cycleMs / 1000) * fps));
+    exportRunMeta = { format, fps, totalFrames };
+    const isMp4 = format === 'mp4';
+    const canvas = document.createElement('canvas');
+    canvas.width = W & ~1;
+    canvas.height = H & ~1;
+    const ctx = canvas.getContext('2d', { alpha: false });
+    try {
+      setExportModal(true, 0, 'Loading fonts…');
+      await preloadExportFonts();
+      let result;
+      if (isMp4) {
+        try {
+          const h264Config = await getH264EncoderConfig(canvas.width, canvas.height, fps);
+          if (h264Config) {
+            setExportModal(true, 0, 'Preparing H.264 MP4…');
+            result = await exportVideoH264(h264Config, fps, totalFrames, canvas, ctx);
+          } else {
+            throw new Error('no-webcodecs');
+          }
+        } catch (webcodecsErr) {
+          if (webcodecsErr && webcodecsErr.message === 'cancelled') throw webcodecsErr;
+          if (pickMp4MimeType()) {
+            setExportModal(true, 0, 'Recording MP4…');
+            result = await exportVideoRecorder('mp4', fps, totalFrames, canvas, ctx);
+          } else {
+            throw webcodecsErr;
+          }
+        }
+      } else {
+        if (!pickWebmMimeType()) throw new Error('no-webm');
+        setExportModal(true, 0, 'Encoding WebM…');
+        result = await exportVideoRecorder('webm', fps, totalFrames, canvas, ctx);
+      }
+      updateExportProgress(1, 'Download starting…');
+      downloadBlob(result.blob, result.filename);
+      document.getElementById('status').textContent = 'Exported ' + result.filename;
+    } catch (err) {
+      if (err && err.message === 'cancelled') {
+        document.getElementById('status').textContent = 'Video export cancelled.';
+      } else if (isMp4 && String(err).includes('mp4-muxer')) {
+        document.getElementById('status').textContent = 'MP4 export failed — keep vendor/mp4-muxer.mjs next to this page.';
+      } else {
+        document.getElementById('status').textContent = (isMp4 ? 'MP4' : 'WebM') + ' export failed — ' + (err?.message || 'try Chrome.');
+        console.error(err);
+      }
+    } finally {
+      setExportModal(false);
+      setExportButtonsBusy(false);
+      exportRunMeta = { format: '', fps: 0, totalFrames: 0 };
+      drawFrame(performance.now());
+      if (!wasPaused) startAnim();
+    }
+  }
+
+  function exportSettingsJson() {
+    const text = JSON.stringify(collectSettings(), null, 2);
+    const filename = 'fal-lower-thirds-' + Date.now() + '.json';
+    downloadBlob(new Blob([text], { type: 'application/json;charset=utf-8' }), filename);
+    document.getElementById('status').textContent = 'Exported ' + filename;
+  }
+
   function wireControls() {
     document.getElementById('genBtn').onclick = beginCycle;
     document.getElementById('animBtn').onclick = () => {
@@ -547,6 +1031,16 @@
     document.getElementById('headlineText').oninput = () => {
       beginCycle();
     };
+
+    document.getElementById('headlineStatic').onchange = () => {
+      updateHeadlineTypeUi();
+      drawFrame(performance.now());
+    };
+
+    document.getElementById('exportCancel').onclick = () => { exportCancelRequested = true; };
+    document.getElementById('mp4ExportBtn').onclick = () => exportVideoLoop('mp4');
+    document.getElementById('webmExportBtn').onclick = () => exportVideoLoop('webm');
+    document.getElementById('jsonExportBtn').onclick = () => exportSettingsJson();
 
     const rerender = () => drawFrame(performance.now());
     [
@@ -574,6 +1068,7 @@
 
     renderTonalPresets();
     updateLogoColorUi();
+    updateHeadlineTypeUi();
     wireControls();
 
     if (typeof initDialSliders === 'function') {

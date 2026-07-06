@@ -38,7 +38,7 @@ new_header = """<aside class="sidebar">
     <button type="button" id="litePresetExport">Export all presets</button>
     <input type="file" id="litePresetImportFile" accept="application/json,.json" hidden>
   </div>
-  <p class="hint lite-full-link">Craft looks in the <a href="index.html">full editor</a>, export JSON, import here.</p>
+  <p class="hint lite-full-link">Craft looks in Glitch Dust (⇧1), export JSON, import here.</p>
 
   <div class="lite-hide">
   <div class="preset-bar">"""
@@ -49,8 +49,8 @@ html = html.replace(old_header, new_header, 1)
 
 # Close lite-hide after old preset hint, reopen for grid through distribution
 html = html.replace(
-    '  <div class="hint">Built-in Default loads on first visit · edits auto-save to the active preset · <a href="lite.html" style="color:#AB77FF;text-decoration:none">Lite editor</a></div>\n\n  <div class="sect">Canvas Size</div>',
-    '  <div class="hint">Built-in Default loads on first visit · edits auto-save to the active preset</div>\n  </div>\n\n  <div class="sect">Aspect ratio</div>\n  <div class="lite-canvas-size">',
+    '  <div class="hint">Built-in Default loads on first visit · edits auto-save to the active preset · ⇧1/2/3 switch pages</div>\n\n  <div class="sect">Canvas Size</div>',
+    '  <div class="hint">Built-in Default loads on first visit · edits auto-save to the active preset · ⇧1/2/3 switch pages</div>\n  </div>\n\n  <div class="sect">Aspect ratio</div>\n  <div class="lite-canvas-size">',
     1,
 )
 
