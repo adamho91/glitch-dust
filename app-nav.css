@@ -28,9 +28,9 @@
 }
 
 .app-page-link.active {
-  background: #2a1848;
+  background: var(--ui-accent-bg-active);
   color: #eee;
-  box-shadow: inset 0 0 0 1px #5718C0;
+  box-shadow: inset 0 0 0 1px var(--ui-accent);
 }
 
 .app-page-key {
@@ -42,7 +42,7 @@
 }
 
 .app-page-link.active .app-page-key {
-  color: #AB77FF;
+  color: var(--ui-accent-light);
 }
 
 .app-page-label {
@@ -58,7 +58,6 @@
 
 .app-brand-wrap {
   margin: 0 0 12px;
-  border-radius: 6px;
   overflow: hidden;
   background: #000;
   line-height: 0;

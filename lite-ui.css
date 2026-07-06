@@ -29,9 +29,9 @@ body.lite-app .lite-ratio-row button {
 }
 
 body.lite-app .lite-ratio-row button.active {
-  border-color: #5718C0;
-  background: #5718C033;
-  color: #D5B8FF;
+  border-color: var(--ui-accent);
+  background: var(--ui-accent-a33);
+  color: var(--ui-accent-pale);
 }
 
 .lite-preset-grid {
@@ -64,8 +64,8 @@ body.lite-app .lite-ratio-row button.active {
 }
 
 .lite-preset-card.active {
-  border-color: #5718C0;
-  background: #5718C018;
+  border-color: var(--ui-accent);
+  background: var(--ui-accent-a18);
   color: #eee;
 }
 
@@ -104,7 +104,7 @@ body.lite-app .lite-ratio-row button.active {
 }
 
 .lite-full-link a {
-  color: #AB77FF;
+  color: var(--ui-accent-light);
   text-decoration: none;
 }
 

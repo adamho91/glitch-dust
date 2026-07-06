@@ -23,7 +23,7 @@
   .sidebar { overflow-y: auto; padding: 16px 16px 32px; border-right: 1px solid #2a2a2a; background: #161616; }
   .preview-panel { display: flex; flex-direction: column; padding: 16px 20px; min-width: 0; overflow: hidden; }
   h1 { font-size: 14px; font-weight: 500; color: #eee; margin-bottom: 4px; letter-spacing: 0.04em; text-transform: uppercase; }
-  h1 span { color: #5718C0; }
+  h1 span { color: var(--ui-accent); }
   .subtitle { font-size: 11px; color: #666; margin-bottom: 12px; }
   .preview-wrap { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; border: 1px solid #333; border-radius: 6px; overflow: hidden; background: #111; line-height: 0; position: relative; isolation: isolate; z-index: 1; }
   .preview-wrap.stream-bg { background: #000; }
@@ -62,17 +62,17 @@
   .sect:first-child { margin-top: 0; }
   .ctrl { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
   .ctrl label { width: 120px; flex-shrink: 0; color: #999; }
-  .ctrl input[type=range] { flex: 1; accent-color: #5718C0; }
+  .ctrl input[type=range] { flex: 1; accent-color: #ADFF00; }
   .ctrl span.val { min-width: 32px; font-size: 12px; font-weight: 500; color: #eee; text-align: right; }
   .ctrl select { flex: 1; background: #2a2a2a; border: 1px solid #3a3a3a; color: #eee; border-radius: 4px; padding: 3px 6px; font-size: 12px; }
   .ctrl input[type=color] { width: 34px; height: 28px; border-radius: 4px; border: 1px solid #3a3a3a; padding: 2px; background: transparent; cursor: pointer; }
   .tonal-count { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
   .tonal-count button { padding: 5px 12px; min-width: 36px; font-size: 11px; font-weight: 600; }
-  .tonal-count button.active { border-color: #5718C0; background: #5718C033; color: #D5B8FF; }
+  .tonal-count button.active { border-color: var(--ui-accent); background: var(--ui-accent-a33); color: var(--ui-accent-pale); }
   .tonal-presets { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; max-height: 200px; overflow-y: auto; }
   .tonal-preset { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border: 1px solid #333; border-radius: 5px; background: #222; cursor: pointer; text-align: left; width: 100%; font-size: 11px; color: #bbb; }
   .tonal-preset:hover { border-color: #444; background: #2a2a2a; }
-  .tonal-preset.active { border-color: #5718C0; background: #5718C018; color: #eee; }
+  .tonal-preset.active { border-color: var(--ui-accent); background: var(--ui-accent-a18); color: #eee; }
   .tonal-preset .chips { display: flex; gap: 3px; margin-left: auto; flex-shrink: 0; }
   .tonal-preset .chip { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(255,255,255,0.15); }
   .tonal-preview { display: flex; gap: 4px; margin-bottom: 8px; min-height: 20px; align-items: center; flex-wrap: wrap; }
@@ -86,13 +86,13 @@
   .swatch span { font-size: 10px; color: #555; max-width: 52px; text-align: center; line-height: 1.2; }
   .beat-vis { display: flex; gap: 2px; align-items: flex-end; height: 22px; margin: 4px 0 10px; }
   .beat-bar { width: 6px; border-radius: 2px; background: #2e2e2e; transition: background 0.07s; flex-shrink: 0; }
-  .beat-bar.active { background: #5718C0; }
+  .beat-bar.active { background: var(--ui-accent); }
   .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
   button { background: #2a2a2a; border: 1px solid #3a3a3a; color: #ccc; border-radius: 5px; padding: 7px 14px; font-size: 12px; cursor: pointer; transition: background 0.15s, color 0.15s; }
   button:hover { background: #3a3a3a; color: #eee; }
   button:active { background: #444; }
-  button.primary { border-color: #5718C0; color: #AB77FF; }
-  button.primary:hover { background: #5718C022; }
+  button.primary { border-color: var(--ui-accent); color: var(--ui-accent-light); }
+  button.primary:hover { background: var(--ui-accent-a22); }
   .hint { font-size: 11px; color: #444; margin: -4px 0 6px 0; padding-left: 0; }
   .media-upload-row { display: flex; gap: 6px; align-items: center; margin-bottom: 7px; flex-wrap: wrap; }
   .media-upload-row input[type=file] { flex: 1; min-width: 0; font-size: 11px; color: #aaa; }
@@ -137,7 +137,7 @@
   .wave-box.wave-custom { overflow: visible; }
   .wave-box .wave-label { font-size: 10px; color: #555; margin-bottom: 4px; text-transform: uppercase; letter-spacing: .06em; }
   .wave-editor-hint { font-size: 10px; color: #555; margin: 4px 0 0; }
-  .wave-handle { fill: #5718C0; stroke: #AB77FF; stroke-width: 1.5; cursor: grab; vector-effect: non-scaling-stroke; }
+  .wave-handle { fill: var(--ui-accent); stroke: var(--ui-accent-light); stroke-width: 1.5; cursor: grab; vector-effect: non-scaling-stroke; }
   .wave-handle:active { cursor: grabbing; }
   .median-thumb {
     position: absolute;
@@ -158,7 +158,7 @@
     left: 6px;
     font-size: 9px;
     font-weight: 600;
-    color: #5718C0;
+    color: var(--ui-accent);
     letter-spacing: .05em;
     z-index: 1;
     text-transform: uppercase;
@@ -188,10 +188,10 @@
     font-family: 'Focal Upright', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     font-weight: 480; letter-spacing: -0.02em;
   }
-  .text-area:focus { outline: none; border-color: #5718C0; }
+  .text-area:focus { outline: none; border-color: var(--ui-accent); }
   .ctrl-check { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; padding-left: 2px; }
   .ctrl-check label { color: #999; cursor: pointer; user-select: none; }
-  .ctrl-check input { width: 16px; height: 16px; accent-color: #5718C0; cursor: pointer; flex-shrink: 0; }
+  .ctrl-check input { width: 16px; height: 16px; accent-color: #ADFF00; cursor: pointer; flex-shrink: 0; }
   .overlay-text-layer { pointer-events: none; }
   .canvas-text-panel {
     position: absolute;
@@ -258,7 +258,7 @@
     box-sizing: border-box;
   }
   .pin-btn:hover { background: #2a2a2a; color: #ccc; border-color: #555; }
-  .pin-btn.active { background: #5718C0; border-color: #7a3dd8; color: #fff; }
+  .pin-btn.active { background: var(--ui-accent); border-color: var(--ui-accent-dark); color: #111; }
   .pin-btn svg { width: 10px; height: 10px; display: block; }
   .logo-pin-grid {
     grid-template-columns: repeat(3, 24px);
@@ -313,7 +313,7 @@
     box-sizing: border-box;
   }
   .logo-style-btn:hover { background: #2a2a2a; border-color: #555; }
-  .logo-style-btn.active { background: #2a1a40; border-color: #7a3dd8; }
+  .logo-style-btn.active { background: var(--ui-accent-bg); border-color: var(--ui-accent-dark); }
   .logo-style-btn span {
     font-size: 9px;
     color: #777;
@@ -349,7 +349,7 @@
   .export-modal-inner h2 { font-size: 13px; font-weight: 600; color: #eee; margin-bottom: 4px; letter-spacing: .04em; text-transform: uppercase; }
   .export-modal-inner p { font-size: 12px; color: #888; margin-bottom: 14px; line-height: 1.45; }
   .export-progress { height: 6px; background: #2a2a2a; border-radius: 99px; overflow: hidden; flex: 1; min-width: 0; }
-  .export-progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #5718C0, #AB77FF); transition: width .12s linear; }
+  .export-progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--ui-accent), var(--ui-accent-light)); transition: width .12s linear; }
   .export-progress-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
   .export-progress-pct { font-size: 12px; font-weight: 600; color: #ccc; min-width: 36px; text-align: right; font-variant-numeric: tabular-nums; }
   .export-status { font-size: 11px; color: #aaa; min-height: 16px; margin-bottom: 4px; line-height: 1.4; }
@@ -376,10 +376,10 @@
     user-select: none;
     touch-action: none;
     border-radius: 8px;
-    background: rgba(87, 24, 192, 0.14);
+    background: rgba(173, 255, 0, 0.14);
     transition: background 0.15s;
   }
-  .dialkit-controls .dial-slider-active { background: rgba(87, 24, 192, 0.2); }
+  .dialkit-controls .dial-slider-active { background: rgba(173, 255, 0, 0.2); }
   .dialkit-controls .dial-hashmarks { position: absolute; inset: 0; pointer-events: none; }
   .dialkit-controls .dial-hashmark {
     position: absolute;
@@ -397,20 +397,20 @@
     top: 0;
     bottom: 0;
     left: 0;
-    background: rgba(87, 24, 192, 0.52);
+    background: rgba(173, 255, 0, 0.52);
     pointer-events: none;
     transition: width 0.12s ease-out, background 0.15s;
   }
   .dialkit-controls .dial-dragging .dial-fill,
   .dialkit-controls .dial-dragging .dial-handle { transition: none; }
-  .dialkit-controls .dial-slider-active .dial-fill { background: rgba(87, 24, 192, 0.68); }
+  .dialkit-controls .dial-slider-active .dial-fill { background: rgba(173, 255, 0, 0.68); }
   .dialkit-controls .dial-handle {
     position: absolute;
     top: 50%;
     width: 3px;
     height: 18px;
     border-radius: 999px;
-    background: rgba(213, 184, 255, 0.95);
+    background: rgba(200, 255, 102, 0.95);
     pointer-events: none;
     transform: translateY(-50%) scaleX(0.35);
     opacity: 0;
@@ -449,6 +449,7 @@
 <script src="dial-sliders.js"></script>
 <script src="default-presets.js"></script>
 <script src="preset-io.js"></script>
+<link rel="stylesheet" href="ui-theme.css">
 <link rel="stylesheet" href="app-nav.css">
 <script src="app-nav.js" defer></script>
 </head>
@@ -709,7 +710,7 @@
     <div class="wave-label">Preview</div>
     <svg id="wavePreview" viewBox="0 0 200 56" preserveAspectRatio="none">
       <line x1="0" y1="50" x2="200" y2="50" stroke="#2a2a2a" stroke-width="1"/>
-      <polyline id="wavePreviewLine" fill="none" stroke="#5718C0" stroke-width="2" points=""/>
+      <polyline id="wavePreviewLine" fill="none" stroke="#ADFF00" stroke-width="2" points=""/>
     </svg>
     <div class="btn-row" style="margin-top:6px">
       <button type="button" id="waveToCustom" style="font-size:11px;padding:4px 10px;">Customize curve</button>
@@ -793,7 +794,7 @@
     <div class="wave-label">Custom wave — drag points</div>
     <svg id="waveEditor" viewBox="0 0 200 56" preserveAspectRatio="none">
       <line x1="0" y1="50" x2="200" y2="50" stroke="#2a2a2a" stroke-width="1"/>
-      <polyline id="waveEditorLine" fill="none" stroke="#5718C0" stroke-width="2" points=""/>
+      <polyline id="waveEditorLine" fill="none" stroke="#ADFF00" stroke-width="2" points=""/>
       <g id="waveEditorPts"></g>
     </svg>
     <p class="wave-editor-hint">Full loop opacity (0 → peak → 0). Used directly — even with Bake in/out on.</p>
@@ -838,7 +839,7 @@
   </div>
   <div class="ctrl">
     <label>One move each</label>
-    <input type="checkbox" id="oneMovePerNode" style="width:16px;height:16px;accent-color:#5718C0;cursor:pointer;">
+    <input type="checkbox" id="oneMovePerNode" style="width:16px;height:16px;accent-color:#ADFF00;cursor:pointer;">
   </div>
   <div class="hint">Each node triggers once per loop · sweep/ripple/displace at pass, then hold</div>
 
@@ -923,7 +924,7 @@
       <option value="#000000">Black</option>
       <option value="#004012">Dark green</option>
       <option value="#403700">Brown</option>
-      <option value="#5718C0">Dark purple</option>
+      <option value="#3D5A00">Dark lime</option>
       <option value="#99EDFF">Turquoise</option>
       <option value="#E5ECE7">Light sage</option>
       <option value="#FFC4D8">Light pink</option>
@@ -3421,24 +3422,24 @@ document.getElementById('animStyle').onchange = () => {
 
 // fal brand tonal presets (from brand guidelines)
 const FAL_2 = [
-  { id: '2-a', label: '2-A · Cyan / Purple',     colors: ['#99EDFF', '#5718C0'], bg: '#99EDFF' },
+  { id: '2-a', label: '2-A · Cyan / Lime',     colors: ['#99EDFF', '#ADFF00'], bg: '#99EDFF' },
   { id: '2-b', label: '2-B · Pink / Red',        colors: ['#FFC4D8', '#EC0648'], bg: '#FFC4D8' },
   { id: '2-c', label: '2-C · Green / Cyan',      colors: ['#004012', '#99EDFF'], bg: '#004012' },
   { id: '2-d', label: '2-D · Olive / Cyan',      colors: ['#403700', '#99EDFF'], bg: '#403700' },
   { id: '2-e', label: '2-E · Yellow / Black',    colors: ['#FFFF00', '#000000'], bg: '#FFFF00' },
-  { id: '2-f', label: '2-F · Sage / Purple',     colors: ['#96AFAC', '#5718C0'], bg: '#96AFAC' },
-  { id: '2-g', label: '2-G · Purple / Red',      colors: ['#5718C0', '#EC0648'], bg: '#5718C0' },
+  { id: '2-f', label: '2-F · Sage / Lime',     colors: ['#96AFAC', '#ADFF00'], bg: '#96AFAC' },
+  { id: '2-g', label: '2-G · Lime / Red',      colors: ['#ADFF00', '#EC0648'], bg: '#ADFF00' },
   { id: '2-h', label: '2-H · Green / Red',       colors: ['#004012', '#EC0648'], bg: '#004012' },
   { id: '2-i', label: '2-I · Green / Lime',      colors: ['#004012', '#ADFF00'], bg: '#004012' },
   { id: '2-j', label: '2-J · Olive / Lime',      colors: ['#403700', '#ADFF00'], bg: '#403700' },
-  { id: '2-k', label: '2-K · Lavender / Pink',   colors: ['#D5B8FF', '#FFC4D8'], bg: '#D5B8FF' },
+  { id: '2-k', label: '2-K · Lime / Pink',   colors: ['#C8FF66', '#FFC4D8'], bg: '#C8FF66' },
   { id: '2-l', label: '2-L · Olive / Lt brown',  colors: ['#403700', '#D9D7CC'], bg: '#403700' },
 ];
 const FAL_5 = [
-  { id: '5-a', label: '5-A · Olive + accents',   colors: ['#99EDFF', '#115EF3', '#D5B8FF', '#ADFF00'], bg: '#403700' },
-  { id: '5-b', label: '5-B · Pink + accents',    colors: ['#D5B8FF', '#FFFFFF', '#EC0648', '#ADFF00'], bg: '#FFC4D8' },
-  { id: '5-c', label: '5-C · Cyan + accents',    colors: ['#FFFF00', '#D5B8FF', '#115EF3', '#FFFFFF'], bg: '#99EDFF' },
-  { id: '5-d', label: '5-D · White + accents',   colors: ['#115EF3', '#FFFF00', '#ADFF00', '#D5B8FF'], bg: '#FFFFFF' },
+  { id: '5-a', label: '5-A · Olive + accents',   colors: ['#99EDFF', '#115EF3', '#C8FF66', '#ADFF00'], bg: '#403700' },
+  { id: '5-b', label: '5-B · Pink + accents',    colors: ['#C8FF66', '#FFFFFF', '#EC0648', '#ADFF00'], bg: '#FFC4D8' },
+  { id: '5-c', label: '5-C · Cyan + accents',    colors: ['#FFFF00', '#C8FF66', '#115EF3', '#FFFFFF'], bg: '#99EDFF' },
+  { id: '5-d', label: '5-D · White + accents',   colors: ['#115EF3', '#FFFF00', '#ADFF00', '#C8FF66'], bg: '#FFFFFF' },
 ];
 const FAL_4 = FAL_5.map(p => ({
   id: p.id.replace('5', '4'),
@@ -3460,14 +3461,13 @@ let activeTonalColors = [...FAL_5[0].colors];
 
 // Full palette for "All" mode
 const PALETTE = [
-  { hex: '#5718C0', label: 'Dark purple', wt: 12 },
-  { hex: '#AB77FF', label: 'Purple',      wt: 8  },
-  { hex: '#D5B8FF', label: 'Lt purple',   wt: 5  },
+  { hex: '#3D5A00', label: 'Dark lime', wt: 12 },
+  { hex: '#ADFF00', label: 'Chartreuse', wt: 12 },
+  { hex: '#C8FF66', label: 'Lt lime', wt: 5 },
   { hex: '#115EF3', label: 'Royal blue',  wt: 12 },
   { hex: '#3FB5FE', label: 'Baby blue',   wt: 20 },
   { hex: '#C5E9FF', label: 'Light blue',  wt: 10 },
   { hex: '#99EDFF', label: 'Turquoise',   wt: 8  },
-  { hex: '#ADFF00', label: 'Chartreuse',  wt: 12 },
   { hex: '#FFFF00', label: 'Yellow',      wt: 8  },
   { hex: '#EC0648', label: 'Red',         wt: 5  },
   { hex: '#F57EC3', label: 'Pink',        wt: 5  },

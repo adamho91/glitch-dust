@@ -1,0 +1,12 @@
+:root {
+  --ui-accent: #ADFF00;
+  --ui-accent-light: #C8FF66;
+  --ui-accent-pale: #E4FF99;
+  --ui-accent-dark: #7A9900;
+  --ui-accent-deep: #3D5A00;
+  --ui-accent-bg: #1A2210;
+  --ui-accent-bg-active: #222818;
+  --ui-accent-a33: #ADFF0033;
+  --ui-accent-a22: #ADFF0022;
+  --ui-accent-a18: #ADFF0018;
+}

@@ -8,17 +8,17 @@
   const FRAME_MS = 1000 / 24;
 
   const FAL_2 = [
-    { id: '2-a', label: '2-A · Cyan / Purple', colors: ['#99EDFF', '#5718C0'], bg: '#99EDFF' },
+    { id: '2-a', label: '2-A · Cyan / Lime', colors: ['#99EDFF', '#ADFF00'], bg: '#99EDFF' },
     { id: '2-b', label: '2-B · Pink / Red', colors: ['#FFC4D8', '#EC0648'], bg: '#FFC4D8' },
     { id: '2-c', label: '2-C · Green / Cyan', colors: ['#004012', '#99EDFF'], bg: '#004012' },
     { id: '2-d', label: '2-D · Olive / Cyan', colors: ['#403700', '#99EDFF'], bg: '#403700' },
     { id: '2-e', label: '2-E · Yellow / Black', colors: ['#FFFF00', '#000000'], bg: '#FFFF00' },
-    { id: '2-f', label: '2-F · Sage / Purple', colors: ['#96AFAC', '#5718C0'], bg: '#96AFAC' },
-    { id: '2-g', label: '2-G · Purple / Red', colors: ['#5718C0', '#EC0648'], bg: '#5718C0' },
+    { id: '2-f', label: '2-F · Sage / Lime', colors: ['#96AFAC', '#ADFF00'], bg: '#96AFAC' },
+    { id: '2-g', label: '2-G · Lime / Red', colors: ['#ADFF00', '#EC0648'], bg: '#ADFF00' },
     { id: '2-h', label: '2-H · Green / Red', colors: ['#004012', '#EC0648'], bg: '#004012' },
     { id: '2-i', label: '2-I · Green / Lime', colors: ['#004012', '#ADFF00'], bg: '#004012' },
     { id: '2-j', label: '2-J · Olive / Lime', colors: ['#403700', '#ADFF00'], bg: '#403700' },
-    { id: '2-k', label: '2-K · Lavender / Pink', colors: ['#D5B8FF', '#FFC4D8'], bg: '#D5B8FF' },
+    { id: '2-k', label: '2-K · Lime / Pink', colors: ['#C8FF66', '#FFC4D8'], bg: '#C8FF66' },
     { id: '2-l', label: '2-L · Olive / Lt brown', colors: ['#403700', '#D9D7CC'], bg: '#403700' },
   ];
 
