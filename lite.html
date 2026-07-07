@@ -1834,6 +1834,14 @@ function getLogoPaletteColors(offset) {
   return { accent, detail };
 }
 
+function getLogoPaletteOffsetFromColors() {
+  const colors = getActivePaletteColorList();
+  if (!colors.length) return 0;
+  const accent = document.getElementById('logoColorAccent').value.toLowerCase();
+  const idx = colors.findIndex(c => c.toLowerCase() === accent);
+  return idx >= 0 ? idx : 0;
+}
+
 function syncLogoColorsFromPalette(offset) {
   if (!isLogoFollowPalette()) return;
   const pair = getLogoPaletteColors(offset);
@@ -2055,7 +2063,6 @@ function updateLogoColorUi() {
   const accentLabel = document.getElementById('logoAccentLabel');
   if (detailRow) detailRow.style.display = (style === 'brand' || style === 'dark') ? '' : 'none';
   if (accentLabel) accentLabel.textContent = style === 'light' ? 'Color' : 'Accent';
-  if (isLogoFollowPalette()) syncLogoColorsFromPalette();
 }
 
 function getLogoPlacement(canvasW, canvasH, logoH, style, pin) {
@@ -3649,11 +3656,13 @@ document.getElementById('logoColorAccent').oninput = () => {
   document.getElementById('logoFollowPalette').checked = false;
   refreshLogoStyleThumbs();
   refreshLogoOverlay();
+  schedulePresetAutosave();
 };
 document.getElementById('logoColorDetail').oninput = () => {
   document.getElementById('logoFollowPalette').checked = false;
   refreshLogoStyleThumbs();
   refreshLogoOverlay();
+  schedulePresetAutosave();
 };
 document.getElementById('logoColorCycle').onclick = () => cycleLogoColors();
 document.getElementById('logoFollowPalette').onchange = () => {
@@ -7095,12 +7104,17 @@ function applyPromptTextSettings(prompt) {
 
 function applyLogoSettings(logo) {
   const l = logo || {};
+  const followPalette = l.followPalette !== false;
   document.getElementById('logoEnabled').checked = l.enabled === true;
+  document.getElementById('logoFollowPalette').checked = followPalette;
   setLogoStyle(l.style || 'brand');
-  document.getElementById('logoFollowPalette').checked = l.followPalette !== false;
-  if (l.colorAccent) document.getElementById('logoColorAccent').value = l.colorAccent;
-  if (l.colorDetail) document.getElementById('logoColorDetail').value = l.colorDetail;
-  if (l.followPalette !== false) syncLogoColorsFromPalette();
+  if (followPalette) {
+    const offset = typeof l.logoPaletteOffset === 'number' ? l.logoPaletteOffset : 0;
+    syncLogoColorsFromPalette(offset);
+  } else {
+    if (l.colorAccent) document.getElementById('logoColorAccent').value = l.colorAccent;
+    if (l.colorDetail) document.getElementById('logoColorDetail').value = l.colorDetail;
+  }
   if (l.size != null) {
     document.getElementById('logoSize').value = l.size;
     document.getElementById('logoSizeV').textContent = l.size;
@@ -7398,6 +7412,7 @@ function collectSettings() {
       colorAccent: document.getElementById('logoColorAccent').value,
       colorDetail: document.getElementById('logoColorDetail').value,
       followPalette: isLogoFollowPalette(),
+      logoPaletteOffset: isLogoFollowPalette() ? getLogoPaletteOffsetFromColors() : 0,
       size: parseInt(document.getElementById('logoSize').value, 10),
       marginNodes: getLogoMarginNodes(),
       clearPattern: document.getElementById('logoClearPattern').checked,
