@@ -1830,9 +1830,11 @@ function cycleLogoColors() {
     document.getElementById('logoColorAccent').value = pair.accent;
     document.getElementById('logoColorDetail').value = pair.detail;
   }
+  document.getElementById('logoFollowPalette').checked = false;
   refreshLogoStyleThumbs();
   refreshLogoOverlay();
-  schedulePresetAutosave();
+  saveActivePresetFromUI();
+  persistPresetStore();
 }
 
 function getLogoInnerTemplate(style) {
@@ -4042,7 +4044,7 @@ function applyTonalPreset(preset, opts) {
   renderTonalPresets();
   renderTonalPreview();
   syncPromptBorderFromPalette();
-  syncLogoColorsFromPalette();
+  if (isLogoFollowPalette()) syncLogoColorsFromPalette(getLogoPaletteOffsetFromColors());
   syncPromptSpaceColorFromPalette();
   renderPaletteMediaList();
   if (!opts || !opts.skipRegen) beginCycle();
@@ -8680,7 +8682,6 @@ initTextAlignPicker();
 initPromptAlignPicker();
 updateBlanketSpeedUi();
 syncPromptBorderFromPalette();
-syncLogoColorsFromPalette();
 updatePromptLineWrapOffsetUi();
 updatePromptSpaceColorUi();
 initLogoStylePicker();
