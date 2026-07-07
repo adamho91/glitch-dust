@@ -190,6 +190,11 @@
     return 1 - Math.pow(1 - clamp01(t), 3);
   }
 
+  function easeOutQuad(t) {
+    t = clamp01(t);
+    return 1 - (1 - t) * (1 - t);
+  }
+
   function smoothstep(t) {
     t = clamp01(t);
     return t * t * (3 - 2 * t);
@@ -427,6 +432,12 @@
     return lerp(0.5, 1, easeOutCubic(t));
   }
 
+  function getBarHeightScale(progress) {
+    const introEnd = v('logoIntro') / 100;
+    const t = introEnd > 0 ? clamp01(progress / introEnd) : 1;
+    return lerp(0.5, 1, easeOutQuad(t));
+  }
+
   function spawnDustCluster(layout) {
     particles = [];
     noiseSeed = Math.random() * 200;
@@ -542,23 +553,27 @@
     const barColor = document.getElementById('barColor').value || activeTonalColors[1] || '#EC0648';
     const textColor = document.getElementById('textColor').value || '#FFFFFF';
     const logoScale = getLogoScale(progress);
+    const barHeightScale = getBarHeightScale(progress);
+    const barHeight = snapPx(layout.barHeight * barHeightScale);
+    const barCenterY = layout.barY + layout.barHeight / 2;
+    const barY = snapPx(barCenterY - barHeight / 2);
 
     const group = document.createElementNS(SVG_NS, 'g');
     group.setAttribute('class', 'lt-overlay');
 
     const bar = document.createElementNS(SVG_NS, 'rect');
     bar.setAttribute('x', String(layout.barX));
-    bar.setAttribute('y', String(layout.barY));
+    bar.setAttribute('y', String(barY));
     bar.setAttribute('width', String(layout.barWidth));
-    bar.setAttribute('height', String(layout.barHeight));
+    bar.setAttribute('height', String(barHeight));
     bar.setAttribute('fill', barColor);
     bar.setAttribute('shape-rendering', 'crispEdges');
-    bar.setAttribute('opacity', String(logoScale >= 0.995 ? 1 : smoothstep(logoScale)));
+    bar.setAttribute('opacity', '1');
     group.appendChild(bar);
 
     const text = document.createElementNS(SVG_NS, 'text');
     text.setAttribute('x', String(layout.barX + layout.barPad));
-    text.setAttribute('y', String(snapPx(layout.barY + layout.barHeight / 2)));
+    text.setAttribute('y', String(snapPx(barCenterY)));
     text.setAttribute('dominant-baseline', 'central');
     text.setAttribute('font-family', "'Focal Upright', sans-serif");
     text.setAttribute('font-size', String(layout.fontSize));
@@ -571,9 +586,11 @@
     group.appendChild(text);
 
     if (document.getElementById('showBadge').checked) {
+      const badgeX = snapPx(layout.barX + layout.barWidth - layout.badgeW + v('badgeOffsetX'));
+      const badgeY = snapPx(barY + barHeight + v('badgeGap'));
       const badgeBg = document.createElementNS(SVG_NS, 'rect');
-      badgeBg.setAttribute('x', String(layout.badgeX));
-      badgeBg.setAttribute('y', String(layout.badgeY));
+      badgeBg.setAttribute('x', String(badgeX));
+      badgeBg.setAttribute('y', String(badgeY));
       badgeBg.setAttribute('width', String(layout.badgeW));
       badgeBg.setAttribute('height', String(layout.badgeH));
       badgeBg.setAttribute('fill', '#FFFFFF');
@@ -583,8 +600,8 @@
       group.appendChild(badgeBg);
 
       const badgeText = document.createElementNS(SVG_NS, 'text');
-      badgeText.setAttribute('x', String(snapPx(layout.badgeX + layout.badgeW / 2)));
-      badgeText.setAttribute('y', String(snapPx(layout.badgeY + layout.badgeH / 2)));
+      badgeText.setAttribute('x', String(snapPx(badgeX + layout.badgeW / 2)));
+      badgeText.setAttribute('y', String(snapPx(badgeY + layout.badgeH / 2)));
       badgeText.setAttribute('text-anchor', 'middle');
       badgeText.setAttribute('dominant-baseline', 'central');
       badgeText.setAttribute('font-family', "'HAL Timezone Mono', monospace");
@@ -1726,32 +1743,24 @@
       await preloadExportFonts();
       let result;
       if (isMp4) {
+        let mp4ExportOpts = exportOpts;
         if (transparent) {
-          try {
-            const hevcConfig = await getHevcAlphaEncoderConfig(canvas.width, canvas.height, fps);
-            if (hevcConfig) {
-              setExportModal(true, 0, 'Preparing transparent HEVC MP4…');
-              result = await exportVideoHevc(hevcConfig, fps, totalFrames, canvas, ctx, exportOpts);
-              exportNote = ' (HEVC with alpha — best in Safari)';
-            } else {
-              throw new Error('no-hevc-alpha');
-            }
-          } catch (hevcErr) {
-            if (hevcErr && hevcErr.message === 'cancelled') throw hevcErr;
-            if (pickWebmMimeType()) {
-              setExportModal(true, 0, 'Recording transparent WebM…');
-              result = await exportVideoRecorder('webm', fps, totalFrames, canvas, ctx, exportOpts);
-              exportNote = ' (WebM with alpha — HEVC unavailable in this browser)';
-            } else {
-              throw new Error('Transparent MP4 needs Safari HEVC or Chrome WebM VP9.');
-            }
+          const hevcConfig = await getHevcAlphaEncoderConfig(canvas.width, canvas.height, fps);
+          if (hevcConfig) {
+            setExportModal(true, 0, 'Preparing transparent HEVC MP4…');
+            result = await exportVideoHevc(hevcConfig, fps, totalFrames, canvas, ctx, exportOpts);
+            exportNote = ' (HEVC with alpha — best in Safari)';
+          } else {
+            exportNote = ' (H.264 with black background — use Export WebM for transparency in this browser)';
+            mp4ExportOpts = { transparent: false };
           }
-        } else {
+        }
+        if (!result) {
           try {
             const h264Config = await getH264EncoderConfig(canvas.width, canvas.height, fps);
             if (h264Config) {
               setExportModal(true, 0, 'Preparing H.264 MP4…');
-              result = await exportVideoH264(h264Config, fps, totalFrames, canvas, ctx, exportOpts);
+              result = await exportVideoH264(h264Config, fps, totalFrames, canvas, ctx, mp4ExportOpts);
             } else {
               throw new Error('no-webcodecs');
             }
@@ -1759,7 +1768,7 @@
             if (webcodecsErr && webcodecsErr.message === 'cancelled') throw webcodecsErr;
             if (pickMp4MimeType()) {
               setExportModal(true, 0, 'Recording MP4…');
-              result = await exportVideoRecorder('mp4', fps, totalFrames, canvas, ctx, exportOpts);
+              result = await exportVideoRecorder('mp4', fps, totalFrames, canvas, ctx, mp4ExportOpts);
             } else {
               throw webcodecsErr;
             }
