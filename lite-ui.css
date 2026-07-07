@@ -134,20 +134,6 @@ body.lite-app .lite-logo-toggle label {
   color: #bbb;
 }
 
-body.lite-app .action-export:not(.lite-video-export),
-body.lite-app .action-group-label:not(.lite-video-label),
-body.lite-app .preview-action-export {
-  display: none !important;
-}
-
-body.lite-app .action-group-label.lite-video-label {
-  display: block !important;
-}
-
-body.lite-app .action-export.lite-video-export {
-  display: grid !important;
-}
-
 body.lite-app .action-panel {
   margin-top: 12px;
 }
