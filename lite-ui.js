@@ -108,6 +108,23 @@
     reader.readAsText(file);
   }
 
+  function clearAllPresets() {
+    const msg = (typeof PresetIO !== 'undefined' && PresetIO.CLEAR_ALL_PRESETS_CONFIRM)
+      || 'Clear all presets? Your saved presets will be deleted and built-ins reset to defaults.';
+    if (!confirm(msg)) return;
+    if (typeof createDefaultPresetStore !== 'function') return;
+    presetStore = createDefaultPresetStore();
+    persistPresetStore();
+    applySettings(getActivePreset().settings);
+    if (typeof renderPresetSelect === 'function') renderPresetSelect();
+    renderLitePresetGrid();
+    syncLiteControlsFromSettings(getActivePreset().settings);
+    if (typeof syncDialSliders === 'function') syncDialSliders();
+    if (typeof clearAllPaletteMedia === 'function') clearAllPaletteMedia();
+    const status = document.getElementById('status');
+    if (status) status.textContent = 'All presets cleared · loaded defaults.';
+  }
+
   function syncLiteControlsFromSettings(settings) {
     if (!settings) return;
     const headline = document.getElementById('overlayText');
@@ -127,6 +144,13 @@
       logo.checked = enabled;
       liteLogo.checked = enabled;
       if (typeof refreshLogoOverlay === 'function') refreshLogoOverlay();
+    }
+    if (settings.nodeMedia && document.getElementById('nodeMediaEnabled')) {
+      document.getElementById('nodeMediaEnabled').checked = settings.nodeMedia.enabled === true;
+      if (settings.nodeMedia.gifLoop != null && document.getElementById('nodeMediaGifLoop')) {
+        document.getElementById('nodeMediaGifLoop').checked = settings.nodeMedia.gifLoop !== false;
+      }
+      if (typeof updateNodeMediaUi === 'function') updateNodeMediaUi();
     }
   }
 
@@ -215,6 +239,12 @@
         importPresetFromFile(importInput.files && importInput.files[0]);
         importInput.value = '';
       });
+    }
+
+    const clearBtn = document.getElementById('litePresetClearAll');
+    if (clearBtn && !clearBtn.dataset.liteWired) {
+      clearBtn.dataset.liteWired = 'true';
+      clearBtn.addEventListener('click', clearAllPresets);
     }
 
     if (typeof renderPresetSelect === 'function' && !window.__liteRenderPresetSelectPatched) {

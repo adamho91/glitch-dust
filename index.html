@@ -527,6 +527,7 @@
       <button type="button" id="presetSaveAs" title="Save as new preset">+ New</button>
       <button type="button" id="presetImport" title="Import preset library JSON">Import</button>
       <button type="button" id="presetExport" title="Export all local presets">Export</button>
+      <button type="button" id="presetClearAll" class="danger" title="Remove all user presets and reset built-ins">Clear all</button>
     </div>
     <input type="file" id="presetImportFile" accept="application/json,.json" hidden>
   </div>
@@ -7314,6 +7315,20 @@ function initPresetSystem() {
       }
     };
     reader.readAsText(file);
+  };
+
+  document.getElementById('presetClearAll').onclick = () => {
+    const msg = (typeof PresetIO !== 'undefined' && PresetIO.CLEAR_ALL_PRESETS_CONFIRM)
+      || 'Clear all presets? Your saved presets will be deleted and built-ins reset to defaults.';
+    if (!confirm(msg)) return;
+    presetStore = createDefaultPresetStore();
+    persistPresetStore();
+    applySettings(getActivePreset().settings);
+    renderPresetSelect();
+    document.getElementById('presetName').value = getActivePreset().name;
+    if (typeof syncDialSliders === 'function') syncDialSliders();
+    if (typeof clearAllPaletteMedia === 'function') clearAllPaletteMedia();
+    document.getElementById('status').textContent = 'All presets cleared · loaded defaults.';
   };
 }
 

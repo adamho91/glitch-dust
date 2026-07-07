@@ -38,6 +38,7 @@ new_header = """<aside class="sidebar">
   <div class="lite-preset-actions">
     <button type="button" id="litePresetImport" class="primary">Import presets…</button>
     <button type="button" id="litePresetExport">Export all presets</button>
+    <button type="button" id="litePresetClearAll" class="danger">Clear all presets</button>
     <input type="file" id="litePresetImportFile" accept="application/json,.json" hidden>
   </div>
   <p class="hint lite-full-link">Craft looks in Glitch Dust (⇧1), export JSON, import here.</p>
@@ -65,6 +66,68 @@ html = html.replace(
 html = html.replace(
     '      <option value="3">3</option>\n    </select>\n  </div>\n\n  <div class="sect">Tonal Colors</div>',
     '      <option value="3">3</option>\n    </select>\n  </div>\n  </div>\n\n  <div class="sect">Tonal Colors</div>',
+    1,
+)
+
+PALETTE_MEDIA_IN_GRID = """  <div class="sect">Palette Media</div>
+  <div class="ctrl-check">
+    <input type="checkbox" id="nodeMediaEnabled">
+    <label for="nodeMediaEnabled">Mask image / video per palette color</label>
+  </div>
+  <div id="nodeMediaPanel">
+    <div class="ctrl">
+      <label>Palette blend</label>
+      <input type="range" id="nodeMediaBlend" min="0" max="100" value="0" step="1">
+      <span class="val" id="nodeMediaBlendV">0</span>
+    </div>
+    <div class="ctrl-check">
+      <input type="checkbox" id="nodeMediaGifLoop" checked>
+      <label for="nodeMediaGifLoop">Loop GIFs in preview</label>
+    </div>
+    <div id="paletteMediaList"></div>
+    <div class="hint">One upload per swatch · image, GIF, or video · union mask · GIFs loop when enabled below</div>
+  </div>
+
+"""
+
+LITE_PALETTE_MEDIA_BLOCK = """  <div class="lite-palette-media">
+  <div class="sect">Palette Media</div>
+  <div class="ctrl-check">
+    <input type="checkbox" id="nodeMediaEnabled">
+    <label for="nodeMediaEnabled">Image / GIF / video per color</label>
+  </div>
+  <div id="nodeMediaPanel">
+    <div class="ctrl lite-palette-media-advanced">
+      <label>Palette blend</label>
+      <input type="range" id="nodeMediaBlend" min="0" max="100" value="0" step="1">
+      <span class="val" id="nodeMediaBlendV">0</span>
+    </div>
+    <div class="ctrl-check lite-palette-media-advanced">
+      <input type="checkbox" id="nodeMediaGifLoop" checked>
+      <label for="nodeMediaGifLoop">Loop GIFs in preview</label>
+    </div>
+    <div id="paletteMediaList"></div>
+    <div class="hint">Upload one file per swatch · image, GIF, or MP4</div>
+  </div>
+  </div>
+
+"""
+
+if PALETTE_MEDIA_IN_GRID not in html:
+    raise SystemExit("Could not find Palette Media block in index.html")
+html = html.replace(PALETTE_MEDIA_IN_GRID, "", 1)
+
+tonal_tail = (
+    '  <div class="hint">Grouped by color family · chips = node palette · dust mode applies suggested bg.</div>\n\n'
+    '  <div class="sect">Custom Weights'
+)
+if tonal_tail not in html:
+    raise SystemExit("Could not find tonal colors section tail")
+html = html.replace(
+    tonal_tail,
+    '  <div class="hint">Grouped by color family · chips = node palette · dust mode applies suggested bg.</div>\n\n'
+    + LITE_PALETTE_MEDIA_BLOCK
+    + '  <div class="sect">Custom Weights',
     1,
 )
 
@@ -151,6 +214,8 @@ if 'id="overlayText"' not in html or 'id="promptText"' not in html:
     raise SystemExit("lite build missing overlayText/promptText in sidebar")
 if 'id="overlayTextStub"' not in html:
     raise SystemExit("lite build missing canvas textarea stubs")
+if 'lite-palette-media' not in html or 'id="paletteMediaList"' not in html:
+    raise SystemExit("lite build missing palette media block")
 
 (ROOT / "lite.html").write_text(html, encoding="utf-8")
 print("Wrote lite.html")

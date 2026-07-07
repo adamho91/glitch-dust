@@ -525,6 +525,7 @@
   <div class="lite-preset-actions">
     <button type="button" id="litePresetImport" class="primary">Import presets…</button>
     <button type="button" id="litePresetExport">Export all presets</button>
+    <button type="button" id="litePresetClearAll" class="danger">Clear all presets</button>
     <input type="file" id="litePresetImportFile" accept="application/json,.json" hidden>
   </div>
   <p class="hint lite-full-link">Craft looks in Glitch Dust (⇧1), export JSON, import here.</p>
@@ -540,6 +541,7 @@
       <button type="button" id="presetSaveAs" title="Save as new preset">+ New</button>
       <button type="button" id="presetImport" title="Import preset library JSON">Import</button>
       <button type="button" id="presetExport" title="Export all local presets">Export</button>
+      <button type="button" id="presetClearAll" class="danger" title="Remove all user presets and reset built-ins">Clear all</button>
     </div>
     <input type="file" id="presetImportFile" accept="application/json,.json" hidden>
   </div>
@@ -615,25 +617,6 @@
     <span class="val" id="cornerSpreadV">0</span>
   </div>
   <div class="hint">Push density toward corners (isoline, halftone, dust)</div>
-
-  <div class="sect">Palette Media</div>
-  <div class="ctrl-check">
-    <input type="checkbox" id="nodeMediaEnabled">
-    <label for="nodeMediaEnabled">Mask image / video per palette color</label>
-  </div>
-  <div id="nodeMediaPanel">
-    <div class="ctrl">
-      <label>Palette blend</label>
-      <input type="range" id="nodeMediaBlend" min="0" max="100" value="0" step="1">
-      <span class="val" id="nodeMediaBlendV">0</span>
-    </div>
-    <div class="ctrl-check">
-      <input type="checkbox" id="nodeMediaGifLoop" checked>
-      <label for="nodeMediaGifLoop">Loop GIFs in preview</label>
-    </div>
-    <div id="paletteMediaList"></div>
-    <div class="hint">One upload per swatch · image, GIF, or video · union mask · GIFs loop when enabled below</div>
-  </div>
 
   <div class="sect">Distribution</div>
   <div class="ctrl">
@@ -724,6 +707,27 @@
   <div class="tonal-preview" id="tonalPreview"></div>
   <div class="tonal-presets" id="tonalPresets"></div>
   <div class="hint">Grouped by color family · chips = node palette · dust mode applies suggested bg.</div>
+
+  <div class="lite-palette-media">
+  <div class="sect">Palette Media</div>
+  <div class="ctrl-check">
+    <input type="checkbox" id="nodeMediaEnabled">
+    <label for="nodeMediaEnabled">Image / GIF / video per color</label>
+  </div>
+  <div id="nodeMediaPanel">
+    <div class="ctrl lite-palette-media-advanced">
+      <label>Palette blend</label>
+      <input type="range" id="nodeMediaBlend" min="0" max="100" value="0" step="1">
+      <span class="val" id="nodeMediaBlendV">0</span>
+    </div>
+    <div class="ctrl-check lite-palette-media-advanced">
+      <input type="checkbox" id="nodeMediaGifLoop" checked>
+      <label for="nodeMediaGifLoop">Loop GIFs in preview</label>
+    </div>
+    <div id="paletteMediaList"></div>
+    <div class="hint">Upload one file per swatch · image, GIF, or MP4</div>
+  </div>
+  </div>
 
 
   <div class="lite-text-block">
@@ -7349,6 +7353,20 @@ function initPresetSystem() {
       }
     };
     reader.readAsText(file);
+  };
+
+  document.getElementById('presetClearAll').onclick = () => {
+    const msg = (typeof PresetIO !== 'undefined' && PresetIO.CLEAR_ALL_PRESETS_CONFIRM)
+      || 'Clear all presets? Your saved presets will be deleted and built-ins reset to defaults.';
+    if (!confirm(msg)) return;
+    presetStore = createDefaultPresetStore();
+    persistPresetStore();
+    applySettings(getActivePreset().settings);
+    renderPresetSelect();
+    document.getElementById('presetName').value = getActivePreset().name;
+    if (typeof syncDialSliders === 'function') syncDialSliders();
+    if (typeof clearAllPaletteMedia === 'function') clearAllPaletteMedia();
+    document.getElementById('status').textContent = 'All presets cleared · loaded defaults.';
   };
 }
 

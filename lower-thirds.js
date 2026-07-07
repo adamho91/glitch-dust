@@ -79,6 +79,7 @@
   let cycleStart = 0;
   let lastFrame = 0;
   let measureCtx = null;
+  let measureHeadlineTextEl = null;
   let exportCancelRequested = false;
   let exportRunMeta = { format: '', fps: 0, totalFrames: 0 };
   let mp4MuxerModule = null;
@@ -284,10 +285,48 @@
     return measureCtx;
   }
 
+  function getHeadlineLetterSpacing() {
+    return '-0.01em';
+  }
+
+  function ensureMeasureHeadlineTextEl() {
+    if (!svg) return null;
+    if (!measureHeadlineTextEl) {
+      measureHeadlineTextEl = document.createElementNS(SVG_NS, 'text');
+      measureHeadlineTextEl.setAttribute('visibility', 'hidden');
+      measureHeadlineTextEl.setAttribute('pointer-events', 'none');
+      measureHeadlineTextEl.setAttribute('aria-hidden', 'true');
+      svg.appendChild(measureHeadlineTextEl);
+    }
+    return measureHeadlineTextEl;
+  }
+
   function measureHeadlineWidth(text, fontSize, fontWeight) {
+    const content = text || 'Headline';
+    const letterSpacing = getHeadlineLetterSpacing();
+    const measureEl = ensureMeasureHeadlineTextEl();
+    if (measureEl) {
+      measureEl.setAttribute('x', '0');
+      measureEl.setAttribute('y', '0');
+      measureEl.setAttribute('font-family', "'Focal Upright', sans-serif");
+      measureEl.setAttribute('font-size', String(fontSize));
+      measureEl.setAttribute('font-weight', String(fontWeight));
+      measureEl.setAttribute('letter-spacing', letterSpacing);
+      measureEl.setAttribute('text-rendering', 'geometricPrecision');
+      measureEl.textContent = content;
+      try {
+        const box = measureEl.getBBox();
+        if (isFinite(box.width) && box.width > 0) {
+          return Math.ceil(box.x + box.width);
+        }
+      } catch (e) {}
+    }
+
     const ctx = getMeasureCtx();
     ctx.font = fontWeight + ' ' + fontSize + 'px "Focal Upright", sans-serif';
-    return ctx.measureText(text || ' ').width;
+    let width = ctx.measureText(content).width;
+    if (content.length > 1) width += fontSize * -0.01 * (content.length - 1);
+    return Math.ceil(width);
   }
 
   function pickColor() {
@@ -377,7 +416,7 @@
     const fontWeight = 480;
     const maxBarW = v('barMaxWidth');
     const textW = measureHeadlineWidth(fullText || 'Headline', fontSize, fontWeight);
-    const barWidth = Math.ceil(Math.min(maxBarW, Math.max(120, textW + barPad * 2)));
+    const barWidth = Math.ceil(Math.min(maxBarW, Math.max(120, textW + barPad * 2))) + 1;
 
     const logoX = snapPx(marginL);
     const logoY = snapPx(H - marginB - logoSize);
@@ -578,7 +617,7 @@
     text.setAttribute('font-family', "'Focal Upright', sans-serif");
     text.setAttribute('font-size', String(layout.fontSize));
     text.setAttribute('font-weight', '480');
-    text.setAttribute('letter-spacing', String(snapPx(layout.fontSize * -0.01)));
+    text.setAttribute('letter-spacing', getHeadlineLetterSpacing());
     text.setAttribute('fill', textColor);
     text.setAttribute('text-rendering', 'geometricPrecision');
     text.setAttribute('opacity', tw.visible.length ? '1' : '0');
@@ -856,8 +895,8 @@
     else drawFrame(performance.now());
   }
 
-  function loadPresetStore() {
-    const defaults = {
+  function createDefaultPresetStore() {
+    return {
       activeId: BUILTIN_DEFAULT_ID,
       presets: [{
         id: BUILTIN_DEFAULT_ID,
@@ -866,6 +905,10 @@
         settings: buildDefaultSettings(),
       }],
     };
+  }
+
+  function loadPresetStore() {
+    const defaults = createDefaultPresetStore();
     try {
       const raw = localStorage.getItem(PRESET_STORAGE_KEY);
       if (!raw) return defaults;
@@ -1023,6 +1066,19 @@
         }
       };
       reader.readAsText(file);
+    };
+
+    document.getElementById('presetClearAll').onclick = () => {
+      const msg = (typeof PresetIO !== 'undefined' && PresetIO.CLEAR_ALL_PRESETS_CONFIRM)
+        || 'Clear all presets? Your saved presets will be deleted and built-ins reset to defaults.';
+      if (!confirm(msg)) return;
+      presetStore = createDefaultPresetStore();
+      persistPresetStore();
+      applySettings(getActivePreset().settings);
+      renderPresetSelect();
+      if (nameEl) nameEl.value = getActivePreset().name;
+      if (typeof syncDialSliders === 'function') syncDialSliders();
+      document.getElementById('status').textContent = 'All presets cleared · loaded Default.';
     };
   }
 
@@ -2019,6 +2075,9 @@
 
     document.fonts.load('480 50px "Focal Upright"').catch(() => {});
     document.fonts.load('400 25px "HAL Timezone Mono"').catch(() => {});
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => drawFrame(performance.now())).catch(() => {});
+    }
   }
 
   if (document.readyState === 'loading') {

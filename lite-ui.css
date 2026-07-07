@@ -99,6 +99,11 @@ body.lite-app .lite-ratio-row button.active {
   padding: 7px 10px;
 }
 
+.lite-preset-actions button.danger {
+  border-color: #5a2020;
+  color: #f88;
+}
+
 .lite-full-link {
   margin-bottom: 14px !important;
 }
@@ -153,4 +158,24 @@ body.lite-app .action-play button {
 
 body.lite-app #controls > .sect:first-of-type {
   margin-top: 0;
+}
+
+body.lite-app .lite-palette-media {
+  margin-bottom: 10px;
+}
+
+body.lite-app .lite-palette-media-advanced {
+  display: none !important;
+}
+
+body.lite-app .lite-palette-media .palette-media-row {
+  margin-bottom: 6px;
+}
+
+body.lite-app .lite-palette-media .palette-media-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

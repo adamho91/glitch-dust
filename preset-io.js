@@ -129,8 +129,12 @@
     URL.revokeObjectURL(a.href);
   }
 
+  const CLEAR_ALL_PRESETS_CONFIRM =
+    'Clear all presets? Your saved presets will be deleted and built-ins reset to defaults.';
+
   root.PresetIO = {
     PRESET_LIBRARY_KIND,
+    CLEAR_ALL_PRESETS_CONFIRM,
     isPresetLibrary,
     buildPresetLibraryExport,
     importPresetData,
