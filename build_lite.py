@@ -216,6 +216,12 @@ html = html.replace(
 )
 
 html = html.replace(
+    '  <div class="sect">Export Video</div>',
+    '  </div>\n\n  <div class="sect">Export Video</div>',
+    1,
+)
+
+html = html.replace(
     '<div class="canvas-text-panel" id="canvasTextPanel">',
     '<div class="canvas-text-panel lite-hide" id="canvasTextPanel">',
     1,
@@ -280,6 +286,9 @@ if 'id="logoColorCycle"' not in html or html.count('id="logoColorCycle"') != 1:
     raise SystemExit("lite build missing or duplicate logo color cycle")
 if 'lite-palette-media' not in html or 'id="paletteMediaList"' not in html:
     raise SystemExit("lite build missing palette media block")
+export_pos = html.find('  </div>\n\n  <div class="sect">Export Video</div>')
+if export_pos == -1:
+    raise SystemExit("lite build missing export section outside lite-hide")
 
 (ROOT / "lite.html").write_text(html, encoding="utf-8")
 print("Wrote lite.html")

@@ -59,7 +59,16 @@
   }
 
   function exportPresetLibraryJson() {
-    if (typeof saveActivePresetFromUI !== 'function' || typeof PresetIO === 'undefined') return;
+    if (typeof saveActivePresetFromUI !== 'function') {
+      const status = document.getElementById('status');
+      if (status) status.textContent = 'Export unavailable — reload the page.';
+      return;
+    }
+    if (typeof PresetIO === 'undefined') {
+      const status = document.getElementById('status');
+      if (status) status.textContent = 'Export unavailable — preset-io.js did not load.';
+      return;
+    }
     saveActivePresetFromUI();
     try {
       const payload = PresetIO.buildPresetLibraryExport(presetStore);
