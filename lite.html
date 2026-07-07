@@ -26,7 +26,7 @@
   h1 { font-size: 14px; font-weight: 500; color: #eee; margin-bottom: 4px; letter-spacing: 0.04em; text-transform: uppercase; }
   h1 span { color: var(--ui-accent); }
   .subtitle { font-size: 11px; color: #666; margin-bottom: 12px; flex-shrink: 0; }
-  .preview-wrap { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; border: 1px solid #333; border-radius: 6px; overflow: hidden; background: #E5ECE7; line-height: 0; position: relative; isolation: isolate; z-index: 1; }
+  .preview-wrap { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; border: 1px solid #333; border-radius: 6px; overflow: hidden; background: #ffffff; line-height: 0; position: relative; isolation: isolate; z-index: 1; }
   .mode-dust, .mode-halftone, .mode-stream { }
   .stage { display: flex; align-items: center; justify-content: center; width: 100%; max-width: 960px; max-height: none; cursor: ew-resize; position: relative; }
   .preview-wrap.portrait .stage { width: 100%; max-width: none; margin: 0; }
@@ -37,6 +37,15 @@
     max-width: 960px;
     line-height: 0;
     overflow: hidden;
+  }
+  .stage-canvas::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border: 1px solid rgba(0, 0, 0, 0.14);
+    pointer-events: none;
+    z-index: 5;
+    box-sizing: border-box;
   }
   .preview-wrap.portrait .stage-canvas { width: auto; margin: 0 auto; }
   .stage.scrubbing { cursor: ew-resize; }
@@ -96,6 +105,26 @@
   .tonal-preview { display: flex; gap: 4px; margin-bottom: 8px; min-height: 20px; align-items: center; flex-wrap: wrap; }
   .tonal-preview .chip { width: 22px; height: 22px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.12); }
   .tonal-preview span { font-size: 10px; color: #555; }
+  .bg-swatches { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
+  .bg-swatch {
+    width: 28px; height: 28px; border-radius: 4px;
+    border: 2px solid rgba(255,255,255,0.12);
+    padding: 0; cursor: pointer; flex-shrink: 0;
+    background: #222; color: #888; font-size: 14px; line-height: 1;
+  }
+  .bg-swatch:hover { border-color: #666; }
+  .bg-swatch.active { border-color: var(--ui-accent); box-shadow: 0 0 0 1px var(--ui-accent-a33); }
+  .bg-swatch-transparent {
+    background:
+      linear-gradient(45deg, #555 25%, transparent 25%, transparent 75%, #555 75%, #555),
+      linear-gradient(45deg, #555 25%, transparent 25%, transparent 75%, #555 75%, #555);
+    background-size: 8px 8px;
+    background-position: 0 0, 4px 4px;
+    background-color: #333;
+  }
+  .bg-swatch-custom { display: flex; align-items: center; justify-content: center; }
+  .bg-custom-row { margin-bottom: 10px; }
+  #bgSel { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
   .color-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
   .color-grid.hidden { display: none; }
   .swatch { display: flex; flex-direction: column; align-items: center; gap: 3px; }
@@ -266,6 +295,22 @@
   }
   .canvas-panel-toggle:hover { background: #2a2a2a; color: #ddd; border-color: #555; }
   .canvas-panel-body { padding: 0 12px 12px; }
+  .panel-more-toggle {
+    display: block;
+    width: 100%;
+    margin: 4px 0 2px;
+    padding: 6px 0 4px;
+    border: none;
+    border-top: 1px solid #333;
+    background: none;
+    color: #777;
+    font-size: 10px;
+    text-align: left;
+    cursor: pointer;
+  }
+  .panel-more-toggle:hover { color: #bbb; }
+  .panel-more-options { display: none; padding-top: 4px; }
+  .panel-more-options.is-open { display: block; }
   .canvas-panel-section.is-collapsed .canvas-panel-body,
   .canvas-logo-panel.is-collapsed .canvas-panel-body { display: none; }
   .canvas-text-panel .canvas-panel-head .sect,
@@ -708,6 +753,16 @@
   <div class="tonal-presets" id="tonalPresets"></div>
   <div class="hint">Grouped by color family · chips = node palette · dust mode applies suggested bg.</div>
 
+  <div class="sect">Background</div>
+  <div class="bg-swatches" id="bgSwatches"></div>
+  <select id="bgSel" aria-hidden="true" tabindex="-1">
+    <option value="#FFFFFF" selected>White</option>
+  </select>
+  <div class="ctrl bg-custom-row" id="bgCustomRow" style="display:none">
+    <label>Custom</label>
+    <input type="color" id="bgCustom" value="#004012">
+  </div>
+
   <div class="lite-palette-media">
   <div class="sect">Palette Media</div>
   <div class="ctrl-check">
@@ -1009,22 +1064,6 @@
     <input type="range" id="burst" min="0.5" max="3" value="1.75" step="0.05">
     <span class="val" id="burstV">1.75</span>
   </div>
-  <div class="ctrl">
-    <label>Background</label>
-    <select id="bgSel">
-      <option value="transparent">Transparent</option>
-      <option value="#ffffff">White</option>
-      <option value="#000000">Black</option>
-      <option value="#004012">Dark green</option>
-      <option value="#403700">Brown</option>
-      <option value="#3D5A00">Dark lime</option>
-      <option value="#99EDFF">Turquoise</option>
-      <option value="#E5ECE7" selected>Light sage</option>
-      <option value="#FFC4D8">Light pink</option>
-      <option value="custom">Custom…</option>
-    </select>
-    <input type="color" id="bgCustom" value="#004012" style="display:none;">
-  </div>
 
   <div class="sect">Export Video</div>
   <div class="ctrl">
@@ -1079,6 +1118,8 @@
         <input type="checkbox" id="textEnabled" checked>
         <label for="textEnabled">Show text</label>
       </div>
+      <button type="button" class="panel-more-toggle" data-more-toggle aria-expanded="false">Show more options</button>
+      <div class="panel-more-options" data-more-options>
       <div class="ctrl-check">
         <input type="checkbox" id="textTypewriter" checked>
         <label for="textTypewriter">Reveal in / out (no fade)</label>
@@ -1152,6 +1193,7 @@
         <input type="color" id="textColor" value="#000000">
       </div>
       <div class="hint">Focal Upright · 480 · −2.5% tracking · 20ch @ 1920×1080</div>
+      </div>
         </div>
       </div>
 
@@ -1166,6 +1208,8 @@
         <input type="checkbox" id="promptEnabled">
         <label for="promptEnabled">Show prompt text</label>
       </div>
+      <button type="button" class="panel-more-toggle" data-more-toggle aria-expanded="false">Show more options</button>
+      <div class="panel-more-options" data-more-options>
       <div class="ctrl-check">
         <input type="checkbox" id="promptTypewriter" checked>
         <label for="promptTypewriter">Reveal in / out (no fade)</label>
@@ -1193,6 +1237,15 @@
           <option value="400" selected>Regular</option>
           <option value="480">Medium</option>
         </select>
+      </div>
+      <div class="pin-picker">
+        <span class="pin-picker-label">Align</span>
+        <input type="hidden" id="promptAlign" value="left">
+        <div class="align-grid" id="promptAlignGrid" role="radiogroup" aria-label="Prompt text alignment">
+          <button type="button" class="pin-btn active" data-align="left" title="Align left" aria-label="Align left"><svg viewBox="0 0 16 16" fill="none"><path d="M3 4.5h8M3 8h6M3 11.5h9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+          <button type="button" class="pin-btn" data-align="center" title="Align center" aria-label="Align center"><svg viewBox="0 0 16 16" fill="none"><path d="M4 4.5h8M5 8h6M3.5 11.5h9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+          <button type="button" class="pin-btn" data-align="right" title="Align right" aria-label="Align right"><svg viewBox="0 0 16 16" fill="none"><path d="M5 4.5h8M7 8h6M4 11.5h9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+        </div>
       </div>
       <div class="ctrl">
         <label>Radius</label>
@@ -1249,6 +1302,7 @@
         <span class="val" id="promptLineWrapOffsetPxV">−48px</span>
       </div>
       <div class="hint">Below headline · per-word boxes · double-click palette chip to cycle prompt text color</div>
+      </div>
         </div>
       </div>
     </div>
@@ -1280,9 +1334,14 @@
           </button>
         </div>
       </div>
+      <div class="ctrl-check">
+        <input type="checkbox" id="logoFollowPalette" checked>
+        <label for="logoFollowPalette">Match color palette</label>
+      </div>
       <div class="ctrl" id="logoAccentRow">
         <label id="logoAccentLabel">Accent</label>
         <input type="color" id="logoColorAccent" value="#99EDFF">
+        <button type="button" class="btn-inline" id="logoColorCycle" title="Cycle palette colors">Cycle</button>
       </div>
       <div class="ctrl" id="logoDetailRow">
         <label>Detail</label>
@@ -1698,6 +1757,30 @@ function initTextAlignPicker() {
   });
 }
 
+function getPromptAlign() {
+  const el = document.getElementById('promptAlign');
+  const value = el && el.value;
+  return value === 'center' || value === 'right' ? value : 'left';
+}
+
+function setPromptAlign(align) {
+  const value = align === 'center' || align === 'right' ? align : 'left';
+  const hidden = document.getElementById('promptAlign');
+  if (hidden) hidden.value = value;
+  document.querySelectorAll('#promptAlignGrid .pin-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.align === value);
+  });
+}
+
+function initPromptAlignPicker() {
+  document.querySelectorAll('#promptAlignGrid .pin-btn').forEach(btn => {
+    btn.onclick = () => {
+      setPromptAlign(btn.dataset.align);
+      refreshPromptTextOverlay();
+    };
+  });
+}
+
 const FAL_LOGO_VIEW_H = 200;
 const FAL_LOGO_VIEW_W = 435;
 const FAL_LOGO_BRAND_INNER = '<rect width="434.024" height="200" rx="22.5317" fill="{{ACCENT}}"/>' +
@@ -1737,6 +1820,49 @@ function getLogoPreviewColors(style) {
     return { accent: accent || '#99EDFF', detail: detail || '#403700' };
   }
   return { accent: accent || '#99EDFF', detail: detail || '#403700' };
+}
+
+function isLogoFollowPalette() {
+  return document.getElementById('logoFollowPalette').checked;
+}
+
+function getLogoPaletteColors(offset) {
+  const colors = getActivePaletteColorList();
+  if (!colors.length) return null;
+  const o = ((offset || 0) % colors.length + colors.length) % colors.length;
+  const accent = colors[o];
+  const detail = colors.length > 1 ? colors[(o + 1) % colors.length] : accent;
+  return { accent, detail };
+}
+
+function syncLogoColorsFromPalette(offset) {
+  if (!isLogoFollowPalette()) return;
+  const pair = getLogoPaletteColors(offset);
+  if (!pair) return;
+  document.getElementById('logoColorAccent').value = pair.accent;
+  document.getElementById('logoColorDetail').value = pair.detail;
+}
+
+function cycleLogoColors() {
+  const colors = getActivePaletteColorList();
+  if (!colors.length) return;
+  const style = getLogoStyle();
+  if (style === 'light') {
+    const current = document.getElementById('logoColorAccent').value.toLowerCase();
+    let idx = colors.findIndex(c => c.toLowerCase() === current);
+    const next = colors[(Math.max(0, idx) + 1) % colors.length];
+    document.getElementById('logoColorAccent').value = next;
+  } else {
+    const accent = document.getElementById('logoColorAccent').value.toLowerCase();
+    let idx = colors.findIndex(c => c.toLowerCase() === accent);
+    const nextOffset = (Math.max(0, idx) + 1) % colors.length;
+    const pair = getLogoPaletteColors(nextOffset);
+    document.getElementById('logoColorAccent').value = pair.accent;
+    document.getElementById('logoColorDetail').value = pair.detail;
+  }
+  refreshLogoStyleThumbs();
+  refreshLogoOverlay();
+  schedulePresetAutosave();
 }
 
 function getLogoInnerTemplate(style) {
@@ -1930,6 +2056,7 @@ function updateLogoColorUi() {
   const accentLabel = document.getElementById('logoAccentLabel');
   if (detailRow) detailRow.style.display = (style === 'brand' || style === 'dark') ? '' : 'none';
   if (accentLabel) accentLabel.textContent = style === 'light' ? 'Color' : 'Accent';
+  if (isLogoFollowPalette()) syncLogoColorsFromPalette();
 }
 
 function getLogoPlacement(canvasW, canvasH, logoH, style, pin) {
@@ -2163,6 +2290,9 @@ function cyclePromptTextColor(fromHex, paletteColors) {
   if (idx < 0) idx = colors.findIndex(c => c.toLowerCase() === from);
   const next = colors[(Math.max(0, idx) + 1) % colors.length];
   document.getElementById('promptTextColor').value = next;
+  if (isPromptSpaceColorEnabled() && getPromptSpaceColor().toLowerCase() === next.toLowerCase()) {
+    document.getElementById('promptSpaceColor').value = pickPromptSpaceColorFromPalette(next);
+  }
   refreshPromptTextOverlay();
 }
 
@@ -2274,6 +2404,27 @@ function isPromptSpaceColorEnabled() {
 
 function getPromptSpaceColor() {
   return document.getElementById('promptSpaceColor').value || '#C4B5FD';
+}
+
+function pickPromptSpaceColorFromPalette(excludeHex) {
+  const colors = getActivePaletteColorList();
+  if (!colors.length) return getPromptSpaceColor();
+  const exclude = (excludeHex || getPromptTextColor()).toLowerCase();
+  const candidates = colors.filter(c => c.toLowerCase() !== exclude);
+  if (!candidates.length) return colors[0];
+  const textIdx = colors.findIndex(c => c.toLowerCase() === exclude);
+  if (textIdx >= 0 && colors.length > 1) {
+    const alt = colors[(textIdx + 1) % colors.length];
+    if (alt.toLowerCase() !== exclude) return alt;
+  }
+  return candidates[0];
+}
+
+function syncPromptSpaceColorFromPalette() {
+  if (!isPromptSpaceColorEnabled()) return;
+  const el = document.getElementById('promptSpaceColor');
+  if (!el) return;
+  el.value = pickPromptSpaceColorFromPalette();
 }
 
 function isPromptSpaceGlitchRhythm() {
@@ -2571,7 +2722,9 @@ function measureHeadlineBlockBBox(visibleText, opts) {
 }
 
 function getPromptPlacement(frameW, frameH, headlineText, headlineOpts, canvasW, canvasH) {
-  const align = getTextAlign();
+  const align = getPromptAlign();
+  const cw = canvasW != null ? canvasW : W;
+  const ch = canvasH != null ? canvasH : H;
   if (headlineText) {
     const bbox = measureHeadlineBlockBBox(headlineText, headlineOpts);
     if (bbox && isFinite(bbox.width) && isFinite(bbox.height)) {
@@ -2587,7 +2740,12 @@ function getPromptPlacement(frameW, frameH, headlineText, headlineOpts, canvasW,
   const margin = getTextMarginPx();
   const pin = getTextPin();
   const local = { x: 0, y: 0, width: frameW, height: frameH };
-  return pinOffsetFromBBox(local, pin, margin, canvasW != null ? canvasW : W, canvasH != null ? canvasH : H);
+  const placed = pinOffsetFromBBox(local, pin, margin, cw, ch);
+  let tx = placed.tx;
+  if (align === 'center') tx = (cw - frameW) / 2;
+  else if (align === 'right') tx = cw - margin - frameW;
+  else if (align === 'left') tx = margin;
+  return { tx, ty: placed.ty };
 }
 
 function getHeadlineAnchorText() {
@@ -3464,6 +3622,7 @@ document.getElementById('promptLineWrapOffsetPx').oninput = () => {
   refreshPromptTextOverlay();
 };
 document.getElementById('promptSpaceColorEnabled').onchange = () => {
+  if (isPromptSpaceColorEnabled()) syncPromptSpaceColorFromPalette();
   updatePromptSpaceColorUi();
   refreshPromptTextOverlay();
 };
@@ -3487,20 +3646,144 @@ document.getElementById('logoMarginNodes').onchange = () => {
 ['logoEnabled', 'logoClearPattern'].forEach(id => {
   document.getElementById(id).onchange = () => refreshLogoOverlay();
 });
-document.getElementById('logoColorAccent').oninput = () => refreshLogoOverlay();
-document.getElementById('logoColorDetail').oninput = () => refreshLogoOverlay();
+document.getElementById('logoColorAccent').oninput = () => {
+  document.getElementById('logoFollowPalette').checked = false;
+  refreshLogoStyleThumbs();
+  refreshLogoOverlay();
+};
+document.getElementById('logoColorDetail').oninput = () => {
+  document.getElementById('logoFollowPalette').checked = false;
+  refreshLogoStyleThumbs();
+  refreshLogoOverlay();
+};
+document.getElementById('logoColorCycle').onclick = () => cycleLogoColors();
+document.getElementById('logoFollowPalette').onchange = () => {
+  if (isLogoFollowPalette()) syncLogoColorsFromPalette();
+  refreshLogoStyleThumbs();
+  refreshLogoOverlay();
+  schedulePresetAutosave();
+};
 document.getElementById('logoSize').oninput = () => {
   document.getElementById('logoSizeV').textContent = document.getElementById('logoSize').value;
   refreshLogoOverlay();
 };
 const bgSel = document.getElementById('bgSel');
 const bgCustom = document.getElementById('bgCustom');
+const BG_COLOR_OPTIONS = [
+  { value: 'transparent', label: 'Transparent' },
+  { value: '#FFFFFF', label: 'White' },
+  { value: '#000000', label: 'Black' },
+  { value: '#E5ECE7', label: 'Light sage' },
+  { value: '#D9D7CC', label: 'Lt brown' },
+  { value: '#96AFAC', label: 'Sage' },
+  { value: '#004012', label: 'Dark green' },
+  { value: '#403700', label: 'Olive' },
+  { value: '#3D5A00', label: 'Dark lime' },
+  { value: '#ADFF00', label: 'Chartreuse' },
+  { value: '#C8FF66', label: 'Lt lime' },
+  { value: '#FFFF00', label: 'Yellow' },
+  { value: '#115EF3', label: 'Royal blue' },
+  { value: '#3FB5FE', label: 'Baby blue' },
+  { value: '#C5E9FF', label: 'Light blue' },
+  { value: '#99EDFF', label: 'Turquoise' },
+  { value: '#FFC4D8', label: 'Light pink' },
+  { value: '#F57EC3', label: 'Pink' },
+  { value: '#EC0648', label: 'Red' },
+  { value: 'custom', label: 'Custom' },
+];
+
+function normalizeBgHex(hex) {
+  if (!hex || hex === 'transparent' || hex === 'custom') return hex;
+  return hex.toUpperCase();
+}
+
+function ensureBgSelOption(value, label) {
+  const norm = value === 'custom' || value === 'transparent' ? value : normalizeBgHex(value);
+  if (norm === 'custom' || norm === 'transparent') return norm;
+  let opt = [...bgSel.options].find(o => o.value.toUpperCase() === norm);
+  if (!opt) {
+    opt = document.createElement('option');
+    opt.value = norm;
+    opt.textContent = label || norm;
+    bgSel.appendChild(opt);
+  }
+  return norm;
+}
+
 function getBg() { return bgSel.value === 'custom' ? bgCustom.value : bgSel.value; }
-bgSel.onchange = () => {
-  bgCustom.style.display = bgSel.value === 'custom' ? 'inline-block' : 'none';
-  refreshTextOverlay();
-  schedulePresetAutosave();
-};
+
+function updateBgSwatchUi() {
+  const current = getBg();
+  const normalized = current === 'transparent' || current === 'custom' ? current : normalizeBgHex(current);
+  document.querySelectorAll('#bgSwatches .bg-swatch').forEach(btn => {
+    const v = btn.dataset.value;
+    let active = false;
+    if (v === 'custom') active = bgSel.value === 'custom';
+    else if (v === 'transparent') active = bgSel.value === 'transparent';
+    else active = normalizeBgHex(v) === normalized;
+    btn.classList.toggle('active', active);
+  });
+  const row = document.getElementById('bgCustomRow');
+  if (row) row.style.display = bgSel.value === 'custom' ? '' : 'none';
+}
+
+function setBgSelection(value, opts) {
+  opts = opts || {};
+  let v = value;
+  if (v && v !== 'transparent' && v !== 'custom') {
+    v = ensureBgSelOption(v);
+    if (![...bgSel.options].some(o => o.value === v || o.value.toUpperCase() === v)) {
+      bgCustom.value = v.toLowerCase();
+      v = 'custom';
+    }
+  }
+  bgSel.value = v;
+  if (v === 'custom' && opts.customHex) bgCustom.value = opts.customHex;
+  updateBgSwatchUi();
+  if (!opts.silent) {
+    refreshTextOverlay();
+    schedulePresetAutosave();
+  }
+}
+
+function initBgColorUi() {
+  const container = document.getElementById('bgSwatches');
+  if (!container) return;
+  bgSel.innerHTML = '';
+  BG_COLOR_OPTIONS.forEach(opt => {
+    const o = document.createElement('option');
+    o.value = opt.value;
+    o.textContent = opt.label;
+    bgSel.appendChild(o);
+  });
+  container.innerHTML = '';
+  BG_COLOR_OPTIONS.forEach(opt => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'bg-swatch';
+    btn.dataset.value = opt.value;
+    btn.title = opt.label;
+    if (opt.value === 'transparent') {
+      btn.classList.add('bg-swatch-transparent');
+      btn.textContent = '∅';
+    } else if (opt.value === 'custom') {
+      btn.classList.add('bg-swatch-custom');
+      btn.textContent = '…';
+    } else {
+      btn.style.backgroundColor = opt.value;
+    }
+    btn.onclick = () => setBgSelection(opt.value);
+    container.appendChild(btn);
+  });
+  bgCustom.oninput = () => {
+    if (bgSel.value === 'custom') {
+      updateBgSwatchUi();
+      refreshTextOverlay();
+      schedulePresetAutosave();
+    }
+  };
+  setBgSelection('#FFFFFF', { silent: true });
+}
 
 function getAnimStyle() { return document.getElementById('animStyle').value; }
 
@@ -3557,7 +3840,6 @@ function updateWaveUI() {
 function applyStyleDefaults() {
   const style = getAnimStyle();
   if (style === 'voxel' || style === 'connected') {
-    bgCustom.style.display = 'none';
     tonalCount = 2;
     document.querySelectorAll('#tonalCount button').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.count === '2');
@@ -3784,17 +4066,13 @@ function applyTonalPreset(preset, opts) {
   activePresetId = preset.id;
   activeTonalColors = [...preset.colors];
   if (preset.bg && getAnimStyle() === 'dust') {
-    const bgOpt = [...bgSel.options].find(o => o.value === preset.bg);
-    if (bgOpt) bgSel.value = preset.bg;
-    else {
-      bgSel.value = 'custom';
-      bgCustom.value = preset.bg;
-      bgCustom.style.display = 'inline-block';
-    }
+    setBgSelection(preset.bg, { silent: true });
   }
   renderTonalPresets();
   renderTonalPreview();
   syncPromptBorderFromPalette();
+  syncLogoColorsFromPalette();
+  syncPromptSpaceColorFromPalette();
   renderPaletteMediaList();
   if (!opts || !opts.skipRegen) beginCycle();
 }
@@ -3815,6 +4093,7 @@ function setTonalCount(count) {
   }
   renderTonalPresets();
   renderTonalPreview();
+  syncPromptSpaceColorFromPalette();
   beginCycle();
 }
 
@@ -6322,6 +6601,16 @@ function initCanvasPanelToggles() {
       }
     });
   });
+  document.querySelectorAll('[data-more-toggle]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const opts = btn.nextElementSibling;
+      if (!opts || !opts.matches('[data-more-options]')) return;
+      const open = opts.classList.toggle('is-open');
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      btn.textContent = open ? 'Show fewer options' : 'Show more options';
+    });
+  });
 }
 
 function initPreviewScrub() {
@@ -6773,6 +7062,7 @@ function applyPromptTextSettings(prompt) {
   }
   if (p.boxRadius != null) document.getElementById('promptBoxRadius').value = String(p.boxRadius);
   if (p.fontWeight != null) document.getElementById('promptFontWeight').value = String(p.fontWeight);
+  setPromptAlign(p.align);
   if (p.fontSize != null) {
     document.getElementById('promptFontSize').value = p.fontSize;
     document.getElementById('promptFontSizeV').textContent = p.fontSize;
@@ -6789,13 +7079,17 @@ function applyPromptTextSettings(prompt) {
   document.getElementById('promptLineWrapOffsetPx').value = String(wrapOffsetPx);
   updatePromptLineWrapOffsetUi();
   document.getElementById('promptSpaceColorEnabled').checked = p.spaceColorEnabled === true;
-  if (p.spaceColor) document.getElementById('promptSpaceColor').value = p.spaceColor;
+  if (p.textColor) document.getElementById('promptTextColor').value = p.textColor;
+  if (p.spaceColor) {
+    document.getElementById('promptSpaceColor').value = p.spaceColor;
+  } else if (p.spaceColorEnabled === true) {
+    syncPromptSpaceColorFromPalette();
+  }
   document.getElementById('promptSpaceGlitchRhythm').checked = p.spaceGlitchRhythm === true;
   document.getElementById('promptSpaceGapShuffle').checked = p.spaceGapShuffle !== false;
   if (p.spaceGapShuffleMs != null) {
     document.getElementById('promptSpaceGapShuffleMs').value = String(p.spaceGapShuffleMs);
   }
-  if (p.textColor) document.getElementById('promptTextColor').value = p.textColor;
   updatePromptSpaceColorUi();
   invalidateOverlayLayout();
 }
@@ -6804,8 +7098,10 @@ function applyLogoSettings(logo) {
   const l = logo || {};
   document.getElementById('logoEnabled').checked = l.enabled === true;
   setLogoStyle(l.style || 'brand');
+  document.getElementById('logoFollowPalette').checked = l.followPalette !== false;
   if (l.colorAccent) document.getElementById('logoColorAccent').value = l.colorAccent;
   if (l.colorDetail) document.getElementById('logoColorDetail').value = l.colorDetail;
+  if (l.followPalette !== false) syncLogoColorsFromPalette();
   if (l.size != null) {
     document.getElementById('logoSize').value = l.size;
     document.getElementById('logoSizeV').textContent = l.size;
@@ -6857,6 +7153,7 @@ const DEFAULT_PROMPT_SETTINGS = {
   spaceGapShuffle: true,
   spaceGapShuffleMs: 500,
   textColor: '#FFFFFF',
+  align: 'left',
 };
 
 const DEFAULT_LOGO_SETTINGS = {
@@ -6864,6 +7161,7 @@ const DEFAULT_LOGO_SETTINGS = {
   style: 'brand',
   colorAccent: '#99EDFF',
   colorDetail: '#403700',
+  followPalette: true,
   size: 100,
   marginNodes: 1,
   clearPattern: false,
@@ -6874,7 +7172,7 @@ const DEFAULT_LOGO_SETTINGS = {
 const PRESET_STORAGE_KEY = 'falGlitchDustPresets_v1';
 const BUILTIN_DEFAULT_ID = 'builtin-default';
 const BUILTIN_TRANSITION_ID = 'builtin-transition';
-const BUILTIN_DEFAULTS_REV = 5;
+const BUILTIN_DEFAULTS_REV = 6;
 let presetStore = null;
 let presetApplyInProgress = false;
 let presetAutosaveTimer = null;
@@ -7093,12 +7391,14 @@ function collectSettings() {
       spaceGapShuffle: isPromptSpaceGapShuffle(),
       spaceGapShuffleMs: getPromptSpaceGapShuffleMs(),
       textColor: getPromptTextColor(),
+      align: getPromptAlign(),
     },
     logo: {
       enabled: document.getElementById('logoEnabled').checked,
       style: getLogoStyle(),
       colorAccent: document.getElementById('logoColorAccent').value,
       colorDetail: document.getElementById('logoColorDetail').value,
+      followPalette: isLogoFollowPalette(),
       size: parseInt(document.getElementById('logoSize').value, 10),
       marginNodes: getLogoMarginNodes(),
       clearPattern: document.getElementById('logoClearPattern').checked,
@@ -7140,15 +7440,17 @@ function applySettings(settings, opts) {
   }
 
   SETTING_SELECTS.forEach(id => {
-    if (s.selects[id] != null) document.getElementById(id).value = s.selects[id];
+    if (s.selects[id] == null) return;
+    let val = s.selects[id];
+    if (id === 'bgSel' && val !== 'custom' && val !== 'transparent') {
+      val = ensureBgSelOption(val);
+    }
+    document.getElementById(id).value = val;
   });
   if (s.selects.bgSel === 'custom' && s.selects.bgCustom) {
     document.getElementById('bgCustom').value = s.selects.bgCustom;
-    document.getElementById('bgCustom').style.display = 'inline-block';
-  } else {
-    document.getElementById('bgCustom').style.display =
-      document.getElementById('bgSel').value === 'custom' ? 'inline-block' : 'none';
   }
+  updateBgSwatchUi();
 
   document.querySelectorAll('#megaTiers button').forEach(btn => {
     const tier = parseInt(btn.dataset.tier, 10);
@@ -8378,6 +8680,7 @@ document.getElementById('jsonExportBtn').onclick = () => {
 
 syncSvgViewport();
 initAllDialSliders();
+initBgColorUi();
 document.getElementById('nodeMediaEnabled').onchange = () => {
   updateNodeMediaUi();
   remountParticleElements();
@@ -8398,8 +8701,10 @@ updateLogoMarginLabel();
 updateLogoColorUi();
 initTextPinPicker();
 initTextAlignPicker();
+initPromptAlignPicker();
 updateBlanketSpeedUi();
 syncPromptBorderFromPalette();
+syncLogoColorsFromPalette();
 updatePromptLineWrapOffsetUi();
 updatePromptSpaceColorUi();
 initLogoStylePicker();

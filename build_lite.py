@@ -118,14 +118,20 @@ if PALETTE_MEDIA_IN_GRID not in html:
 html = html.replace(PALETTE_MEDIA_IN_GRID, "", 1)
 
 tonal_tail = (
-    '  <div class="hint">Grouped by color family · chips = node palette · dust mode applies suggested bg.</div>\n\n'
+    '  <div class="ctrl bg-custom-row" id="bgCustomRow" style="display:none">\n'
+    '    <label>Custom</label>\n'
+    '    <input type="color" id="bgCustom" value="#004012">\n'
+    '  </div>\n\n'
     '  <div class="sect">Custom Weights'
 )
 if tonal_tail not in html:
     raise SystemExit("Could not find tonal colors section tail")
 html = html.replace(
     tonal_tail,
-    '  <div class="hint">Grouped by color family · chips = node palette · dust mode applies suggested bg.</div>\n\n'
+    '  <div class="ctrl bg-custom-row" id="bgCustomRow" style="display:none">\n'
+    '    <label>Custom</label>\n'
+    '    <input type="color" id="bgCustom" value="#004012">\n'
+    '  </div>\n\n'
     + LITE_PALETTE_MEDIA_BLOCK
     + '  <div class="sect">Custom Weights',
     1,

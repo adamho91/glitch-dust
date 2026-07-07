@@ -403,9 +403,9 @@
   </div>
   <div class="ctrl-check">
     <input type="checkbox" id="exportTransparentBg" checked>
-    <label for="exportTransparentBg">Transparent background (MP4/WebM/GIF)</label>
+    <label for="exportTransparentBg">Transparent background</label>
   </div>
-  <div class="hint">Transparent MP4 needs Safari (HEVC). In Chrome, use Export WebM for alpha — MP4 is always H.264.</div>
+  <div class="hint">H.264 MP4 has no alpha. For After Effects: <strong>Export PNG seq</strong> (unzip → import as sequence). WebM = web preview · Safari MP4 = HEVC alpha only.</div>
 
   <div class="action-panel">
     <div class="btn-row action-play">
@@ -414,9 +414,10 @@
     </div>
     <div class="action-group-label">Video</div>
     <div class="btn-grid action-export">
-      <button id="mp4ExportBtn">Export MP4</button>
+      <button id="pngExportBtn">Export PNG seq</button>
       <button id="webmExportBtn">Export WebM</button>
-      <button id="gifExportBtn" class="span-2">Export GIF</button>
+      <button id="mp4ExportBtn">Export MP4</button>
+      <button id="gifExportBtn">Export GIF</button>
       <button id="jsonExportBtn" class="span-2">Export JSON</button>
     </div>
   </div>

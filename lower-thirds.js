@@ -1083,7 +1083,7 @@
   }
 
   function setExportButtonsBusy(busy) {
-    ['mp4ExportBtn', 'webmExportBtn', 'gifExportBtn'].forEach(id => {
+    ['mp4ExportBtn', 'webmExportBtn', 'gifExportBtn', 'pngExportBtn'].forEach(id => {
       const btn = document.getElementById(id);
       if (btn) btn.classList.toggle('exporting', !!busy);
     });
@@ -1775,6 +1775,134 @@
     setTimeout(() => URL.revokeObjectURL(url), 0);
   }
 
+  let zipCrcTable = null;
+
+  function getZipCrcTable() {
+    if (zipCrcTable) return zipCrcTable;
+    zipCrcTable = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+      zipCrcTable[n] = c >>> 0;
+    }
+    return zipCrcTable;
+  }
+
+  function crc32(bytes) {
+    const table = getZipCrcTable();
+    let c = ~0;
+    for (let i = 0; i < bytes.length; i++) c = table[(c ^ bytes[i]) & 0xff] ^ (c >>> 8);
+    return (~c) >>> 0;
+  }
+
+  function buildStoredZip(entries) {
+    const enc = new TextEncoder();
+    const localChunks = [];
+    const centralChunks = [];
+    let offset = 0;
+
+    entries.forEach(entry => {
+      const nameBytes = enc.encode(entry.name);
+      const data = entry.data;
+      const checksum = crc32(data);
+      const size = data.length;
+
+      const local = new Uint8Array(30 + nameBytes.length);
+      const lv = new DataView(local.buffer);
+      lv.setUint32(0, 0x04034b50, true);
+      lv.setUint16(4, 20, true);
+      lv.setUint16(8, 0, true);
+      lv.setUint32(14, checksum, true);
+      lv.setUint32(18, size, true);
+      lv.setUint32(22, size, true);
+      lv.setUint16(26, nameBytes.length, true);
+      local.set(nameBytes, 30);
+      localChunks.push(local, data);
+
+      const central = new Uint8Array(46 + nameBytes.length);
+      const cv = new DataView(central.buffer);
+      cv.setUint32(0, 0x02014b50, true);
+      cv.setUint16(4, 20, true);
+      cv.setUint16(6, 20, true);
+      cv.setUint16(10, 0, true);
+      cv.setUint32(16, checksum, true);
+      cv.setUint32(20, size, true);
+      cv.setUint32(24, size, true);
+      cv.setUint16(28, nameBytes.length, true);
+      cv.setUint32(42, offset, true);
+      central.set(nameBytes, 46);
+      centralChunks.push(central);
+
+      offset += local.length + data.length;
+    });
+
+    const centralSize = centralChunks.reduce((sum, chunk) => sum + chunk.length, 0);
+    const end = new Uint8Array(22);
+    const ev = new DataView(end.buffer);
+    ev.setUint32(0, 0x06054b50, true);
+    ev.setUint16(8, entries.length, true);
+    ev.setUint16(10, entries.length, true);
+    ev.setUint32(12, centralSize, true);
+    ev.setUint32(16, offset, true);
+
+    return new Blob([...localChunks, ...centralChunks, end], { type: 'application/zip' });
+  }
+
+  function canvasToPngBytes(canvas) {
+    return new Promise((resolve, reject) => {
+      canvas.toBlob(blob => {
+        if (!blob) {
+          reject(new Error('PNG encode failed'));
+          return;
+        }
+        blob.arrayBuffer().then(buf => resolve(new Uint8Array(buf))).catch(reject);
+      }, 'image/png');
+    });
+  }
+
+  function pngFrameName(index, pad) {
+    return 'frame_' + String(index + 1).padStart(pad, '0') + '.png';
+  }
+
+  async function exportVideoPngZip(fps, totalFrames, canvas, ctx, exportOpts) {
+    exportOpts = exportOpts || {};
+    const w = canvas.width;
+    const h = canvas.height;
+    const pad = Math.max(5, String(totalFrames).length);
+    const entries = [];
+
+    for (let i = 0; i < totalFrames; i++) {
+      if (exportCancelRequested) throw new Error('cancelled');
+      await renderProgressToCanvas(ctx, i / totalFrames, w, h, exportOpts);
+      const data = await canvasToPngBytes(canvas);
+      entries.push({ name: pngFrameName(i, pad), data });
+      setExportModal(true, (i + 1) / totalFrames, 'Rendering PNG · ' + (i + 1) + ' / ' + totalFrames + ' frames…', i + 1);
+      await new Promise(r => setTimeout(r, 0));
+    }
+
+    entries.push({
+      name: 'README.txt',
+      data: new TextEncoder().encode(
+        'fal lower-thirds PNG sequence\n' +
+        'Resolution: ' + w + 'x' + h + '\n' +
+        'FPS: ' + fps + '\n' +
+        'Frames: ' + totalFrames + '\n\n' +
+        'After Effects: File → Import → select frame_00001.png, check "PNG Sequence".\n' +
+        'ProRes 4444: ffmpeg -framerate ' + fps + ' -i frame_%0' + pad + 'd.png -c:v prores_ks -profile:v 4444 -pix_fmt yuva444p10le out.mov\n'
+      ),
+    });
+
+    updateExportProgress(0.99, 'Zipping PNG sequence…');
+    const stamp = Date.now();
+    const zipBlob = buildStoredZip(entries);
+    if (!zipBlob || !zipBlob.size) throw new Error('PNG zip empty');
+    return {
+      blob: zipBlob,
+      filename: 'fal-lower-thirds-' + w + 'x' + h + '-' + fps + 'fps-' + stamp + '-png-seq.zip',
+      format: 'png',
+    };
+  }
+
   async function exportVideoLoop(format) {
     if (!particles.length) beginCycle();
     exportCancelRequested = false;
@@ -1787,27 +1915,36 @@
     exportRunMeta = { format, fps, totalFrames };
     const isMp4 = format === 'mp4';
     const isGif = format === 'gif';
+    const isPng = format === 'png';
     const transparent = isExportTransparent();
-    const exportOpts = { transparent };
+    const exportOpts = { transparent: isPng ? true : transparent };
     const canvas = document.createElement('canvas');
     canvas.width = W & ~1;
     canvas.height = H & ~1;
-    const ctx = canvas.getContext('2d', { alpha: transparent });
+    const ctx = canvas.getContext('2d', { alpha: exportOpts.transparent });
     let exportNote = '';
+    const titleEl = document.getElementById('exportModalTitle');
+    if (titleEl) {
+      titleEl.textContent = isPng ? 'Exporting PNG sequence' : isMp4 ? 'Exporting MP4' : isGif ? 'Exporting GIF' : 'Exporting WebM';
+    }
     try {
       setExportModal(true, 0, 'Loading fonts…');
       await preloadExportFonts();
       let result;
-      if (isMp4) {
+      if (isPng) {
+        setExportModal(true, 0, 'Rendering transparent PNG sequence…');
+        result = await exportVideoPngZip(fps, totalFrames, canvas, ctx, exportOpts);
+        exportNote = ' (PNG sequence with alpha — import into After Effects)';
+      } else if (isMp4) {
         let mp4ExportOpts = exportOpts;
         if (transparent) {
           const hevcConfig = await getHevcAlphaEncoderConfig(canvas.width, canvas.height, fps);
           if (hevcConfig) {
             setExportModal(true, 0, 'Preparing transparent HEVC MP4…');
             result = await exportVideoHevc(hevcConfig, fps, totalFrames, canvas, ctx, exportOpts);
-            exportNote = ' (HEVC with alpha — best in Safari)';
+            exportNote = ' (HEVC with alpha — Safari/QuickTime only)';
           } else {
-            exportNote = ' (H.264 with black background — use Export WebM for transparency in this browser)';
+            exportNote = ' (H.264 has no alpha — use Export PNG seq for After Effects)';
             mp4ExportOpts = { transparent: false };
           }
         }
@@ -1849,7 +1986,7 @@
       } else if (isGif && String(err).includes('gifenc')) {
         document.getElementById('status').textContent = 'GIF export failed — keep vendor/gifenc.mjs next to this page.';
       } else {
-        document.getElementById('status').textContent = (isMp4 ? 'MP4' : isGif ? 'GIF' : 'WebM') + ' export failed — ' + (err?.message || 'try Chrome.');
+        document.getElementById('status').textContent = (isPng ? 'PNG' : isMp4 ? 'MP4' : isGif ? 'GIF' : 'WebM') + ' export failed — ' + (err?.message || 'try Chrome.');
         console.error(err);
       }
     } finally {
@@ -2031,6 +2168,7 @@
     };
 
     document.getElementById('exportCancel').onclick = () => { exportCancelRequested = true; };
+    document.getElementById('pngExportBtn').onclick = () => exportVideoLoop('png');
     document.getElementById('mp4ExportBtn').onclick = () => exportVideoLoop('mp4');
     document.getElementById('webmExportBtn').onclick = () => exportVideoLoop('webm');
     document.getElementById('gifExportBtn').onclick = () => exportVideoLoop('gif');
