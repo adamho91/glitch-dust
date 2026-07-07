@@ -1083,7 +1083,7 @@
   }
 
   function setExportButtonsBusy(busy) {
-    ['mp4ExportBtn', 'webmExportBtn', 'gifExportBtn', 'pngExportBtn'].forEach(id => {
+    ['stillPngExportBtn', 'mp4ExportBtn', 'webmExportBtn', 'gifExportBtn', 'pngExportBtn'].forEach(id => {
       const btn = document.getElementById(id);
       if (btn) btn.classList.toggle('exporting', !!busy);
     });
@@ -1903,6 +1903,56 @@
     };
   }
 
+  async function exportPngStill() {
+    if (!particles.length) beginCycle();
+    exportCancelRequested = false;
+    const wasPaused = paused;
+    pauseAnim();
+    setExportButtonsBusy(true);
+    exportRunMeta = { format: 'png', fps: 0, totalFrames: 1 };
+    const transparent = isExportTransparent();
+    const canvas = document.createElement('canvas');
+    canvas.width = W & ~1;
+    canvas.height = H & ~1;
+    const ctx = canvas.getContext('2d', { alpha: transparent });
+    const titleEl = document.getElementById('exportModalTitle');
+    if (titleEl) titleEl.textContent = 'Exporting PNG';
+    const exportDesc = document.getElementById('exportModalDesc');
+    if (exportDesc) {
+      exportDesc.textContent = transparent
+        ? 'Rendering loop midpoint at 1920×1080 with transparent background.'
+        : 'Rendering loop midpoint at 1920×1080.';
+    }
+    try {
+      setExportModal(true, 0, 'Loading fonts…');
+      await preloadExportFonts();
+      setExportModal(true, 0.5, 'Rendering midpoint frame…');
+      await renderProgressToCanvas(ctx, 0.5, canvas.width, canvas.height, { transparent });
+      if (exportCancelRequested) throw new Error('cancelled');
+      setExportModal(true, 0.9, 'Encoding PNG…');
+      const blob = await new Promise((resolve, reject) => {
+        canvas.toBlob(b => (b ? resolve(b) : reject(new Error('PNG encode failed'))), 'image/png');
+      });
+      updateExportProgress(1, 'Download starting…');
+      const filename = 'fal-lower-thirds-' + W + 'x' + H + '-' + Date.now() + '.png';
+      downloadBlob(blob, filename);
+      document.getElementById('status').textContent = 'Exported ' + filename + ' · loop midpoint frame.';
+    } catch (err) {
+      if (err && err.message === 'cancelled') {
+        document.getElementById('status').textContent = 'PNG export cancelled.';
+      } else {
+        document.getElementById('status').textContent = 'PNG export failed — ' + (err?.message || 'try again.');
+        console.error(err);
+      }
+    } finally {
+      setExportModal(false);
+      setExportButtonsBusy(false);
+      exportRunMeta = { format: '', fps: 0, totalFrames: 0 };
+      drawFrame(performance.now());
+      if (!wasPaused) startAnim();
+    }
+  }
+
   async function exportVideoLoop(format) {
     if (!particles.length) beginCycle();
     exportCancelRequested = false;
@@ -2168,6 +2218,7 @@
     };
 
     document.getElementById('exportCancel').onclick = () => { exportCancelRequested = true; };
+    document.getElementById('stillPngExportBtn').onclick = () => exportPngStill();
     document.getElementById('pngExportBtn').onclick = () => exportVideoLoop('png');
     document.getElementById('mp4ExportBtn').onclick = () => exportVideoLoop('mp4');
     document.getElementById('webmExportBtn').onclick = () => exportVideoLoop('webm');

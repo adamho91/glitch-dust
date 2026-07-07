@@ -1104,9 +1104,10 @@
     </div>
     <div class="action-group-label">Video</div>
     <div class="btn-grid action-export">
+      <button id="pngExportBtn">Export PNG</button>
       <button id="mp4ExportBtn">Export MP4</button>
       <button id="webmExportBtn">Export WebM</button>
-      <button id="gifExportBtn" class="span-2">Export GIF</button>
+      <button id="gifExportBtn">Export GIF</button>
     </div>
     <div class="action-group-label">Copy</div>
     <div class="btn-grid action-export">
@@ -7196,7 +7197,7 @@ let exportInProgress = false;
 let exportRunMeta = { format: '', fps: 0, totalFrames: 0 };
 
 function setExportButtonsBusy(busy) {
-  ['mp4ExportBtn', 'webmExportBtn', 'gifExportBtn'].forEach(id => {
+  ['pngExportBtn', 'mp4ExportBtn', 'webmExportBtn', 'gifExportBtn'].forEach(id => {
     const btn = document.getElementById(id);
     if (btn) btn.classList.toggle('exporting', !!busy);
   });
@@ -7921,8 +7922,11 @@ async function renderSvgToCanvas(ctx, svgEl, opts) {
   const dh = opts.height || H;
   const bg = getBg();
   if (bg === 'transparent') {
-    ctx.fillStyle = opts.solidBg || '#ffffff';
-    ctx.fillRect(0, 0, dw, dh);
+    if (opts.transparent) ctx.clearRect(0, 0, dw, dh);
+    else {
+      ctx.fillStyle = opts.solidBg || '#ffffff';
+      ctx.fillRect(0, 0, dw, dh);
+    }
   } else {
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, dw, dh);
@@ -7954,7 +7958,7 @@ async function renderSvgToCanvas(ctx, svgEl, opts) {
   clone.setAttribute('viewBox', `0 0 ${W} ${H}`);
   clone.setAttribute('xmlns', SVG_NS);
 
-  if (hasPaletteMedia) {
+  if (hasPaletteMedia || opts.transparent) {
     const clonePaletteRoot = clone.querySelector('#paletteMediaRoot');
     if (clonePaletteRoot) clonePaletteRoot.replaceChildren();
     const cloneBg = clone.querySelector('#svgBg');
@@ -8391,6 +8395,97 @@ async function exportVideoGif(fps, cycleMs, totalFrames, canvas, ctx, exportOpts
   };
 }
 
+async function exportPngStill() {
+  const loopProgress = 0.5;
+  exportCancelRequested = false;
+  exportRunMeta = { format: 'png', fps: 0, totalFrames: 1 };
+  setExportButtonsBusy(true);
+  const wasPaused = paused;
+  exportInProgress = true;
+  pauseAnim();
+  dustScrubAt = -1;
+  if (getAnimStyle() === 'dust' && !dustSpawnState) captureDustSpawnState();
+  pausePaletteMediaForExport();
+
+  const transparent = getBg() === 'transparent';
+  const canvas = document.createElement('canvas');
+  canvas.width = W & ~1;
+  canvas.height = H & ~1;
+  const ctx = canvas.getContext('2d', { alpha: transparent });
+
+  const titleEl = document.getElementById('exportModalTitle');
+  if (titleEl) titleEl.textContent = 'Exporting PNG';
+  const exportDesc = document.getElementById('exportModalDesc');
+  if (exportDesc) {
+    exportDesc.textContent = transparent
+      ? 'Rendering loop midpoint at 1920×1080 with transparent background.'
+      : 'Rendering loop midpoint at 1920×1080.';
+  }
+  setExportModal(true, 0, 'Preparing PNG…');
+
+  let exportOpts = {};
+  exportFontRegistered = false;
+  try {
+    setExportModal(true, 0.1, 'Loading Focal Upright for export…');
+    const exportFontDataUrl = await ensureExportFontsReady();
+    exportOpts = { fontDataUrl: exportFontDataUrl };
+  } catch (e) {
+    console.warn('Export font load failed, continuing without embedded font:', e);
+    exportOpts = {};
+  }
+
+  try {
+    const cycleMs = getAnimDurationMs();
+    const sampleTs = loopProgress * cycleMs;
+    setExportModal(true, 0.4, 'Rendering midpoint frame…');
+    renderFrameContent(loopProgress, sampleTs, sampleTs, { exportMode: true, skipPaletteMedia: true });
+    await syncPaletteMediaForExport(getNodeLoopProgress(loopProgress));
+    await renderSvgToCanvas(ctx, svg, {
+      width: canvas.width,
+      height: canvas.height,
+      fontDataUrl: exportOpts.fontDataUrl,
+      transparent,
+    });
+
+    if (exportCancelRequested) throw new Error('cancelled');
+    setExportModal(true, 0.9, 'Encoding PNG…');
+    const blob = await new Promise((resolve, reject) => {
+      canvas.toBlob(b => (b ? resolve(b) : reject(new Error('PNG encode failed'))), 'image/png');
+    });
+
+    updateExportProgress(1, 'Download starting…');
+    const filename = `fal-glitch-dust-${W}x${H}-${Date.now()}.png`;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+    document.getElementById('status').textContent = `Exported ${filename} · loop midpoint frame.`;
+  } catch (err) {
+    if (err && err.message === 'cancelled') {
+      document.getElementById('status').textContent = 'PNG export cancelled.';
+    } else {
+      document.getElementById('status').textContent = `PNG export failed — ${err?.message || 'try again.'}`;
+      console.error(err);
+    }
+  } finally {
+    setExportModal(false);
+    setExportButtonsBusy(false);
+    exportRunMeta = { format: '', fps: 0, totalFrames: 0 };
+    exportInProgress = false;
+    dustScrubAt = -1;
+    cycleStart = performance.now();
+    syncPaletteGifTicker();
+    drawFrame(performance.now());
+    if (!wasPaused) startAnim();
+    else pauseAnim();
+  }
+}
+
 async function exportVideoLoop(format) {
   const fps = parseInt(document.getElementById('exportFps').value, 10) || 30;
   const cycleMs = getAnimDurationMs();
@@ -8543,6 +8638,15 @@ function bindVideoExportButton(id, format) {
     exportVideoLoop(format);
   };
 }
+
+document.getElementById('pngExportBtn').onclick = () => {
+  if (typeof exportPngStill !== 'function') {
+    document.getElementById('status').textContent =
+      'Export unavailable — reload the page. If opened from Dropbox, use a local server (python3 -m http.server).';
+    return;
+  }
+  exportPngStill();
+};
 
 bindVideoExportButton('mp4ExportBtn', 'mp4');
 bindVideoExportButton('webmExportBtn', 'webm');
