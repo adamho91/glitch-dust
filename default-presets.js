@@ -1,7 +1,7 @@
 // Generated from default-presets.json — do not edit by hand.
 const DEFAULT_PRESET_STORE = {
   "version": 1,
-  "builtinDefaultsRev": 7,
+  "builtinDefaultsRev": 8,
   "activeId": "user-1783394033441",
   "presets": [
     {
@@ -3340,6 +3340,7 @@ const DEFAULT_PRESET_STORE = {
           "colorAccent": "#3fb5fe",
           "colorDetail": "#115ef3",
           "followPalette": true,
+          "logoPaletteOffset": 0,
           "size": 100,
           "marginNodes": 1,
           "clearPattern": true,
@@ -3525,6 +3526,7 @@ const DEFAULT_PRESET_STORE = {
           "colorAccent": "#403700",
           "colorDetail": "#adff00",
           "followPalette": true,
+          "logoPaletteOffset": 0,
           "size": 138,
           "marginNodes": 3,
           "clearPattern": true,
@@ -3707,11 +3709,12 @@ const DEFAULT_PRESET_STORE = {
         "logo": {
           "enabled": true,
           "style": "light",
-          "colorAccent": "#000000",
+          "colorAccent": "#ffffff",
           "colorDetail": "#ffffff",
-          "followPalette": true,
+          "followPalette": false,
+          "logoPaletteOffset": 0,
           "size": 100,
-          "marginNodes": 1,
+          "marginNodes": 2,
           "clearPattern": true,
           "matchText": false,
           "pin": "bottom-left"

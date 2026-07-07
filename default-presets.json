@@ -1,7 +1,7 @@
 {
   "v": 1,
   "kind": "preset-library",
-  "exportedAt": "2026-07-07T03:23:59.707Z",
+  "exportedAt": "2026-07-07T03:31:19.776Z",
   "activeId": "user-1783394033441",
   "presets": [
     {
@@ -3340,6 +3340,7 @@
           "colorAccent": "#3fb5fe",
           "colorDetail": "#115ef3",
           "followPalette": true,
+          "logoPaletteOffset": 0,
           "size": 100,
           "marginNodes": 1,
           "clearPattern": true,
@@ -3525,6 +3526,7 @@
           "colorAccent": "#403700",
           "colorDetail": "#adff00",
           "followPalette": true,
+          "logoPaletteOffset": 0,
           "size": 138,
           "marginNodes": 3,
           "clearPattern": true,
@@ -3707,11 +3709,12 @@
         "logo": {
           "enabled": true,
           "style": "light",
-          "colorAccent": "#000000",
+          "colorAccent": "#ffffff",
           "colorDetail": "#ffffff",
-          "followPalette": true,
+          "followPalette": false,
+          "logoPaletteOffset": 0,
           "size": 100,
-          "marginNodes": 1,
+          "marginNodes": 2,
           "clearPattern": true,
           "matchText": false,
           "pin": "bottom-left"
