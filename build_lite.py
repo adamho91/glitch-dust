@@ -145,14 +145,61 @@ LITE_SIDEBAR_TEXT = """
   <div class="lite-text-block">
   <div class="sect">Prompt</div>
   <textarea id="promptText" class="text-area" placeholder="Caption / prompt…" spellcheck="false" style="min-height:52px"></textarea>
+  <div class="pin-picker lite-prompt-align">
+    <span class="pin-picker-label">Align</span>
+    <input type="hidden" id="promptAlign" value="left">
+    <div class="align-grid" id="promptAlignGrid" role="radiogroup" aria-label="Prompt text alignment">
+      <button type="button" class="pin-btn active" data-align="left" title="Align left" aria-label="Align left"><svg viewBox="0 0 16 16" fill="none"><path d="M3 4.5h8M3 8h6M3 11.5h9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+      <button type="button" class="pin-btn" data-align="center" title="Align center" aria-label="Align center"><svg viewBox="0 0 16 16" fill="none"><path d="M4 4.5h8M5 8h6M3.5 11.5h9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+      <button type="button" class="pin-btn" data-align="right" title="Align right" aria-label="Align right"><svg viewBox="0 0 16 16" fill="none"><path d="M5 4.5h8M7 8h6M4 11.5h9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+    </div>
+  </div>
   </div>
 
+  <div class="lite-logo-block">
   <div class="ctrl-check lite-logo-toggle">
     <input type="checkbox" id="liteLogoEnabled">
     <label for="liteLogoEnabled">Show fal logo</label>
   </div>
+  <div class="ctrl-check">
+    <input type="checkbox" id="logoFollowPalette" checked>
+    <label for="logoFollowPalette">Match color palette</label>
+  </div>
+  <div class="ctrl lite-logo-accent-row" id="logoAccentRow">
+    <label id="logoAccentLabel">Accent</label>
+    <input type="color" id="logoColorAccent" value="#99EDFF">
+    <button type="button" class="btn-inline" id="logoColorCycle" title="Cycle palette colors">Cycle</button>
+  </div>
+  <input type="color" id="logoColorDetail" value="#403700" class="lite-hide" hidden aria-hidden="true" tabindex="-1">
+  </div>
 
   <div class="lite-hide">
+"""
+
+PROMPT_ALIGN_IN_PANEL = """      <div class="pin-picker">
+        <span class="pin-picker-label">Align</span>
+        <input type="hidden" id="promptAlign" value="left">
+        <div class="align-grid" id="promptAlignGrid" role="radiogroup" aria-label="Prompt text alignment">
+          <button type="button" class="pin-btn active" data-align="left" title="Align left" aria-label="Align left"><svg viewBox="0 0 16 16" fill="none"><path d="M3 4.5h8M3 8h6M3 11.5h9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+          <button type="button" class="pin-btn" data-align="center" title="Align center" aria-label="Align center"><svg viewBox="0 0 16 16" fill="none"><path d="M4 4.5h8M5 8h6M3.5 11.5h9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+          <button type="button" class="pin-btn" data-align="right" title="Align right" aria-label="Align right"><svg viewBox="0 0 16 16" fill="none"><path d="M5 4.5h8M7 8h6M4 11.5h9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+        </div>
+      </div>
+"""
+
+LOGO_PALETTE_IN_PANEL = """      <div class="ctrl-check">
+        <input type="checkbox" id="logoFollowPalette" checked>
+        <label for="logoFollowPalette">Match color palette</label>
+      </div>
+      <div class="ctrl" id="logoAccentRow">
+        <label id="logoAccentLabel">Accent</label>
+        <input type="color" id="logoColorAccent" value="#99EDFF">
+        <button type="button" class="btn-inline" id="logoColorCycle" title="Cycle palette colors">Cycle</button>
+      </div>
+      <div class="ctrl" id="logoDetailRow">
+        <label>Detail</label>
+        <input type="color" id="logoColorDetail" value="#403700">
+      </div>
 """
 
 custom_weights_marker = '  <div class="sect">Custom Weights'
@@ -202,6 +249,21 @@ panel = re.sub(
 )
 html = html[:panel_start] + panel + html[panel_end:]
 
+logo_start = html.find('<div class="canvas-logo-panel lite-hide')
+logo_end = html.find('    <div class="median-thumb"', logo_start)
+if logo_start == -1 or logo_end == -1:
+    raise SystemExit("Could not find canvas logo panel")
+logo_panel = html[logo_start:logo_end]
+if LOGO_PALETTE_IN_PANEL not in logo_panel:
+    raise SystemExit("Could not find logo palette block in canvas logo panel")
+logo_panel = logo_panel.replace(LOGO_PALETTE_IN_PANEL, "", 1)
+html = html[:logo_start] + logo_panel + html[logo_end:]
+
+if PROMPT_ALIGN_IN_PANEL in html:
+    html = html.replace(PROMPT_ALIGN_IN_PANEL, "", 1)
+else:
+    raise SystemExit("Could not find prompt align block to dedupe in lite build")
+
 html = html.replace(
     "initPresetSystem();\nupdateTextMarginLabel();",
     "initPresetSystem();\nif (typeof initLiteUi === 'function') initLiteUi();\nupdateTextMarginLabel();",
@@ -212,6 +274,10 @@ if 'id="overlayText"' not in html or 'id="promptText"' not in html:
     raise SystemExit("lite build missing overlayText/promptText in sidebar")
 if 'id="overlayTextStub"' not in html:
     raise SystemExit("lite build missing canvas textarea stubs")
+if 'id="promptAlignGrid"' not in html or html.count('id="promptAlignGrid"') != 1:
+    raise SystemExit("lite build missing or duplicate prompt align picker")
+if 'id="logoColorCycle"' not in html or html.count('id="logoColorCycle"') != 1:
+    raise SystemExit("lite build missing or duplicate logo color cycle")
 if 'lite-palette-media' not in html or 'id="paletteMediaList"' not in html:
     raise SystemExit("lite build missing palette media block")
 

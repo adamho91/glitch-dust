@@ -125,8 +125,34 @@ body.lite-app .lite-text-block .text-area {
   min-height: 64px;
 }
 
+body.lite-app .lite-text-block .lite-prompt-align {
+  margin-top: 8px;
+}
+
+body.lite-app .lite-logo-block {
+  margin-bottom: 12px;
+}
+
+body.lite-app .lite-logo-block .lite-logo-accent-row {
+  margin-bottom: 6px;
+}
+
+body.lite-app .lite-logo-block .lite-logo-accent-row label {
+  width: 52px;
+  flex-shrink: 0;
+  font-size: 11px;
+  color: #999;
+}
+
+body.lite-app .lite-logo-block .btn-inline {
+  padding: 4px 8px;
+  font-size: 10px;
+  min-width: 0;
+  flex-shrink: 0;
+}
+
 body.lite-app .lite-logo-toggle {
-  margin: 4px 0 12px;
+  margin: 4px 0 8px;
 }
 
 body.lite-app .lite-logo-toggle label {

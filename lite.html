@@ -792,11 +792,32 @@
   <div class="lite-text-block">
   <div class="sect">Prompt</div>
   <textarea id="promptText" class="text-area" placeholder="Caption / prompt…" spellcheck="false" style="min-height:52px"></textarea>
+  <div class="pin-picker lite-prompt-align">
+    <span class="pin-picker-label">Align</span>
+    <input type="hidden" id="promptAlign" value="left">
+    <div class="align-grid" id="promptAlignGrid" role="radiogroup" aria-label="Prompt text alignment">
+      <button type="button" class="pin-btn active" data-align="left" title="Align left" aria-label="Align left"><svg viewBox="0 0 16 16" fill="none"><path d="M3 4.5h8M3 8h6M3 11.5h9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+      <button type="button" class="pin-btn" data-align="center" title="Align center" aria-label="Align center"><svg viewBox="0 0 16 16" fill="none"><path d="M4 4.5h8M5 8h6M3.5 11.5h9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+      <button type="button" class="pin-btn" data-align="right" title="Align right" aria-label="Align right"><svg viewBox="0 0 16 16" fill="none"><path d="M5 4.5h8M7 8h6M4 11.5h9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+    </div>
+  </div>
   </div>
 
+  <div class="lite-logo-block">
   <div class="ctrl-check lite-logo-toggle">
     <input type="checkbox" id="liteLogoEnabled">
     <label for="liteLogoEnabled">Show fal logo</label>
+  </div>
+  <div class="ctrl-check">
+    <input type="checkbox" id="logoFollowPalette" checked>
+    <label for="logoFollowPalette">Match color palette</label>
+  </div>
+  <div class="ctrl lite-logo-accent-row" id="logoAccentRow">
+    <label id="logoAccentLabel">Accent</label>
+    <input type="color" id="logoColorAccent" value="#99EDFF">
+    <button type="button" class="btn-inline" id="logoColorCycle" title="Cycle palette colors">Cycle</button>
+  </div>
+  <input type="color" id="logoColorDetail" value="#403700" class="lite-hide" hidden aria-hidden="true" tabindex="-1">
   </div>
 
   <div class="lite-hide">
@@ -1238,15 +1259,6 @@
           <option value="480">Medium</option>
         </select>
       </div>
-      <div class="pin-picker">
-        <span class="pin-picker-label">Align</span>
-        <input type="hidden" id="promptAlign" value="left">
-        <div class="align-grid" id="promptAlignGrid" role="radiogroup" aria-label="Prompt text alignment">
-          <button type="button" class="pin-btn active" data-align="left" title="Align left" aria-label="Align left"><svg viewBox="0 0 16 16" fill="none"><path d="M3 4.5h8M3 8h6M3 11.5h9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
-          <button type="button" class="pin-btn" data-align="center" title="Align center" aria-label="Align center"><svg viewBox="0 0 16 16" fill="none"><path d="M4 4.5h8M5 8h6M3.5 11.5h9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
-          <button type="button" class="pin-btn" data-align="right" title="Align right" aria-label="Align right"><svg viewBox="0 0 16 16" fill="none"><path d="M5 4.5h8M7 8h6M4 11.5h9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
-        </div>
-      </div>
       <div class="ctrl">
         <label>Radius</label>
         <select id="promptBoxRadius">
@@ -1333,19 +1345,6 @@
             <span>Encased</span>
           </button>
         </div>
-      </div>
-      <div class="ctrl-check">
-        <input type="checkbox" id="logoFollowPalette" checked>
-        <label for="logoFollowPalette">Match color palette</label>
-      </div>
-      <div class="ctrl" id="logoAccentRow">
-        <label id="logoAccentLabel">Accent</label>
-        <input type="color" id="logoColorAccent" value="#99EDFF">
-        <button type="button" class="btn-inline" id="logoColorCycle" title="Cycle palette colors">Cycle</button>
-      </div>
-      <div class="ctrl" id="logoDetailRow">
-        <label>Detail</label>
-        <input type="color" id="logoColorDetail" value="#403700">
       </div>
       <div class="ctrl">
         <label>Height</label>
