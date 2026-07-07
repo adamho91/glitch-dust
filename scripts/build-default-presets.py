@@ -10,7 +10,7 @@ data = json.loads(src.read_text(encoding="utf-8"))
 
 store = {
     "version": 1,
-    "builtinDefaultsRev": 6,
+    "builtinDefaultsRev": 7,
     "activeId": data.get("activeId") or "builtin-transition",
     "presets": [
         {

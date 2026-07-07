@@ -1,7 +1,7 @@
 // Generated from default-presets.json — do not edit by hand.
 const DEFAULT_PRESET_STORE = {
   "version": 1,
-  "builtinDefaultsRev": 6,
+  "builtinDefaultsRev": 7,
   "activeId": "user-1783394033441",
   "presets": [
     {
@@ -3654,7 +3654,7 @@ const DEFAULT_PRESET_STORE = {
           "5",
           "0"
         ],
-        "noiseSeed": 72.58001255557033,
+        "noiseSeed": 175.12020133183321,
         "oneMovePerNode": true,
         "bakeInOut": true,
         "blanketNodeSpeedEnabled": false,
@@ -3707,12 +3707,12 @@ const DEFAULT_PRESET_STORE = {
         "logo": {
           "enabled": true,
           "style": "light",
-          "colorAccent": "#ffffff",
+          "colorAccent": "#000000",
           "colorDetail": "#ffffff",
           "followPalette": true,
           "size": 100,
           "marginNodes": 1,
-          "clearPattern": false,
+          "clearPattern": true,
           "matchText": false,
           "pin": "bottom-left"
         }

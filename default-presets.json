@@ -1,7 +1,7 @@
 {
   "v": 1,
   "kind": "preset-library",
-  "exportedAt": "2026-07-07T03:15:01.639Z",
+  "exportedAt": "2026-07-07T03:23:59.707Z",
   "activeId": "user-1783394033441",
   "presets": [
     {
@@ -3654,7 +3654,7 @@
           "5",
           "0"
         ],
-        "noiseSeed": 72.58001255557033,
+        "noiseSeed": 175.12020133183321,
         "oneMovePerNode": true,
         "bakeInOut": true,
         "blanketNodeSpeedEnabled": false,
@@ -3707,12 +3707,12 @@
         "logo": {
           "enabled": true,
           "style": "light",
-          "colorAccent": "#ffffff",
+          "colorAccent": "#000000",
           "colorDetail": "#ffffff",
           "followPalette": true,
           "size": 100,
           "marginNodes": 1,
-          "clearPattern": false,
+          "clearPattern": true,
           "matchText": false,
           "pin": "bottom-left"
         }
