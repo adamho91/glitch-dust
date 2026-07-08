@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Generate lite.html from index.html — run after changing index.html structure."""
 
+import json
 from pathlib import Path
 
 ROOT = Path(__file__).parent
@@ -141,6 +142,15 @@ LITE_SIDEBAR_TEXT = """
   <div class="lite-text-block">
   <div class="sect">Headline</div>
   <textarea id="overlayText" class="text-area" placeholder="Headline text…" spellcheck="false"></textarea>
+  <div class="ctrl lite-wrap-row">
+    <label>Wrap</label>
+    <select id="liteOverlayWrap">
+      <option value="16">16 char</option>
+      <option value="20" selected>20 char</option>
+      <option value="24">24 char</option>
+    </select>
+  </div>
+  <div class="hint">Characters per line before wrapping (landscape only)</div>
   </div>
   <div class="lite-text-block">
   <div class="sect">Prompt</div>
@@ -289,6 +299,18 @@ if 'lite-palette-media' not in html or 'id="paletteMediaList"' not in html:
 export_pos = html.find('  </div>\n\n  <div class="sect">Export Video</div>')
 if export_pos == -1:
     raise SystemExit("lite build missing export section outside lite-hide")
+
+runtime_path = ROOT / "webflow-embed-runtime.js"
+if runtime_path.is_file():
+    runtime_src = runtime_path.read_text(encoding="utf-8")
+    runtime_literal = json.dumps(runtime_src)
+    cache_marker = "let webflowRuntimeSourceCache = null;"
+    if cache_marker in html:
+        html = html.replace(
+            cache_marker,
+            f"const WEBFLOW_EMBED_RUNTIME_SRC = {runtime_literal};\n{cache_marker}",
+            1,
+        )
 
 (ROOT / "lite.html").write_text(html, encoding="utf-8")
 print("Wrote lite.html")

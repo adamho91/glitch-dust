@@ -549,6 +549,7 @@
 <script src="dial-sliders.js"></script>
 <script src="default-presets.js"></script>
 <script src="preset-io.js"></script>
+<script src="webflow-embed-runtime.js"></script>
 <link rel="stylesheet" href="ui-theme.css">
 <link rel="stylesheet" href="app-nav.css">
 <script src="app-nav.js" defer></script>
@@ -1512,10 +1513,22 @@ function getTextLineHeightPx(fontSize) {
 const TEXT_TRACKING_PCT = -2.5;
 const OVERLAY_WRAP_CHARS_LANDSCAPE = 20; // 1920×1080
 const OVERLAY_WRAP_CHARS_PORTRAIT = 11;  // 1080×1920
+const OVERLAY_WRAP_LANDSCAPE_OPTIONS = [16, 20, 24];
+let overlayWrapCharsLandscapeOverride = null;
+
+function setOverlayWrapCharsLandscapeOverride(val) {
+  const n = parseInt(val, 10);
+  overlayWrapCharsLandscapeOverride = OVERLAY_WRAP_LANDSCAPE_OPTIONS.includes(n) ? n : null;
+}
+
+function getOverlayWrapCharsLandscapeOverride() {
+  return overlayWrapCharsLandscapeOverride;
+}
 
 function getOverlayWrapChars(canvasW, canvasH) {
   const w = canvasW != null ? canvasW : W;
   const h = canvasH != null ? canvasH : H;
+  if (w > h && overlayWrapCharsLandscapeOverride != null) return overlayWrapCharsLandscapeOverride;
   if (w === 1920 && h === 1080) return OVERLAY_WRAP_CHARS_LANDSCAPE;
   if (w === 1080 && h === 1920) return OVERLAY_WRAP_CHARS_PORTRAIT;
   return Math.max(8, Math.round(OVERLAY_WRAP_CHARS_LANDSCAPE * w / 1920));
@@ -6906,90 +6919,73 @@ function buildSvgString(opts) {
   return s;
 }
 
-function buildWebflowEmbedHtml() {
+function collectWebflowEmbedConfig() {
+  const s = collectSettings();
+  const bgVal = s.selects.bgSel === 'custom' ? (s.selects.bgCustom || getBg()) : s.selects.bgSel;
+  return {
+    v: 2,
+    W: s.canvasW || W,
+    H: s.canvasH || H,
+    bg: bgVal,
+    style: s.selects.animStyle || getAnimStyle(),
+    noiseSeed,
+    sliders: s.sliders,
+    selects: s.selects,
+    megaTiers: s.megaTiers,
+    tonalCount: s.tonalCount,
+    activeTonalColors: s.activeTonalColors,
+    colorAll: s.colorAll,
+    colorWeights: s.colorWeights,
+    customWavePoints: s.customWavePoints,
+    bakeInOut: s.bakeInOut,
+    oneMovePerNode: s.oneMovePerNode,
+    blanketNodeSpeedEnabled: s.blanketNodeSpeedEnabled,
+    blanketNodeSpeed: (s.blanketNodeSpeed || 100) / 100,
+    circleNodes: parseInt(s.selects.circleNodes || document.getElementById('circleNodes').value, 10) || 2,
+    animDuration: parseFloat(s.sliders.animDuration) || parseFloat(document.getElementById('animDuration').value),
+  };
+}
+
+let webflowRuntimeSourceCache = null;
+
+async function ensureWebflowRuntimeSource() {
+  if (webflowRuntimeSourceCache) return webflowRuntimeSourceCache;
+  if (typeof WEBFLOW_EMBED_RUNTIME_SRC === 'string' && WEBFLOW_EMBED_RUNTIME_SRC) {
+    webflowRuntimeSourceCache = WEBFLOW_EMBED_RUNTIME_SRC;
+    return webflowRuntimeSourceCache;
+  }
+  try {
+    const res = await fetch('webflow-embed-runtime.js');
+    if (res.ok) {
+      webflowRuntimeSourceCache = await res.text();
+      return webflowRuntimeSourceCache;
+    }
+  } catch (e) {}
+  throw new Error('webflow-embed-runtime.js not found — use a local server.');
+}
+
+async function buildWebflowEmbedHtml() {
   const uid = 'fal' + Math.random().toString(36).slice(2, 11);
   const wrapId = 'falwrap_' + uid;
   const dataId = 'faldata_' + uid;
-  const exportT = performance.now();
-  const payload = {
-    W,
-    H,
-    bg: getBg(),
-    burst: v('burst'),
-    clusterN: Math.round(v('clusterN')),
-    speed: v('speed'),
-    staccato: v('staccato'),
-    animDuration: parseFloat(document.getElementById('animDuration').value),
-    blanketNodeSpeedEnabled: isBlanketNodeSpeedEnabled(),
-    blanketNodeSpeed: getBlanketNodeSpeed(),
-    blanketTextSpeedEnabled: isBlanketTextSpeedEnabled(),
-    blanketTextSpeed: getBlanketTextSpeed(),
-    particles: particles.map(p => ({
-      x: p.x,
-      y: p.y,
-      baseX: p.baseX,
-      baseY: p.baseY,
-      vx: p.vx,
-      vy: p.vy,
-      ci: p.ci,
-      on: p.on,
-      col: p.col,
-      sz: p.sz,
-      shape: p.shape,
-    })),
-    lastBurstAge: exportT - lastBurst,
-    nextBeatIn: v('staccato') > 0 ? Math.max(0, nextBeatAt - exportT) : null,
-    beatIndex,
-    cycleAge: exportT - cycleStart,
-  };
-  const jsonForHtml = JSON.stringify(payload).replace(/</g, '\\u003c');
-  const runtime = buildWebflowEmbedRuntimeScript(wrapId, dataId);
+  const config = collectWebflowEmbedConfig();
+  const jsonForHtml = JSON.stringify(config).replace(/</g, '\\u003c');
+  const runtime = await ensureWebflowRuntimeSource();
+  const bootstrap =
+    "(function(){'use strict';" + runtime +
+    ";FalGlitchDustWebflow.mountEmbed('" + wrapId + "','" + dataId + "');})();";
   return (
-    '<!-- fal Glitch Dust (animated SVG) — Webflow: Add → Embed → paste. -->\n' +
+    '<!-- fal Glitch Dust (procedural) — Webflow: Add → Embed → paste. -->\n' +
     '<div id="' + wrapId + '" class="fal-webflow-embed" style="max-width:100%;line-height:0;display:block;"></div>\n' +
     '<scr' + 'ipt type="application/json" id="' + dataId + '">' + jsonForHtml + '</scr' + 'ipt>\n' +
-    '<scr' + 'ipt>' + runtime + '</scr' + 'ipt>\n'
+    '<scr' + 'ipt>' + bootstrap + '</scr' + 'ipt>\n'
   );
 }
 
-function buildWebflowEmbedRuntimeScript(wrapId, dataId) {
-  return (
-    "(function(){'use strict';" +
-    "var NS='http://www.w3.org/2000/svg';" +
-    "var w=document.getElementById('" + wrapId + "');if(!w)return;" +
-    "var d=JSON.parse(document.getElementById('" + dataId + "').textContent);" +
-    "var W=d.W,H=d.H,animTimeScale=(d.blanketNodeSpeedEnabled?d.blanketNodeSpeed:1)||1,baseCycleMs=(d.animDuration||3.5)*1000,cycleMs=baseCycleMs;" +
-    "w.innerHTML='<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 '+W+' '+H+'\" preserveAspectRatio=\"xMidYMid meet\" shape-rendering=\"crispEdges\" style=\"width:100%;max-width:100%;height:auto;display:block;\"><rect x=\"0\" y=\"0\" width=\"'+W+'\" height=\"'+H+'\" shape-rendering=\"crispEdges\"/><g></g></svg>';" +
-    "var svg=w.firstElementChild,bgR=svg.children[0],gR=svg.children[1];" +
-    "var particles=d.particles.map(function(p){" +
-    "var o={x:p.x,y:p.y,baseX:p.baseX,baseY:p.baseY,vx:p.vx,vy:p.vy,ci:p.ci,on:p.on,col:p.col,sz:p.sz,shape:p.shape};" +
-    "var el=document.createElementNS(NS,p.shape==='circle'?'circle':'rect');el.setAttribute('shape-rendering','crispEdges');o._el=el;gR.appendChild(el);return o;});" +
-    "var burst=d.burst,clusterN=d.clusterN|0,speed=d.speed,staccato=d.staccato,bg=d.bg;" +
-    "var FRAME_MS=1000/24;var t0=performance.now();" +
-    "var lastBurst=t0-(d.lastBurstAge||0);var nextBeatAt=(typeof d.nextBeatIn==='number'&&!isNaN(d.nextBeatIn))?t0+d.nextBeatIn:Infinity;" +
-    "var beatIndex=d.beatIndex||0;var lastFrame=0;var cycleStart=t0-(d.cycleAge||0);" +
-    "function lerp(a,b,t){return a+(b-a)*t;}function rnd(a,b){return a+Math.random()*(b-a);}" +
-    "function nextBeatDelay(){var s=staccato/100;if(s===0)return Infinity;var minGap=lerp(baseCycleMs*0.15,80,s),maxGap=lerp(baseCycleMs*0.55,600,s);" +
-    "var delay;if(Math.random()<0.3*s)delay=rnd(80,300);else delay=rnd(minGap,maxGap);return delay/animTimeScale;}" +
-    "function scheduleNextBeat(now){nextBeatAt=now+nextBeatDelay();}" +
-    "function fireStaccatoBeat(ts){var s=staccato/100,nc=clusterN;if(nc<1){beatIndex++;scheduleNextBeat(ts);return;}var spd=speed/100,kick=lerp(0.05,1.2,s)*lerp(0.1,1,spd),numAffected=Math.ceil(rnd(0.5,lerp(1,3,s))),affected=new Set;" +
-    "while(affected.size<numAffected)affected.add(Math.floor(Math.random()*nc));" +
-    "particles.forEach(function(p){if(!affected.has(p.ci))return;var a=Math.random()*Math.PI*2;" +
-    "p.vx+=Math.cos(a)*kick*rnd(0.5,1.5);p.vy+=Math.sin(a)*kick*rnd(0.5,1.5);if(Math.random()<lerp(0.05,0.45,s))p.on=p.on?0:1;});beatIndex++;scheduleNextBeat(ts);}" +
-    "function triggerBurst(ts){var nc=clusterN;if(nc<1){lastBurst=ts;return;}var bgc=Math.floor(Math.random()*nc),burstDir=Math.random()*Math.PI*2,spd=speed/100,kick=lerp(0.1,1.5,spd);" +
-    "particles.forEach(function(p){if(p.ci===bgc){var a=burstDir+rnd(-0.5,0.5);p.vx+=Math.cos(a)*kick*rnd(1.2,2.5);p.vy+=Math.sin(a)*kick*rnd(1.2,2.5);}if(Math.random()<0.06)p.on=p.on?0:1;});lastBurst=ts;}" +
-    "function drawFrame(ts){if(ts-cycleStart>=cycleMs){particles.forEach(function(p){p.x=p.baseX;p.y=p.baseY;p.vx=0;p.vy=0;p.on=1;});cycleStart=ts;lastBurst=ts;scheduleNextBeat(ts);}" +
-    "if(bg==='transparent'){bgR.setAttribute('fill','none');}else{bgR.setAttribute('fill',bg);}if(ts-lastBurst>=burst*1000/animTimeScale)triggerBurst(ts);" +
-    "if(staccato>0&&ts>=nextBeatAt)fireStaccatoBeat(ts);var spd=speed/100,drag=0.91;" +
-    "particles.forEach(function(p){if(!p.on){p._el.setAttribute('visibility','hidden');return;}p.vx*=drag;p.vy*=drag;var jitter=lerp(0.0005,0.04,spd);" +
-    "p.vx+=(Math.random()-0.5)*jitter;p.vy+=(Math.random()-0.5)*jitter;p.x+=p.vx;p.y+=p.vy;var ret=lerp(0.001,0.012,spd);" +
-    "p.vx+=(p.baseX-p.x)*ret;p.vy+=(p.baseY-p.y)*ret;if(p.x<0){p.x=0;p.vx*=-0.3;}if(p.x>W-p.sz){p.x=W-p.sz;p.vx*=-0.3;}if(p.y<0){p.y=0;p.vy*=-0.3;}if(p.y>H-p.sz){p.y=H-p.sz;p.vy*=-0.3;}" +
-    "p.snapPx=Math.round(p.x/p.sz)*p.sz;p.snapPy=Math.round(p.y/p.sz)*p.sz;});" +
-    "var occupied=new Set();function drawP(p){if(!p.on)return;var k=p.snapPx+','+p.snapPy;if(occupied.has(k)){p._el.setAttribute('visibility','hidden');return;}occupied.add(k);var el=p._el;el.setAttribute('visibility','visible');el.setAttribute('fill',p.col);" +
-    "if(p.shape==='circle'){var r=p.sz/2;el.setAttribute('cx',p.snapPx+r);el.setAttribute('cy',p.snapPy+r);el.setAttribute('r',r);}else{el.setAttribute('x',p.snapPx);el.setAttribute('y',p.snapPy);el.setAttribute('width',p.sz);el.setAttribute('height',p.sz);}}" +
-    "particles.forEach(function(p){if(p.shape==='rect')drawP(p);});particles.forEach(function(p){if(p.shape==='circle')drawP(p);});}" +
-    "function loop(ts){if(ts-lastFrame>=FRAME_MS){drawFrame(ts);lastFrame=ts;}requestAnimationFrame(loop);}requestAnimationFrame(loop);})();"
-  );
+function formatWebflowEmbedSize(html, config) {
+  const kb = (new Blob([html]).size / 1024).toFixed(1);
+  const sliderKeys = Object.keys(config.sliders || {}).length;
+  return kb + ' KB · ' + config.style + ' · ' + sliderKeys + ' params';
 }
 
 function applyTextSettings(text) {
@@ -8621,85 +8617,252 @@ document.getElementById('svgBtn').onclick = () => {
   navigator.clipboard.writeText(s).then(() => { document.getElementById('status').textContent = 'SVG copied (full 1920×1080).'; });
 };
 
-document.getElementById('webflowBtn').onclick = () => {
-  const html = buildWebflowEmbedHtml();
-  navigator.clipboard.writeText(html).then(() => {
-    document.getElementById('status').textContent = 'fal Webflow embed copied.';
-  }).catch(() => {
-    document.getElementById('status').textContent = 'Could not copy — try Export.';
+document.getElementById('webflowBtn').onclick = async () => {
+  const status = document.getElementById('status');
+  if (status) status.textContent = 'Building Webflow embed…';
+  try {
+    const html = await buildWebflowEmbedHtml();
+    const config = collectWebflowEmbedConfig();
+    await navigator.clipboard.writeText(html);
+    if (status) status.textContent = 'Webflow embed copied (' + formatWebflowEmbedSize(html, config) + ').';
+  } catch (err) {
+    if (status) status.textContent = 'Webflow copy failed — ' + (err?.message || 'try a local server.');
+    console.error(err);
+  }
+};
+
+document.getElementById('webflowExportBtn').onclick = async () => {
+  const status = document.getElementById('status');
+  if (status) status.textContent = 'Building Webflow embed…';
+  try {
+    const html = await buildWebflowEmbedHtml();
+    const config = collectWebflowEmbedConfig();
+    const filename = `fal-glitch-dust-webflow-${W}x${H}-${Date.now()}.txt`;
+    const blob = new Blob([html], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+    if (status) status.textContent = 'Exported ' + filename + ' (' + formatWebflowEmbedSize(html, config) + ').';
+  } catch (err) {
+    if (status) status.textContent = 'Webflow export failed — ' + (err?.message || 'try a local server.');
+    console.error(err);
+  }
+};
+
+function collectLottieVisibleParticles() {
+  const items = [];
+  const occupied = new Set();
+  function visit(p) {
+    if (!p.on) return;
+    const snap = p.snapPx != null ? { px: p.snapPx, py: p.snapPy } : snapNode(p.x, p.y, p.sz);
+    const key = nodeKey(snap.px, snap.py);
+    if (occupied.has(key)) return;
+    if (particleInOverlayClearZones(snap.px, snap.py, p.sz)) return;
+    if (particleUsesPaletteMedia(p)) return;
+    const drawScale = getParticleDrawScale(p, p.drawScale != null ? p.drawScale : 1);
+    if (drawScale < 0.02) return;
+    occupied.add(key);
+    items.push({ id: key, p, px: snap.px, py: snap.py, drawScale });
+  }
+  particles.forEach(p => { if (p.shape === 'rect') visit(p); });
+  particles.forEach(p => { if (p.shape === 'circle') visit(p); });
+  return items;
+}
+
+function collectLottieVisibleMap() {
+  const map = new Map();
+  collectLottieVisibleParticles().forEach(item => map.set(item.id, item));
+  return map;
+}
+
+function lottieRoundNum(n) {
+  return Math.round(n * 1000) / 1000;
+}
+
+function lottieHoldKeyframes(frameStates, id, pick, fallback, format) {
+  const wrap = format;
+  const k = [];
+  let prev = null;
+  frameStates.forEach(({ frame, map }) => {
+    const val = wrap(pick(map.get(id)));
+    const key = JSON.stringify(val);
+    if (key !== prev) {
+      k.push({ t: frame, s: val, h: 1 });
+      prev = key;
+    }
   });
-};
+  if (!k.length) k.push({ t: 0, s: wrap(fallback), h: 1 });
+  return { a: 1, k };
+}
 
-document.getElementById('webflowExportBtn').onclick = () => {
-  const html = buildWebflowEmbedHtml();
-  const filename = `fal-glitch-dust-webflow-${W}x${H}-${Date.now()}.txt`;
-  const blob = new Blob([html], { type: 'text/plain;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.rel = 'noopener';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-  document.getElementById('status').textContent = `Exported ${filename}`;
-};
+const lottieFmtOpacity = v => [lottieRoundNum(v)];
+const lottieFmtPos3 = v => [lottieRoundNum(v[0]), lottieRoundNum(v[1]), 0];
+const lottieFmtScale3 = v => [lottieRoundNum(v[0]), lottieRoundNum(v[1]), 100];
+const lottieFmtPos2 = v => [lottieRoundNum(v[0]), lottieRoundNum(v[1])];
+const lottieFmtScale2 = v => [lottieRoundNum(v[0]), lottieRoundNum(v[1])];
 
-function buildLottieJson() {
-  const fr = 24;
-  const ip = 0;
-  const op = Math.round(fr * parseFloat(document.getElementById('animDuration').value));
-  const trEnd = {
+function lottieShapeTransform() {
+  return {
     ty: 'tr',
-    p: { a: 0, k: [0, 0, 0] },
-    a: { a: 0, k: [0, 0, 0] },
-    s: { a: 0, k: [100, 100, 100] },
+    p: { a: 0, k: [0, 0] },
+    a: { a: 0, k: [0, 0] },
+    s: { a: 0, k: [100, 100] },
     r: { a: 0, k: 0 },
     o: { a: 0, k: 100 },
     sk: { a: 0, k: 0 },
     sa: { a: 0, k: 0 },
     nm: 'Transform',
   };
-  const shapes = [];
-  let ix = 1;
-  if (getBg() !== 'transparent') {
-    const bgRgb = hexToRgba01(getBg()).slice(0, 3);
-    shapes.push({
+}
+
+function sampleLottieFrameStates(fps) {
+  const cycleMs = getAnimDurationMs();
+  const totalFrames = Math.max(1, Math.round(cycleMs / 1000 * fps));
+  const wasPaused = paused;
+  const prevExportInProgress = exportInProgress;
+  exportInProgress = true;
+  pauseAnim();
+  dustScrubAt = -1;
+  if (getAnimStyle() === 'dust' && !dustSpawnState) captureDustSpawnState();
+  pausePaletteMediaForExport();
+
+  const frameStates = [];
+  try {
+    for (let i = 0; i < totalFrames; i++) {
+      const progress = i / totalFrames;
+      const sampleTs = progress * cycleMs;
+      renderFrameContent(progress, sampleTs, sampleTs, { exportMode: true, skipPaletteMedia: true });
+      frameStates.push({ frame: i, map: collectLottieVisibleMap() });
+    }
+  } finally {
+    exportInProgress = prevExportInProgress;
+    dustScrubAt = -1;
+    cycleStart = performance.now();
+    syncPaletteGifTicker();
+    drawFrame(performance.now());
+    if (!wasPaused) startAnim();
+    else pauseAnim();
+  }
+  return { fps, totalFrames, frameStates };
+}
+
+function buildLottieParticlePath(p) {
+  return p.shape === 'circle'
+    ? { ty: 'el', d: 1, p: { a: 0, k: [0, 0] }, s: { a: 0, k: [p.sz, p.sz] }, nm: 'Ellipse' }
+    : { ty: 'rc', d: 1, p: { a: 0, k: [0, 0] }, s: { a: 0, k: [p.sz, p.sz] }, r: { a: 0, k: 0 }, nm: 'Rect' };
+}
+
+function buildLottieParticleLayer(id, meta, frameStates, ind, ip, op) {
+  const p = meta.p;
+  const fillRgb = hexToRgba01(p.col).slice(0, 3);
+  const fallbackPos = [meta.px + p.sz / 2, meta.py + p.sz / 2];
+  return {
+    ddd: 0,
+    ind,
+    ty: 4,
+    nm: 'node_' + id,
+    sr: 1,
+    ks: {
+      o: lottieHoldKeyframes(frameStates, id, it => (it ? 100 : 0), 0, lottieFmtOpacity),
+      r: { a: 0, k: 0 },
+      p: lottieHoldKeyframes(frameStates, id, it => (
+        it ? [it.px + it.p.sz / 2, it.py + it.p.sz / 2] : fallbackPos
+      ), fallbackPos, lottieFmtPos3),
+      a: { a: 0, k: [0, 0, 0] },
+      s: lottieHoldKeyframes(frameStates, id, it => {
+        if (!it) return [100, 100];
+        const pct = Math.max(1, Math.min(100, it.drawScale * 100));
+        return [pct, pct];
+      }, [100, 100], lottieFmtScale3),
+    },
+    ao: 0,
+    shapes: [{
+      ty: 'gr',
+      it: [
+        buildLottieParticlePath(p),
+        { ty: 'fl', c: { a: 0, k: fillRgb }, o: { a: 0, k: 100 }, r: 1, nm: 'Fill' },
+        lottieShapeTransform(),
+      ],
+      nm: 'Shape',
+      np: 3,
+      mn: 'ADBE Vector Group',
+    }],
+    ip,
+    op,
+    st: 0,
+    bm: 0,
+  };
+}
+
+function buildLottieBackgroundLayer(ip, op, ind) {
+  const bgRgb = hexToRgba01(getBg()).slice(0, 3);
+  return {
+    ddd: 0,
+    ind,
+    ty: 4,
+    nm: 'Background',
+    sr: 1,
+    ks: {
+      o: { a: 0, k: 100 },
+      r: { a: 0, k: 0 },
+      p: { a: 0, k: [0, 0, 0] },
+      a: { a: 0, k: [0, 0, 0] },
+      s: { a: 0, k: [100, 100, 100] },
+    },
+    ao: 0,
+    shapes: [{
       ty: 'gr',
       it: [
         { ty: 'rc', d: 1, p: { a: 0, k: [0, 0] }, s: { a: 0, k: [W, H] }, r: { a: 0, k: 0 }, nm: 'BG' },
         { ty: 'fl', c: { a: 0, k: bgRgb }, o: { a: 0, k: 100 }, r: 1, nm: 'BG Fill' },
-        { ...trEnd, p: { a: 0, k: [W / 2, H / 2, 0] } },
+        { ...lottieShapeTransform(), p: { a: 0, k: lottieFmtPos2([W / 2, H / 2]) } },
       ],
       nm: 'Background',
       np: 3,
       mn: 'ADBE Vector Group',
-      ix: ix++,
-    });
-  }
-  let pi = 0;
-  forEachVisibleParticle((p, px, py) => {
-    const cx = px + p.sz / 2;
-    const cy = py + p.sz / 2;
-    const drawScale = getParticleDrawScale(p, p.drawScale != null ? p.drawScale : 1);
-    const fillRgb = hexToRgba01(p.col).slice(0, 3);
-    const path = p.shape === 'circle'
-      ? { ty: 'el', d: 1, p: { a: 0, k: [0, 0] }, s: { a: 0, k: [p.sz * drawScale, p.sz * drawScale] }, nm: 'Ellipse' }
-      : { ty: 'rc', d: 1, p: { a: 0, k: [0, 0] }, s: { a: 0, k: [p.sz * drawScale, p.sz * drawScale] }, r: { a: 0, k: 0 }, nm: 'Rect' };
-    shapes.push({
-      ty: 'gr',
-      it: [
-        path,
-        { ty: 'fl', c: { a: 0, k: fillRgb }, o: { a: 0, k: 100 }, r: 1, nm: 'Fill' },
-        { ...trEnd, p: { a: 0, k: [cx, cy, 0] } },
-      ],
-      nm: 'p' + pi++,
-      np: 3,
-      mn: 'ADBE Vector Group',
-      ix: ix++,
+    }],
+    ip,
+    op,
+    st: 0,
+    bm: 0,
+  };
+}
+
+function buildLottieJson() {
+  if (!particles.length) beginCycle();
+  const fr = parseInt(document.getElementById('exportFps')?.value, 10) || 24;
+  const ip = 0;
+  const { totalFrames, frameStates } = sampleLottieFrameStates(fr);
+  const op = totalFrames;
+
+  const metaById = new Map();
+  frameStates.forEach(({ map }) => {
+    map.forEach((item, id) => {
+      if (!metaById.has(id)) metaById.set(id, item);
     });
   });
+  if (!metaById.size) {
+    throw new Error('No visible nodes in loop — try Generate, then export again.');
+  }
+
+  const layers = [];
+  let ind = 1;
+  if (getBg() !== 'transparent') {
+    layers.push(buildLottieBackgroundLayer(ip, op, ind++));
+  }
+
+  [...metaById.entries()]
+    .sort((a, b) => a[1].py - b[1].py || a[1].px - b[1].px)
+    .forEach(([id, meta]) => {
+      layers.push(buildLottieParticleLayer(id, meta, frameStates, ind++, ip, op));
+    });
+
   return {
     v: '5.7.4',
     fr,
@@ -8711,42 +8874,38 @@ function buildLottieJson() {
     ddd: 0,
     assets: [],
     markers: [],
-    layers: [
-      {
-        ddd: 0,
-        ind: 1,
-        ty: 4,
-        nm: 'Artwork',
-        sr: 1,
-        ks: {
-          o: { a: 0, k: 100 },
-          r: { a: 0, k: 0 },
-          p: { a: 0, k: [0, 0, 0] },
-          a: { a: 0, k: [0, 0, 0] },
-          s: { a: 0, k: [100, 100, 100] },
-        },
-        ao: 0,
-        shapes,
-        ip,
-        op,
-        st: 0,
-        bm: 0,
-      },
-    ],
+    layers,
   };
 }
 
-document.getElementById('jsonBtn').onclick = () => {
-  const text = JSON.stringify(buildLottieJson(), null, 2);
-  navigator.clipboard.writeText(text).then(() => {
-    document.getElementById('status').textContent = 'Lottie JSON copied (static frame, ' + document.getElementById('animDuration').value + 's comp length).';
-  }).catch(() => {
-    document.getElementById('status').textContent = 'Could not copy.';
-  });
-};
+function lottieExportSummary(payload) {
+  const bgCount = getBg() !== 'transparent' ? 1 : 0;
+  const nodeCount = payload.layers.length - bgCount;
+  const seconds = (payload.op / payload.fr).toFixed(2);
+  return `${nodeCount} nodes · ${payload.fr} fps · ${seconds}s`;
+}
 
-document.getElementById('jsonExportBtn').onclick = () => {
-  const text = JSON.stringify(buildLottieJson(), null, 2);
+function runLottieExport(copyToClipboard) {
+  const status = document.getElementById('status');
+  if (status) status.textContent = 'Building Lottie animation…';
+  let payload;
+  try {
+    payload = buildLottieJson();
+  } catch (err) {
+    if (status) status.textContent = 'Lottie export failed — ' + (err?.message || 'try again.');
+    console.error(err);
+    return;
+  }
+  const text = JSON.stringify(payload, null, 2);
+  const note = lottieExportSummary(payload);
+  if (copyToClipboard) {
+    navigator.clipboard.writeText(text).then(() => {
+      if (status) status.textContent = `Lottie copied (${note}).`;
+    }).catch(() => {
+      if (status) status.textContent = 'Could not copy.';
+    });
+    return;
+  }
   const filename = `fal-glitch-dust-lottie-${W}x${H}-${Date.now()}.json`;
   const blob = new Blob([text], { type: 'application/json;charset=utf-8' });
   const url = URL.createObjectURL(blob);
@@ -8757,9 +8916,13 @@ document.getElementById('jsonExportBtn').onclick = () => {
   document.body.appendChild(a);
   a.click();
   a.remove();
-  URL.revokeObjectURL(url);
-  document.getElementById('status').textContent = `Exported ${filename}`;
-};
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+  if (status) status.textContent = `Exported ${filename} · ${note}`;
+}
+
+document.getElementById('jsonBtn').onclick = () => runLottieExport(true);
+
+document.getElementById('jsonExportBtn').onclick = () => runLottieExport(false);
 
 syncSvgViewport();
 initAllDialSliders();

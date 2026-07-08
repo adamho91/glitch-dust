@@ -207,6 +207,22 @@
     }
   }
 
+  function wireLiteOverlayWrap() {
+    const sel = document.getElementById('liteOverlayWrap');
+    if (!sel || sel.dataset.liteWired === 'true') return;
+    sel.dataset.liteWired = 'true';
+    const apply = () => {
+      if (typeof setOverlayWrapCharsLandscapeOverride === 'function') {
+        setOverlayWrapCharsLandscapeOverride(sel.value);
+      }
+      if (typeof invalidateTextLayout === 'function') invalidateTextLayout();
+      if (typeof drawFrame === 'function') drawFrame(performance.now());
+      if (typeof updateMedianPreview === 'function') updateMedianPreview();
+    };
+    sel.addEventListener('change', apply);
+    apply();
+  }
+
   function wireLiteTextareas() {
     ['overlayText', 'promptText'].forEach(id => {
       const el = document.getElementById(id);
@@ -230,6 +246,7 @@
     renderLitePresetGrid();
     initLiteAspectRatios();
     wireLiteTextareas();
+    wireLiteOverlayWrap();
     wireLiteLogoToggle();
 
     const importBtn = document.getElementById('litePresetImport');

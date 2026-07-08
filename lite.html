@@ -553,6 +553,7 @@
 <script src="lite-ui.js"></script>
 <script src="default-presets.js"></script>
 <script src="preset-io.js"></script>
+<script src="webflow-embed-runtime.js"></script>
 <link rel="stylesheet" href="ui-theme.css">
 <link rel="stylesheet" href="app-nav.css">
 <script src="app-nav.js" defer></script>
@@ -788,6 +789,15 @@
   <div class="lite-text-block">
   <div class="sect">Headline</div>
   <textarea id="overlayText" class="text-area" placeholder="Headline text…" spellcheck="false"></textarea>
+  <div class="ctrl lite-wrap-row">
+    <label>Wrap</label>
+    <select id="liteOverlayWrap">
+      <option value="16">16 char</option>
+      <option value="20" selected>20 char</option>
+      <option value="24">24 char</option>
+    </select>
+  </div>
+  <div class="hint">Characters per line before wrapping (landscape only)</div>
   </div>
   <div class="lite-text-block">
   <div class="sect">Prompt</div>
@@ -1551,10 +1561,22 @@ function getTextLineHeightPx(fontSize) {
 const TEXT_TRACKING_PCT = -2.5;
 const OVERLAY_WRAP_CHARS_LANDSCAPE = 20; // 1920×1080
 const OVERLAY_WRAP_CHARS_PORTRAIT = 11;  // 1080×1920
+const OVERLAY_WRAP_LANDSCAPE_OPTIONS = [16, 20, 24];
+let overlayWrapCharsLandscapeOverride = null;
+
+function setOverlayWrapCharsLandscapeOverride(val) {
+  const n = parseInt(val, 10);
+  overlayWrapCharsLandscapeOverride = OVERLAY_WRAP_LANDSCAPE_OPTIONS.includes(n) ? n : null;
+}
+
+function getOverlayWrapCharsLandscapeOverride() {
+  return overlayWrapCharsLandscapeOverride;
+}
 
 function getOverlayWrapChars(canvasW, canvasH) {
   const w = canvasW != null ? canvasW : W;
   const h = canvasH != null ? canvasH : H;
+  if (w > h && overlayWrapCharsLandscapeOverride != null) return overlayWrapCharsLandscapeOverride;
   if (w === 1920 && h === 1080) return OVERLAY_WRAP_CHARS_LANDSCAPE;
   if (w === 1080 && h === 1920) return OVERLAY_WRAP_CHARS_PORTRAIT;
   return Math.max(8, Math.round(OVERLAY_WRAP_CHARS_LANDSCAPE * w / 1920));
@@ -6945,90 +6967,74 @@ function buildSvgString(opts) {
   return s;
 }
 
-function buildWebflowEmbedHtml() {
+function collectWebflowEmbedConfig() {
+  const s = collectSettings();
+  const bgVal = s.selects.bgSel === 'custom' ? (s.selects.bgCustom || getBg()) : s.selects.bgSel;
+  return {
+    v: 2,
+    W: s.canvasW || W,
+    H: s.canvasH || H,
+    bg: bgVal,
+    style: s.selects.animStyle || getAnimStyle(),
+    noiseSeed,
+    sliders: s.sliders,
+    selects: s.selects,
+    megaTiers: s.megaTiers,
+    tonalCount: s.tonalCount,
+    activeTonalColors: s.activeTonalColors,
+    colorAll: s.colorAll,
+    colorWeights: s.colorWeights,
+    customWavePoints: s.customWavePoints,
+    bakeInOut: s.bakeInOut,
+    oneMovePerNode: s.oneMovePerNode,
+    blanketNodeSpeedEnabled: s.blanketNodeSpeedEnabled,
+    blanketNodeSpeed: (s.blanketNodeSpeed || 100) / 100,
+    circleNodes: parseInt(s.selects.circleNodes || document.getElementById('circleNodes').value, 10) || 2,
+    animDuration: parseFloat(s.sliders.animDuration) || parseFloat(document.getElementById('animDuration').value),
+  };
+}
+
+const WEBFLOW_EMBED_RUNTIME_SRC = "(function (root) {\n  'use strict';\n\n  function mulberry32(seed) {\n    let t = seed >>> 0;\n    return function () {\n      t += 0x6D2B79F5;\n      let r = Math.imul(t ^ (t >>> 15), 1 | t);\n      r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);\n      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;\n    };\n  }\n\n  function createEngine(cfg) {\n    const W = cfg.W;\n    const H = cfg.H;\n    const bg = cfg.bg;\n    const style = cfg.style || (cfg.selects && cfg.selects.animStyle) || 'dust';\n    const sliders = cfg.sliders || {};\n    const selects = cfg.selects || {};\n    const megaTiers = (cfg.megaTiers || []).slice().sort((a, b) => a - b);\n    const tonalCount = cfg.tonalCount;\n    const activeTonalColors = cfg.activeTonalColors || [];\n    const colorAll = cfg.colorAll || [];\n    const colorWeights = cfg.colorWeights || [];\n    const customWavePoints = (cfg.customWavePoints || [\n      { x: 0, y: 0 }, { x: 0.18, y: 0.55 }, { x: 0.38, y: 0.92 },\n      { x: 0.62, y: 1 }, { x: 0.82, y: 0.55 }, { x: 1, y: 0 },\n    ]).map(p => ({ x: p.x, y: p.y }));\n    const bakeInOut = !!cfg.bakeInOut;\n    const oneMovePerNode = !!cfg.oneMovePerNode;\n    const circleNodes = cfg.circleNodes != null ? cfg.circleNodes : parseInt(selects.circleNodes, 10) || 2;\n    const animDuration = cfg.animDuration || parseFloat(sliders.animDuration) || 3.5;\n    const blanketNodeSpeedEnabled = !!cfg.blanketNodeSpeedEnabled;\n    const blanketNodeSpeed = cfg.blanketNodeSpeed != null ? cfg.blanketNodeSpeed : 1;\n\n    let noiseSeed = cfg.noiseSeed || 0;\n    let rand = mulberry32(((noiseSeed * 10000) | 0) ^ (W * 7) ^ (H * 13));\n    function random() { return rand(); }\n    function rnd(a, b) { return a + random() * (b - a); }\n    function lerp(a, b, t) { return a + (b - a) * t; }\n    function clamp01(t) { return Math.max(0, Math.min(1, t)); }\n    function smoothstep(t) {\n      t = clamp01(t);\n      return t * t * (3 - 2 * t);\n    }\n    function v(id) { return parseFloat(sliders[id] || 0); }\n    function sel(id) { return selects[id] || ''; }\n\n    const ENVELOPE_CURVES = {\n      linear: t => t,\n      smooth: t => smoothstep(t),\n      easeIn: t => t * t * t,\n      easeOut: t => 1 - Math.pow(1 - t, 3),\n      easeInOut: t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2,\n      expoIn: t => t <= 0 ? 0 : Math.pow(2, 10 * t - 10),\n      expoOut: t => t >= 1 ? 1 : 1 - Math.pow(2, -10 * t),\n      circIn: t => 1 - Math.sqrt(Math.max(0, 1 - t * t)),\n      circOut: t => Math.sqrt(Math.max(0, 1 - Math.pow(t - 1, 2))),\n      back: t => 2.70158 * t * t * t - 1.70158 * t * t,\n      bounce: t => {\n        const n1 = 7.5625, d1 = 2.75;\n        if (t < 1 / d1) return n1 * t * t;\n        if (t < 2 / d1) { t -= 1.5 / d1; return n1 * t * t + 0.75; }\n        if (t < 2.5 / d1) { t -= 2.25 / d1; return n1 * t * t + 0.9375; }\n        t -= 2.625 / d1; return n1 * t * t + 0.984375;\n      },\n      sineIn: t => 1 - Math.cos(t * Math.PI / 2),\n      sineOut: t => Math.sin(t * Math.PI / 2),\n    };\n    function envCurve(name, t) {\n      const fn = ENVELOPE_CURVES[name] || ENVELOPE_CURVES.smooth;\n      return clamp01(fn(clamp01(t)));\n    }\n    function hashNoise(n) {\n      n = Math.sin(n * 127.1 + noiseSeed * 17.3) * 43758.5453;\n      return n - Math.floor(n);\n    }\n    function valueNoise(x, y) {\n      const x0 = Math.floor(x), y0 = Math.floor(y);\n      const x1 = x0 + 1, y1 = y0 + 1;\n      const sx = smoothstep(x - x0);\n      const sy = smoothstep(y - y0);\n      const n00 = hashNoise(x0 * 57.13 + y0 * 113.71);\n      const n10 = hashNoise(x1 * 57.13 + y0 * 113.71);\n      const n01 = hashNoise(x0 * 57.13 + y1 * 113.71);\n      const n11 = hashNoise(x1 * 57.13 + y1 * 113.71);\n      return lerp(lerp(n00, n10, sx), lerp(n01, n11, sx), sy);\n    }\n    function fbm(x, y, octaves) {\n      let val = 0, amp = 0.5, freq = 1;\n      for (let i = 0; i < octaves; i++) {\n        val += amp * valueNoise(x * freq, y * freq);\n        amp *= 0.52;\n        freq *= 2.05;\n      }\n      return val;\n    }\n    function cornerNoiseOffset(gx, gy, cols, rows, cornerSpread) {\n      const t = cornerSpread / 100;\n      if (t <= 0) return { ox: 0, oy: 0 };\n      const nx = gx / Math.max(1, cols - 1);\n      const ny = gy / Math.max(1, rows - 1);\n      const corners = [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }];\n      let best = corners[0], bestD = Infinity;\n      corners.forEach(c => {\n        const d = (nx - c.x) ** 2 + (ny - c.y) ** 2;\n        if (d < bestD) { bestD = d; best = c; }\n      });\n      return { ox: (best.x - 0.5) * 3.5 * t, oy: (best.y - 0.5) * 3.5 * t };\n    }\n    function nodeKey(bx, by) { return bx + ',' + by; }\n    function snapNode(x, y, sz) {\n      return { px: Math.round(x / sz) * sz, py: Math.round(y / sz) * sz };\n    }\n    function getAccentColor() {\n      if (tonalCount === 'all') return colorAll[4] || colorAll[0] || '#ffffff';\n      return activeTonalColors[0] || '#ffffff';\n    }\n    function pickColor() {\n      if (tonalCount === 'all') {\n        const wts = colorWeights.map(w => Math.max(0, +w));\n        const total = wts.reduce((a, b) => a + b, 0);\n        if (!total) return colorAll[0] || '#ffffff';\n        let r = random() * total;\n        for (let i = 0; i < wts.length; i++) { r -= wts[i]; if (r <= 0) return colorAll[i]; }\n        return colorAll[0] || '#ffffff';\n      }\n      return activeTonalColors[Math.floor(random() * activeTonalColors.length)] || '#ffffff';\n    }\n    function pickNodeShape(gx, gy, salt) {\n      const cir = Math.max(0, v('circlePct'));\n      const sq = Math.max(0, v('squarePct'));\n      const total = Math.max(1, cir + sq);\n      const h = hashNoise(gx * 11.3 + gy * 19.7 + (salt || 0) + noiseSeed * 0.31);\n      return h < cir / total ? 'circle' : 'rect';\n    }\n    function pickSizeMultiplier(gx, gy, salt) {\n      if (!megaTiers.length) return 1;\n      const rarity = v('megaRarity') / 100;\n      if (rarity <= 0) return 1;\n      const chance = lerp(0, 0.4, rarity);\n      const h = hashNoise(gx * 23.1 + gy * 31.7 + (salt || 0) + noiseSeed * 0.47);\n      if (h >= chance) return 1;\n      const tierRoll = hashNoise(gx * 7.9 + gy * 13.3 + (salt || 0) * 2.1 + 99);\n      const weights = megaTiers.map(t => Math.max(1, 9 - t));\n      const totalW = weights.reduce((a, b) => a + b, 0);\n      let roll = tierRoll * totalW;\n      for (let i = 0; i < megaTiers.length; i++) {\n        roll -= weights[i];\n        if (roll <= 0) return megaTiers[i];\n      }\n      return megaTiers[megaTiers.length - 1];\n    }\n    function sizeMulForCell(bx, by, sz, salt) {\n      return pickSizeMultiplier(Math.round(bx / sz), Math.round(by / sz), salt);\n    }\n    function cellDensityMultiplier(gx, gy, cols, rows) {\n      const nx = gx / Math.max(1, cols - 1);\n      const ny = gy / Math.max(1, rows - 1);\n      const density = v('clusterDensity') / 100;\n      const cornerF = v('cornerFocus') / 100;\n      const centerB = v('centerBias') / 100;\n      const spread = v('cornerSpread') / 100;\n      let m = lerp(0.18, 1.05, density);\n      const edge = Math.min(nx, 1 - nx, ny, 1 - ny);\n      const cornerness = clamp01(1 - edge * 2.2);\n      const cornerAmt = Math.max(cornerF, spread * 0.85);\n      m *= lerp(1, 0.28 + cornerness * 2.4, cornerAmt);\n      if (centerB > 0) {\n        const d = Math.hypot(nx - 0.5, ny - 0.5) * 2;\n        m *= lerp(1, 1.55 - d * 0.75, centerB);\n      }\n      return Math.max(0.04, m);\n    }\n    function shouldSpawnCell(gx, gy, cols, rows, noiseVal) {\n      const m = cellDensityMultiplier(gx, gy, cols, rows);\n      return random() < m * (0.32 + noiseVal * 0.68);\n    }\n    function getShapeDrawScale(raw) {\n      const lo = Math.min(v('shapeMin'), v('shapeMax')) / 100;\n      const hi = Math.max(v('shapeMin'), v('shapeMax')) / 100;\n      if (raw < 0.02) return 0;\n      return lo + clamp01(raw) * (hi - lo);\n    }\n    function getParticleDrawScale(p, raw) {\n      const base = getShapeDrawScale(raw);\n      if (base < 0.02) return 0;\n      return base * (p.sizeMul || 1);\n    }\n    function clusterPos(dim, bias) {\n      const t = bias / 100;\n      const spread = lerp(0.44, 0.15, t);\n      return dim * (0.5 + rnd(-spread, spread));\n    }\n    function clusterAnchor(centerBias, cornerSpread, ci, nc) {\n      const freeX = clusterPos(W, centerBias);\n      const freeY = clusterPos(H, centerBias);\n      const t = cornerSpread / 100;\n      if (t <= 0) return { cx: freeX, cy: freeY };\n      const pad = lerp(0.14, 0.06, t);\n      const jitter = lerp(0.22, 0.08, t);\n      const corners = [\n        { x: pad, y: pad }, { x: 1 - pad, y: pad },\n        { x: pad, y: 1 - pad }, { x: 1 - pad, y: 1 - pad },\n      ];\n      const corner = corners[ci % corners.length];\n      const cornerX = W * (corner.x + rnd(-jitter, jitter));\n      const cornerY = H * (corner.y + rnd(-jitter, jitter));\n      return {\n        cx: lerp(freeX, Math.max(0, Math.min(W, cornerX)), t),\n        cy: lerp(freeY, Math.max(0, Math.min(H, cornerY)), t),\n      };\n    }\n    function buildRectCluster(cx, cy, sz, maxCells, opts) {\n      const o = opts || {};\n      const maxLen = o.maxLen != null ? o.maxLen : Math.round(v('branchLen'));\n      const splitProb = o.splitProb != null ? o.splitProb : v('branchSplit') / 100;\n      const axisBias = o.axisBias != null ? o.axisBias : v('axisBias') / 100;\n      const cells = new Set();\n      const cellDepth = new Map();\n      const key = (gx, gy) => gx + ',' + gy;\n      const sx = Math.round(cx / sz), sy = Math.round(cy / sz);\n      cells.add(key(sx, sy));\n      cellDepth.set(key(sx, sy), 0);\n      const queue = [{ gx: sx, gy: sy, dx: 0, dy: 0, rem: 0 }];\n      let iter = 0;\n      while (cells.size < maxCells && iter < maxCells * 6) {\n        iter++;\n        if (!queue.length) break;\n        const qi = Math.floor(random() * queue.length);\n        let { gx, gy, dx, dy, rem } = queue[qi];\n        if (rem <= 0 || (dx === 0 && dy === 0)) {\n          if (random() < axisBias) {\n            const d = [[1, 0], [-1, 0], [0, 1], [0, -1]];\n            [dx, dy] = d[Math.floor(random() * d.length)];\n          } else {\n            const d = [[1, 0], [-1, 0], [0, 1], [0, -1], [2, 0], [-2, 0], [0, 2], [0, -2]];\n            [dx, dy] = d[Math.floor(random() * d.length)];\n          }\n          rem = Math.ceil(rnd(1, maxLen));\n        }\n        const nx = gx + dx, ny = gy + dy, k = key(nx, ny);\n        if (!cells.has(k)) {\n          cells.add(k);\n          cellDepth.set(k, (cellDepth.get(key(gx, gy)) || 0) + 1);\n          queue[qi] = { gx: nx, gy: ny, dx, dy, rem: rem - 1 };\n          if (random() < splitProb && cells.size < maxCells) {\n            const alt = [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([adx, ady]) => !(adx === dx && ady === dy));\n            const [adx, ady] = alt[Math.floor(random() * alt.length)];\n            queue.push({ gx: nx, gy: ny, dx: adx, dy: ady, rem: Math.ceil(rnd(1, maxLen)) });\n          }\n        } else {\n          queue[qi] = { gx: nx, gy: ny, dx, dy, rem: rem - 1 };\n        }\n        if (rem <= 1) queue.splice(qi, 1);\n      }\n      let maxDepth = 1;\n      cellDepth.forEach(d => { if (d > maxDepth) maxDepth = d; });\n      return [...cells].map(k => {\n        const [gx, gy] = k.split(',').map(Number);\n        return { gx, gy, depth: cellDepth.get(k) || 0, maxDepth };\n      });\n    }\n    function particleGridCoord(p, sz) {\n      return {\n        gx: p.gx != null ? p.gx : Math.round(p.baseX / sz),\n        gy: p.gy != null ? p.gy : Math.round(p.baseY / sz),\n      };\n    }\n    function getSweepCoords(gx, gy, cols, rows) {\n      const nx = gx / Math.max(1, cols - 1);\n      const ny = gy / Math.max(1, rows - 1);\n      const axis = sel('sweepAxis') || 'v';\n      if (axis === 'h') return { along: nx, across: ny, axis };\n      if (axis === 'd') {\n        return {\n          along: clamp01((nx + ny) * 0.707),\n          across: clamp01((nx - ny) * 0.707 + 0.5),\n          axis,\n        };\n      }\n      return { along: ny, across: nx, axis };\n    }\n    function getNodeTriggerProgress(gx, gy, cols, rows) {\n      const { along } = getSweepCoords(gx, gy, cols, rows);\n      const softAmt = v('diffusionSoft') / 100;\n      const stagger = hashNoise(gx * 13.7 + gy * 19.1 + noiseSeed * 0.31) * lerp(0, 0.24, softAmt);\n      return clamp01(along + stagger * 0.55 - lerp(0, 0.08, softAmt));\n    }\n    function sampleDiffusionWave(gx, gy, cols, rows, progress) {\n      const sweepAmt = v('sweepDepth') / 100;\n      const rippleAmt = v('waveRipples') / 100;\n      const softAmt = v('diffusionSoft') / 100;\n      const shiftAmt = v('glitchShift') / 100;\n      if (sweepAmt <= 0 && rippleAmt <= 0 && shiftAmt <= 0) return { mod: 1, dx: 0, dy: 0 };\n      let sampleProgress = progress;\n      if (oneMovePerNode) {\n        const trigger = getNodeTriggerProgress(gx, gy, cols, rows);\n        if (progress < trigger) {\n          const idle = lerp(1, 0.05, Math.max(sweepAmt, rippleAmt * 0.85, shiftAmt * 0.5));\n          return { mod: idle, dx: 0, dy: 0 };\n        }\n        sampleProgress = trigger;\n      }\n      const { along, across, axis } = getSweepCoords(gx, gy, cols, rows);\n      const phase = sampleProgress * Math.PI * 2;\n      const rippleFreq = lerp(1.5, 18, rippleAmt);\n      const ridge = 0.5 + 0.5 * Math.sin(across * Math.PI * 2 * rippleFreq + phase * 0.35);\n      const ridgeMod = lerp(1, 0.18 + ridge * 0.82, rippleAmt);\n      let band = 1;\n      if (sweepAmt > 0) {\n        const bandDist = Math.min(\n          Math.abs(along - sampleProgress),\n          Math.abs(along - sampleProgress + 1),\n          Math.abs(along - sampleProgress - 1)\n        );\n        const bandWidth = lerp(0.05, 0.38, softAmt);\n        band = 1 - smoothstep(bandDist / Math.max(0.02, bandWidth));\n        if (!oneMovePerNode) {\n          const breatheSweep = 0.5 + 0.5 * Math.sin(phase - along * Math.PI * 2);\n          band = lerp(band, breatheSweep, sweepAmt * 0.35);\n        }\n      }\n      if (softAmt > 0) {\n        const grain = hashNoise(gx * 17.3 + gy * 23.7 + Math.floor(sampleProgress * 80));\n        const marble = fbm(gx * 0.11 + phase * 0.25, gy * 0.11 - phase * 0.18 + noiseSeed, 3);\n        const dither = lerp(0.42, 1, grain) * lerp(0.5, 1, marble);\n        band = lerp(band, band * dither, softAmt * 0.78);\n      }\n      const sweepMod = sweepAmt > 0 ? lerp(1, 0.1 + band * 0.9, sweepAmt) : 1;\n      const mod = clamp01(ridgeMod * sweepMod);\n      let dx = 0, dy = 0;\n      if (shiftAmt > 0) {\n        const trigger = band * sweepAmt + ridge * rippleAmt * 0.5;\n        if (trigger > 0.12) {\n          const step = Math.floor(trigger * 6 + hashNoise(gx * 5.3 + gy * 9.1 + sampleProgress * 120) * 3);\n          const mag = lerp(0, 2.5, shiftAmt) * trigger;\n          const dir = hashNoise(gx + gy * 3 + sampleProgress * 50) > 0.5 ? 1 : -1;\n          if (axis === 'h') dx = step * dir * mag;\n          else if (axis === 'v') dy = step * dir * mag;\n          else { dx = step * dir * mag * 0.65; dy = step * dir * mag * 0.65; }\n        }\n      }\n      return { mod, dx, dy };\n    }\n    function applyDiffusionWave(p, cols, rows, progress, sz, basePx, basePy) {\n      const { gx, gy } = particleGridCoord(p, sz);\n      const w = sampleDiffusionWave(gx, gy, cols, rows, progress);\n      p.snapPx = (basePx != null ? basePx : p.baseX) + w.dx * sz;\n      p.snapPy = (basePy != null ? basePy : p.baseY) + w.dy * sz;\n      return w.mod;\n    }\n    function getLoopTiming(progress) {\n      const buildEnd = Math.max(0.12, v('waveBuild') / 100);\n      const fadeStart = Math.min(0.92, Math.max(buildEnd + 0.08, v('waveFade') / 100));\n      const p = clamp01(progress);\n      return { buildEnd, fadeStart, isHold: p >= buildEnd && p <= fadeStart };\n    }\n    function pulseMod(t, phase) {\n      const kind = sel('pulseCurve') || 'none';\n      const depth = v('pulseDepth') / 100;\n      const hz = v('pulseRate');\n      if (kind === 'none' || depth <= 0) return 1;\n      const w = Math.PI * hz;\n      let osc = 1;\n      if (kind === 'sine') osc = 0.5 + 0.5 * Math.sin(t * w);\n      else if (kind === 'cosine') osc = 0.5 + 0.5 * Math.cos(t * w);\n      else if (kind === 'triangle') {\n        const p = (t * hz) % 1;\n        osc = 1 - 4 * Math.abs(p - 0.5);\n      } else if (kind === 'square') osc = Math.sin(t * w) >= 0 ? 1 : 0;\n      else if (kind === 'saw') osc = (t * hz) % 1;\n      else if (kind === 'glitch') {\n        const step = Math.floor(t * hz * 4 + (phase || 0));\n        osc = 0.5 + 0.5 * Math.sin(step * 12.9898);\n      }\n      return 1 - depth + depth * osc;\n    }\n    function sampleCustomWave(t) {\n      const pts = customWavePoints.slice().sort((a, b) => a.x - b.x);\n      if (!pts.length) return 0;\n      if (t <= pts[0].x) return pts[0].y;\n      if (t >= pts[pts.length - 1].x) return pts[pts.length - 1].y;\n      for (let i = 0; i < pts.length - 1; i++) {\n        const a = pts[i], b = pts[i + 1];\n        if (t >= a.x && t <= b.x) {\n          const u = b.x === a.x ? 0 : (t - a.x) / (b.x - a.x);\n          return clamp01(lerp(a.y, b.y, u));\n        }\n      }\n      return 0;\n    }\n    function sampleBreatheLoopOpacity(p) {\n      if (p <= 0 || p >= 1) return 0;\n      const buildEnd = Math.max(0.12, v('waveBuild') / 100);\n      const fadeStart = Math.min(0.92, Math.max(buildEnd + 0.08, v('waveFade') / 100));\n      const envIn = sel('envInCurve') || 'smooth';\n      const envOut = sel('envOutCurve') || 'smooth';\n      if (p < buildEnd) return envCurve(envIn, p / buildEnd);\n      if (p > fadeStart) return 1 - envCurve(envOut, (p - fadeStart) / (1 - fadeStart));\n      return bakeInOut ? 1 : pulseMod(p, 1);\n    }\n    function sampleLoopOpacity(progress) {\n      const preset = sel('loopWave') || 'breathe';\n      const p = clamp01(progress);\n      if (preset === 'custom') return sampleCustomWave(p);\n      if (bakeInOut) return sampleBreatheLoopOpacity(p);\n      if (preset === 'sine-dome') return Math.sin(p * Math.PI) * pulseMod(p, 0);\n      if (preset === 'triangle') return (p < 0.5 ? p * 2 : 2 - p * 2) * pulseMod(p, 0);\n      if (preset === 'expo-burst') {\n        const base = p < 0.5 ? envCurve('expoOut', p * 2) : 1 - envCurve('expoIn', (p - 0.5) * 2);\n        return base * pulseMod(p, 0);\n      }\n      if (preset === 'stutter') {\n        const steps = 8;\n        return clamp01(Math.floor(p * steps) / (steps - 1)) * pulseMod(p, 1);\n      }\n      const buildEnd = Math.max(0.12, v('waveBuild') / 100);\n      const fadeStart = Math.min(0.92, Math.max(buildEnd + 0.08, v('waveFade') / 100));\n      const envIn = sel('envInCurve') || 'smooth';\n      const envOut = sel('envOutCurve') || 'smooth';\n      if (p < buildEnd) return envCurve(envIn, p / buildEnd);\n      if (p > fadeStart) return 1 - envCurve(envOut, (p - fadeStart) / (1 - fadeStart));\n      return pulseMod(p, 1);\n    }\n    function getStyleLoopEnvelope(progress) {\n      return bakeInOut ? sampleLoopOpacity(progress) : 1;\n    }\n    function softenDiffusionForLoop(progress, diffMod) {\n      if (bakeInOut) {\n        const { isHold } = getLoopTiming(progress);\n        if (isHold) return diffMod;\n        const env = sampleLoopOpacity(progress);\n        return lerp(1, diffMod, clamp01(env * 0.9 + 0.1));\n      }\n      if ((sel('loopWave') || 'breathe') !== 'breathe') return diffMod;\n      const { isHold } = getLoopTiming(progress);\n      if (isHold) return diffMod;\n      const env = sampleLoopOpacity(progress);\n      return lerp(1, diffMod, clamp01(env * 1.15));\n    }\n    function nodeStagger() { return v('nodeSpread') / 100; }\n    function breatheEnvelope(progress, p) {\n      const global = sampleLoopOpacity(progress);\n      const useStagger = bakeInOut || (sel('loopWave') || 'breathe') === 'breathe';\n      if (!useStagger) return Math.max(0, global);\n      const spread = nodeStagger();\n      if (spread <= 0.02) return Math.max(0, global);\n      const { buildEnd, fadeStart } = getLoopTiming(progress);\n      const appearWindow = lerp(0.06, 0.28, spread);\n      const vanishWindow = lerp(0.06, 0.28, spread);\n      let stagger = 1;\n      if (progress < buildEnd) {\n        const at = (p.appearT || 0) * buildEnd * lerp(0.15, 1, spread);\n        stagger = smoothstep((progress - at) / appearWindow);\n      } else if (progress > fadeStart) {\n        const vanishStart = fadeStart + (p.vanishT || 0) * (1 - fadeStart) * lerp(0.2, 0.65, spread);\n        stagger = 1 - smoothstep((progress - vanishStart) / vanishWindow);\n      }\n      return Math.max(0, global * lerp(1, stagger, spread));\n    }\n    function applyTransitionBandRipple(bandScale, progress, p, phase) {\n      if (bandScale < 0.03) return bandScale;\n      const { isHold } = getLoopTiming(progress);\n      if (bakeInOut) {\n        if (isHold) return bandScale * (0.92 + 0.08 * Math.sin(phase * 3 + p.gx * 0.4 + p.gy * 0.3));\n        const env = sampleLoopOpacity(progress);\n        const ripple = 0.72 + 0.28 * Math.sin(phase * 4 + p.gx * 0.45 + p.gy * 0.35);\n        return bandScale * clamp01(env) * ripple;\n      }\n      if (isHold) return bandScale * (0.92 + 0.08 * Math.sin(phase * 3 + p.gx * 0.4 + p.gy * 0.3));\n      return bandScale;\n    }\n    function getAnimDurationMs() { return animDuration * 1000; }\n    function getNodeLoopProgress(loopProgress) {\n      if (!blanketNodeSpeedEnabled) return loopProgress;\n      return clamp01(loopProgress * Math.max(0.1, blanketNodeSpeed));\n    }\n    function scaledNodeAnimIntervalMs(ms) {\n      if (!blanketNodeSpeedEnabled) return ms;\n      return ms / Math.max(0.1, blanketNodeSpeed);\n    }\n\n    let particles = [];\n    let svg = null;\n    let bgR = null;\n    let gR = null;\n    const NS = 'http://www.w3.org/2000/svg';\n    const FRAME_MS = 1000 / 24;\n    let lastBurst = 0;\n    let nextBeatAt = 0;\n    let beatIndex = 0;\n    let cycleStart = 0;\n    let lastFrame = 0;\n    let animId = null;\n\n    function remountParticleElements() {\n      if (!gR) return;\n      gR.replaceChildren();\n      particles.forEach(p => {\n        const el = document.createElementNS(NS, p.shape === 'circle' ? 'circle' : 'rect');\n        el.setAttribute('shape-rendering', 'crispEdges');\n        p._el = el;\n        gR.appendChild(el);\n      });\n    }\n\n    function spawnHalftone() {\n      particles = [];\n      const sz = Math.round(v('pixSize'));\n      const cols = Math.floor(W / sz);\n      const rows = Math.floor(H / sz);\n      for (let gy = 0; gy < rows; gy++) {\n        for (let gx = 0; gx < cols; gx++) {\n          const n = fbm(gx * 0.09 + noiseSeed, gy * 0.09, 2);\n          if (!shouldSpawnCell(gx, gy, cols, rows, n)) continue;\n          const bx = gx * sz, by = gy * sz;\n          particles.push({\n            gx, gy, x: bx, y: by, baseX: bx, baseY: by,\n            sz, shape: pickNodeShape(gx, gy, n), col: pickColor(), on: 1,\n            ci: 0, vx: 0, vy: 0, drawScale: 1, sizeMul: pickSizeMultiplier(gx, gy, n),\n          });\n        }\n      }\n      remountParticleElements();\n    }\n\n    function spawnDataStream() {\n      particles = [];\n      const occupied = new Set();\n      const sz = Math.round(v('pixSize'));\n      const cols = Math.floor(W / sz);\n      const rows = Math.floor(H / sz);\n      const gradient = v('streamGradient') / 100;\n      const corner = v('cornerSpread') / 100;\n      function addNode(gx, gy) {\n        const bx = gx * sz, by = gy * sz;\n        const key = nodeKey(bx, by);\n        if (occupied.has(key)) return;\n        occupied.add(key);\n        const n = fbm(gx * 0.11 + noiseSeed, gy * 0.07, 2);\n        particles.push({\n          gx, gy, x: bx, y: by, baseX: bx, baseY: by,\n          sz, shape: pickNodeShape(gx, gy, n), col: pickColor(), on: 1,\n          ci: gy, vx: 0, vy: 0, drawScale: 1,\n          sizeMul: pickSizeMultiplier(gx, gy, n),\n          glitchSeed: hashNoise(gx * 17.3 + gy * 23.9),\n        });\n      }\n      for (let gy = 0; gy < rows; gy++) {\n        for (let gx = 0; gx < cols; gx++) {\n          const nx = gx / Math.max(1, cols - 1);\n          const ny = gy / Math.max(1, rows - 1);\n          let density = lerp(0.05, 0.92, Math.pow(nx, lerp(0.55, 2.8, gradient)));\n          density *= cellDensityMultiplier(gx, gy, cols, rows);\n          if (corner > 0) {\n            const edge = Math.min(nx, 1 - nx, ny, 1 - ny);\n            density *= lerp(1, 0.35 + edge * 2.2, corner);\n          }\n          const n = fbm(gx * 0.11 + noiseSeed, gy * 0.07, 2);\n          if (random() > density * (0.42 + n * 0.58)) continue;\n          addNode(gx, gy);\n        }\n      }\n      remountParticleElements();\n    }\n\n    function spawnVoxel() {\n      particles = [];\n      const sz = Math.round(v('pixSize'));\n      const cols = Math.floor(W / sz);\n      const rows = Math.floor(H / sz);\n      for (let gy = 0; gy < rows; gy++) {\n        for (let gx = 0; gx < cols; gx++) {\n          const bx = gx * sz, by = gy * sz;\n          const n = fbm(gx * 0.09 + noiseSeed, gy * 0.09, 2);\n          if (!shouldSpawnCell(gx, gy, cols, rows, n)) continue;\n          particles.push({\n            gx, gy, x: bx, y: by, baseX: bx, baseY: by,\n            sz, shape: pickNodeShape(gx, gy, n), col: pickColor(), on: 0,\n            ci: 0, vx: 0, vy: 0, drawScale: 1,\n            sizeMul: pickSizeMultiplier(gx, gy, n),\n            appearT: hashNoise(gx * 7.3 + gy * 11.1) * 0.42 + 0.04,\n            vanishT: hashNoise(gx * 13.7 + gy * 17.3) * 0.42 + 0.04,\n          });\n        }\n      }\n      remountParticleElements();\n    }\n\n    function spawnConnected() {\n      particles = [];\n      const occupied = new Set();\n      const sz = Math.round(v('pixSize'));\n      const nc = Math.round(v('isolines'));\n      const cornerSpread = v('cornerSpread');\n      const fill = v('isoFill') / 100;\n      const totalAmt = Math.round(lerp(80, 520, fill) * lerp(0.45, 1.15, v('clusterDensity') / 100));\n      const maxCellsPerCluster = Math.max(6, Math.round(totalAmt / nc));\n      const branchLen = Math.round(lerp(5, 22, v('isoBand') / 100));\n      const splitProb = lerp(0.35, 0.75, v('isoBand') / 100);\n      const axisBias = lerp(0.55, 0.92, v('waveScale') / 100);\n      const clusterOpts = { maxLen: branchLen, splitProb, axisBias };\n      const mainCol = getAccentColor();\n      const cirRatio = v('circlePct') / Math.max(1, v('circlePct') + v('squarePct'));\n      function addParticle(bx, by, props) {\n        const key = nodeKey(bx, by);\n        if (occupied.has(key)) return false;\n        occupied.add(key);\n        particles.push({ x: bx, y: by, baseX: bx, baseY: by, sz, vx: 0, vy: 0, ...props });\n        return true;\n      }\n      for (let ci = 0; ci < nc; ci++) {\n        const { cx, cy } = clusterAnchor(lerp(25, 100, v('centerBias') / 100), cornerSpread, ci, nc);\n        const cells = buildRectCluster(cx, cy, sz, maxCellsPerCluster, clusterOpts);\n        const maxDepth = cells[0] ? cells[0].maxDepth || 1 : 1;\n        cells.forEach(({ gx, gy, depth }) => {\n          const bx = gx * sz, by = gy * sz;\n          if (bx < -sz || bx > W + sz || by < -sz || by > H + sz) return;\n          const cols = Math.floor(W / sz), rows = Math.floor(H / sz);\n          if (!shouldSpawnCell(gx, gy, cols, rows, depth / maxDepth)) return;\n          const asCircle = random() < cirRatio * 0.22;\n          addParticle(bx, by, {\n            ci, on: 1, col: asCircle ? mainCol : pickColor(),\n            shape: asCircle ? 'circle' : 'rect',\n            sizeMul: pickSizeMultiplier(gx, gy, depth / maxDepth),\n            appearT: (depth / maxDepth) * rnd(0.65, 1.05) + hashNoise(gx * 3.1 + gy * 5.7 + ci) * 0.35,\n            vanishT: hashNoise(gx * 9.1 + gy * 14.3 + ci) * rnd(0.7, 1.2),\n          });\n        });\n      }\n      const numCircles = Math.max(0, Math.round(nc * lerp(1.5, 3.5, fill) * cirRatio * 2));\n      let circlesPlaced = 0;\n      for (let attempt = 0; circlesPlaced < numCircles && attempt < numCircles * 50; attempt++) {\n        const bx = Math.round(rnd(0.06, 0.94) * W / sz) * sz;\n        const by = Math.round(rnd(0.06, 0.94) * H / sz) * sz;\n        const gx = Math.round(bx / sz), gy = Math.round(by / sz);\n        const cols = Math.floor(W / sz), rows = Math.floor(H / sz);\n        if (!shouldSpawnCell(gx, gy, cols, rows, 0.5)) continue;\n        if (addParticle(bx, by, {\n          ci: -1, on: 1, col: mainCol, shape: 'circle',\n          sizeMul: pickSizeMultiplier(gx, gy, 0.5),\n          appearT: rnd(0.04, 0.42) + hashNoise(bx + by) * 0.2,\n          vanishT: rnd(0.04, 0.42) + hashNoise(bx * 2 + by) * 0.2,\n        })) circlesPlaced++;\n      }\n      remountParticleElements();\n    }\n\n    function spawnClusters() {\n      particles = [];\n      const occupied = new Set();\n      const nc = Math.round(v('clusterN'));\n      const sz = Math.round(v('pixSize'));\n      const spd = v('speed') / 100;\n      const driftMag = lerp(0.005, 0.4, spd);\n      const numCircNodes = Math.min(circleNodes, nc);\n      const cirRatio = v('circlePct') / Math.max(1, v('circlePct') + v('squarePct'));\n      const sqRatio = 1 - cirRatio;\n      const clusterBias = v('clusterBias');\n      const cornerSpread = v('cornerSpread');\n      const totalAmt = Math.round(v('pixAmt'));\n      const scatterAmt = Math.round(lerp(0, totalAmt * 0.5, v('scatter') / 100));\n      const clusterBudget = Math.max(nc, Math.round((totalAmt - scatterAmt) * lerp(0.5, 1.15, v('clusterDensity') / 100)));\n      const maxCellsPerCluster = Math.max(2, Math.round(clusterBudget / nc) * 2);\n      function addParticle(bx, by, props) {\n        const key = nodeKey(bx, by);\n        if (occupied.has(key)) return false;\n        occupied.add(key);\n        particles.push({ x: bx, y: by, baseX: bx, baseY: by, ...props });\n        return true;\n      }\n      for (let ci = 0; ci < nc; ci++) {\n        const { cx, cy } = clusterAnchor(clusterBias, cornerSpread, ci, nc);\n        const cells = buildRectCluster(cx, cy, sz, maxCellsPerCluster);\n        cells.forEach(({ gx, gy }) => {\n          const bx = gx * sz, by = gy * sz;\n          if (bx < -sz || bx > W + sz || by < -sz || by > H + sz) return;\n          const dir = random() * Math.PI * 2;\n          const asCircle = random() < cirRatio * 0.12;\n          addParticle(bx, by, {\n            vx: Math.cos(dir) * driftMag * rnd(0.3, 1),\n            vy: Math.sin(dir) * driftMag * rnd(0.3, 1),\n            ci, on: 1, col: asCircle ? getAccentColor() : pickColor(), sz,\n            shape: asCircle ? 'circle' : 'rect',\n            sizeMul: pickSizeMultiplier(gx, gy, ci * 0.17),\n          });\n        });\n      }\n      for (let i = 0; i < scatterAmt; i++) {\n        let placed = false;\n        for (let attempt = 0; attempt < 40 && !placed; attempt++) {\n          const bx = Math.round(rnd(0.04, 0.96) * W / sz) * sz;\n          const by = Math.round(rnd(0.04, 0.96) * H / sz) * sz;\n          const dir = random() * Math.PI * 2;\n          placed = addParticle(bx, by, {\n            vx: Math.cos(dir) * driftMag * rnd(0.3, 1),\n            vy: Math.sin(dir) * driftMag * rnd(0.3, 1),\n            ci: -2, on: 1, col: pickColor(), sz,\n            shape: random() < sqRatio ? 'rect' : 'circle',\n            sizeMul: sizeMulForCell(bx, by, sz, i * 0.31),\n          });\n        }\n      }\n      const numCircles = Math.max(0, Math.round(\n        Math.max(numCircNodes, nc) * Math.floor(rnd(2, 4)) * lerp(0.35, 1.25, cirRatio)\n      ));\n      const mainCol = getAccentColor();\n      let circlesPlaced = 0;\n      for (let attempt = 0; circlesPlaced < numCircles && attempt < numCircles * 40; attempt++) {\n        const bx = Math.round(rnd(0.05, 0.95) * W / sz) * sz;\n        const by = Math.round(rnd(0.05, 0.95) * H / sz) * sz;\n        const dir = random() * Math.PI * 2;\n        if (addParticle(bx, by, {\n          vx: Math.cos(dir) * driftMag * rnd(0.3, 1),\n          vy: Math.sin(dir) * driftMag * rnd(0.3, 1),\n          ci: -1, on: 1, col: mainCol, sz, shape: 'circle',\n          sizeMul: sizeMulForCell(bx, by, sz, circlesPlaced * 0.41),\n        })) circlesPlaced++;\n      }\n      lastBurst = performance.now();\n      scheduleNextBeat(lastBurst);\n      remountParticleElements();\n    }\n\n    function spawn() {\n      if (style === 'voxel') spawnVoxel();\n      else if (style === 'connected') spawnConnected();\n      else if (style === 'halftone') spawnHalftone();\n      else if (style === 'stream') spawnDataStream();\n      else spawnClusters();\n    }\n\n    function nextBeatDelay() {\n      const s = v('staccato') / 100;\n      if (s === 0) return Infinity;\n      const cycleMs = getAnimDurationMs();\n      const minGap = lerp(cycleMs * 0.15, 80, s);\n      const maxGap = lerp(cycleMs * 0.55, 600, s);\n      let delay;\n      if (random() < 0.3 * s) delay = rnd(80, 300);\n      else delay = rnd(minGap, maxGap);\n      return scaledNodeAnimIntervalMs(delay);\n    }\n    function scheduleNextBeat(now) { nextBeatAt = now + nextBeatDelay(); }\n\n    function fireStaccatoBeat(ts) {\n      const s = v('staccato') / 100;\n      const nc = Math.round(v('clusterN'));\n      if (nc < 1) { beatIndex++; scheduleNextBeat(ts); return; }\n      const spd = v('speed') / 100;\n      const kick = lerp(0.05, 1.2, s) * lerp(0.1, 1, spd);\n      const numAffected = Math.ceil(rnd(0.5, lerp(1, 3, s)));\n      const affected = new Set();\n      while (affected.size < numAffected) affected.add(Math.floor(random() * nc));\n      particles.forEach(p => {\n        if (!affected.has(p.ci)) return;\n        const a = random() * Math.PI * 2;\n        p.vx += Math.cos(a) * kick * rnd(0.5, 1.5);\n        p.vy += Math.sin(a) * kick * rnd(0.5, 1.5);\n        if (random() < lerp(0.05, 0.45, s)) p.on = p.on ? 0 : 1;\n      });\n      beatIndex++;\n      scheduleNextBeat(ts);\n    }\n\n    function triggerBurst(ts) {\n      const nc = Math.round(v('clusterN'));\n      if (nc < 1) { lastBurst = ts; return; }\n      const bgc = Math.floor(random() * nc);\n      const burstDir = random() * Math.PI * 2;\n      const spd = v('speed') / 100;\n      const kick = lerp(0.1, 1.5, spd);\n      particles.forEach(p => {\n        if (p.ci === bgc) {\n          const a = burstDir + rnd(-0.5, 0.5);\n          p.vx += Math.cos(a) * kick * rnd(1.2, 2.5);\n          p.vy += Math.sin(a) * kick * rnd(1.2, 2.5);\n        }\n        if (random() < 0.06) p.on = p.on ? 0 : 1;\n      });\n      lastBurst = ts;\n    }\n\n    function stepClusterPhysics() {\n      const spd = v('speed') / 100;\n      const drag = 0.91;\n      const sz = Math.round(v('pixSize'));\n      particles.forEach(p => {\n        if (p.on) {\n          p.vx *= drag; p.vy *= drag;\n          const jitter = lerp(0.0005, 0.04, spd);\n          p.vx += (random() - 0.5) * jitter;\n          p.vy += (random() - 0.5) * jitter;\n          p.x += p.vx; p.y += p.vy;\n          const ret = lerp(0.001, 0.012, spd);\n          p.vx += (p.baseX - p.x) * ret;\n          p.vy += (p.baseY - p.y) * ret;\n          if (p.x < 0) { p.x = 0; p.vx *= -0.3; }\n          if (p.x > W - p.sz) { p.x = W - p.sz; p.vx *= -0.3; }\n          if (p.y < 0) { p.y = 0; p.vy *= -0.3; }\n          if (p.y > H - p.sz) { p.y = H - p.sz; p.vy *= -0.3; }\n        }\n        const snap = snapNode(p.x, p.y, sz);\n        p.snapPx = snap.px;\n        p.snapPy = snap.py;\n        p.drawScale = p.on ? 1 : 0;\n      });\n    }\n\n    function drawScaledParticle(p, scale) {\n      const s = getParticleDrawScale(p, scale);\n      if (s < 0.02 || scale < 0.02) {\n        p._el.setAttribute('visibility', 'hidden');\n        return;\n      }\n      const el = p._el;\n      el.removeAttribute('opacity');\n      el.setAttribute('visibility', 'visible');\n      el.setAttribute('fill', p.col);\n      const cx = p.snapPx + p.sz / 2;\n      const cy = p.snapPy + p.sz / 2;\n      if (p.shape === 'circle') {\n        el.setAttribute('cx', cx);\n        el.setAttribute('cy', cy);\n        el.setAttribute('r', Math.max(0.5, (p.sz / 2) * s));\n      } else {\n        const side = p.sz * s;\n        el.setAttribute('x', cx - side / 2);\n        el.setAttribute('y', cy - side / 2);\n        el.setAttribute('width', Math.max(0.5, side));\n        el.setAttribute('height', Math.max(0.5, side));\n      }\n    }\n\n    function drawParticlesDeduped() {\n      const occupied = new Set();\n      function drawOne(p) {\n        let alpha = p.drawScale != null ? p.drawScale : 0;\n        if (alpha < 0.02 || !p.on) {\n          p._el.setAttribute('visibility', 'hidden');\n          return;\n        }\n        const key = nodeKey(p.snapPx, p.snapPy);\n        if (occupied.has(key)) {\n          p._el.setAttribute('visibility', 'hidden');\n          return;\n        }\n        occupied.add(key);\n        drawScaledParticle(p, alpha);\n      }\n      particles.forEach(p => { if (!p.on) p._el.setAttribute('visibility', 'hidden'); });\n      particles.forEach(p => { if (p.shape === 'rect') drawOne(p); });\n      particles.forEach(p => { if (p.shape === 'circle') drawOne(p); });\n    }\n\n    function drawVoxelFrame(progress) {\n      const sz = Math.round(v('pixSize'));\n      const cols = Math.floor(W / sz);\n      const rows = Math.floor(H / sz);\n      const levels = Math.round(v('isolines'));\n      const bandW = lerp(0.012, 0.075, v('isoBand') / 100);\n      const fillAmt = v('isoFill') / 100;\n      const waveScale = lerp(0.028, 0.1, v('waveScale') / 100);\n      const corner = v('cornerSpread') / 100;\n      const phase = progress * Math.PI * 2;\n      const drift = Math.sin(phase * 1.1) * 0.05;\n      particles.forEach(p => {\n        p.snapPx = p.baseX;\n        p.snapPy = p.baseY;\n        const warp = cornerNoiseOffset(p.gx, p.gy, cols, rows, corner);\n        const nx = p.gx * waveScale + warp.ox + phase * 0.2;\n        const ny = p.gy * waveScale + warp.oy + phase * 0.15;\n        const n = fbm(nx, ny, 4);\n        let bandScale = 0;\n        for (let i = 1; i <= levels; i++) {\n          const level = i / (levels + 1) + drift;\n          const d = Math.abs(n - level);\n          if (d < bandW) { bandScale = 1 - d / bandW; break; }\n        }\n        if (bandScale < 0.03 && fillAmt > 0 && n > 0.52) {\n          const h = hashNoise(p.gx * 19.7 + p.gy * 23.1 + noiseSeed);\n          if (h < fillAmt * 0.38) bandScale = 0.5 + h * 0.5;\n        }\n        bandScale = applyTransitionBandRipple(bandScale, progress, p, phase);\n        const breathe = breatheEnvelope(progress, p);\n        let diffMod = applyDiffusionWave(p, cols, rows, progress, sz, p.baseX, p.baseY);\n        diffMod = softenDiffusionForLoop(progress, diffMod);\n        const alpha = bandScale * breathe * diffMod;\n        p.on = alpha >= 0.02 ? 1 : 0;\n        p.drawScale = alpha;\n      });\n      drawParticlesDeduped();\n    }\n\n    function drawConnectedFrame(progress) {\n      const sz = Math.round(v('pixSize'));\n      const cols = Math.floor(W / sz);\n      const rows = Math.floor(H / sz);\n      const spd = v('speed') / 100;\n      const drag = 0.86;\n      const ret = lerp(0.035, 0.11, spd);\n      const { buildEnd, fadeStart, isHold } = getLoopTiming(progress);\n      particles.forEach(p => {\n        const breathe = breatheEnvelope(progress, p);\n        if (breathe > 0.02) {\n          p.vx *= drag; p.vy *= drag;\n          if (!isHold) {\n            const jitter = lerp(0, 0.006, spd) * breathe * (progress < buildEnd ? 0.35 : 0.2);\n            p.vx += (random() - 0.5) * jitter;\n            p.vy += (random() - 0.5) * jitter;\n          }\n          p.x += p.vx; p.y += p.vy;\n          p.vx += (p.baseX - p.x) * (isHold ? ret * 1.4 : ret);\n          p.vy += (p.baseY - p.y) * (isHold ? ret * 1.4 : ret);\n          if (isHold) { p.x = p.baseX; p.y = p.baseY; p.vx = 0; p.vy = 0; }\n        }\n        const snap = snapNode(p.x, p.y, sz);\n        let diffMod = applyDiffusionWave(p, cols, rows, progress, sz, snap.px, snap.py);\n        diffMod = softenDiffusionForLoop(progress, diffMod);\n        p.on = breathe >= 0.02 && diffMod >= 0.02 ? 1 : 0;\n        p.drawScale = breathe * diffMod;\n        p.snapPx = snap.px;\n        p.snapPy = snap.py;\n      });\n      drawParticlesDeduped();\n    }\n\n    function drawHalftoneFrame(ts, loopProgress) {\n      const sz = Math.round(v('pixSize'));\n      const cols = Math.floor(W / sz);\n      const rows = Math.floor(H / sz);\n      const waveScale = lerp(0.035, 0.13, v('waveScale') / 100);\n      const fill = v('gridFill') / 100;\n      const corner = v('cornerSpread') / 100;\n      const threshold = lerp(0.58, 0.18, fill);\n      const phase = ts * 0.0022;\n      const progress = loopProgress;\n      particles.forEach(p => {\n        const warp = cornerNoiseOffset(p.gx, p.gy, cols, rows, corner);\n        const nx = p.gx * waveScale + warp.ox + Math.cos(phase * 0.9) * 0.35;\n        const ny = p.gy * waveScale + warp.oy + Math.sin(phase * 0.7) * 0.35 + phase * 0.22;\n        const n = fbm(nx, ny, 4);\n        const scale = Math.max(0, (n - threshold) / Math.max(0.001, 1 - threshold));\n        const eased = scale * scale * (3 - 2 * scale);\n        const diffMod = applyDiffusionWave(p, cols, rows, progress, sz, p.baseX, p.baseY);\n        const loopEnv = getStyleLoopEnvelope(progress);\n        const alpha = eased * diffMod * loopEnv;\n        p.on = alpha >= 0.03 ? 1 : 0;\n        p.drawScale = alpha;\n        p.snapPx = p.baseX;\n        p.snapPy = p.baseY;\n      });\n      drawParticlesDeduped();\n    }\n\n    function drawStreamFrame(ts, loopProgress) {\n      const sz = Math.round(v('pixSize'));\n      const cols = Math.floor(W / sz);\n      const rows = Math.floor(H / sz);\n      const gradient = v('streamGradient') / 100;\n      const jitterAmt = v('streamJitter') / 100;\n      const staccato = v('staccato') / 100;\n      const spd = lerp(0.35, 2.8, v('speed') / 100);\n      const tick = ts * 0.001 * spd;\n      const progress = loopProgress;\n      particles.forEach(p => {\n        const nx = p.gx / Math.max(1, cols - 1);\n        const colGate = lerp(0.06, 0.96, Math.pow(nx, lerp(0.55, 2.6, gradient)));\n        const travel = (nx + tick * 0.4) % 1;\n        const wave = 0.45 + 0.55 * Math.sin(travel * Math.PI * 2 * 2.5 - ts * 0.0018);\n        const rowGate = hashNoise(p.gy * 4.1 + Math.floor(ts * 0.007 * spd)) > (1 - jitterAmt * 0.75);\n        const flickerRate = 0.012 + staccato * 0.045;\n        const flicker = staccato <= 0\n          || hashNoise(Math.floor(ts * flickerRate) + p.glitchSeed * 31 + p.gx * 7) > lerp(0.08, 0.52, staccato);\n        const noise = fbm(p.gx * 0.14 + tick, p.gy * 0.09 + noiseSeed, 2);\n        const alpha = colGate * wave * noise;\n        const diffMod = applyDiffusionWave(p, cols, rows, progress, sz, p.baseX, p.baseY);\n        const loopEnv = getStyleLoopEnvelope(progress);\n        const show = alpha > 0.22 && rowGate && flicker;\n        const outAlpha = (show ? Math.min(1, alpha * 1.15) : 0) * diffMod * loopEnv;\n        p.on = outAlpha >= 0.03 ? 1 : 0;\n        p.drawScale = outAlpha;\n        p.snapPx = p.baseX;\n        p.snapPy = p.baseY;\n      });\n      drawParticlesDeduped();\n    }\n\n    function drawClusterFrame(ts, loopProgress, skipPhysics) {\n      if (!skipPhysics) stepClusterPhysics();\n      const sz = Math.round(v('pixSize'));\n      const cols = Math.floor(W / sz);\n      const rows = Math.floor(H / sz);\n      const progress = loopProgress;\n      particles.forEach(p => {\n        const snap = snapNode(p.x, p.y, sz);\n        const diffMod = applyDiffusionWave(p, cols, rows, progress, sz, snap.px, snap.py);\n        const loopEnv = getStyleLoopEnvelope(progress);\n        p.drawScale = (p.on ? 1 : 0) * diffMod * loopEnv;\n        p.on = p.on && diffMod >= 0.03 ? 1 : 0;\n        p.snapPx = snap.px;\n        p.snapPy = snap.py;\n      });\n      drawParticlesDeduped();\n    }\n\n    function resetDustLoop(ts) {\n      particles.forEach(p => {\n        p.x = p.baseX; p.y = p.baseY; p.vx = 0; p.vy = 0; p.on = 1;\n      });\n      lastBurst = ts;\n      scheduleNextBeat(ts);\n    }\n\n    function drawFrame(ts) {\n      const cycleMs = getAnimDurationMs();\n      if (ts - cycleStart >= cycleMs) {\n        if (style === 'dust') resetDustLoop(ts);\n        else cycleStart = ts;\n      }\n      const loopProgress = clamp01((ts - cycleStart) / cycleMs);\n      const nodeProgress = getNodeLoopProgress(loopProgress);\n      const sampleTs = loopProgress * cycleMs;\n\n      if (bg === 'transparent') bgR.setAttribute('fill', 'none');\n      else bgR.setAttribute('fill', bg);\n\n      if (style === 'voxel') drawVoxelFrame(nodeProgress);\n      else if (style === 'connected') drawConnectedFrame(nodeProgress);\n      else if (style === 'halftone') drawHalftoneFrame(sampleTs, nodeProgress);\n      else if (style === 'stream') drawStreamFrame(sampleTs, nodeProgress);\n      else {\n        if (ts - lastBurst >= scaledNodeAnimIntervalMs(v('burst') * 1000)) triggerBurst(ts);\n        if (v('staccato') > 0 && ts >= nextBeatAt) fireStaccatoBeat(ts);\n        drawClusterFrame(ts, nodeProgress, false);\n      }\n    }\n\n    function mount(container) {\n      container.innerHTML = '<svg xmlns=\"' + NS + '\" viewBox=\"0 0 ' + W + ' ' + H + '\" preserveAspectRatio=\"xMidYMid meet\" shape-rendering=\"crispEdges\" style=\"width:100%;max-width:100%;height:auto;display:block;\"><rect x=\"0\" y=\"0\" width=\"' + W + '\" height=\"' + H + '\" shape-rendering=\"crispEdges\"/><g></g></svg>';\n      svg = container.firstElementChild;\n      bgR = svg.children[0];\n      gR = svg.children[1];\n      spawn();\n    }\n\n    function start() {\n      const t0 = performance.now();\n      cycleStart = t0;\n      lastBurst = t0;\n      lastFrame = 0;\n      scheduleNextBeat(t0);\n      function loop(ts) {\n        if (ts - lastFrame >= FRAME_MS) {\n          drawFrame(ts);\n          lastFrame = ts;\n        }\n        animId = requestAnimationFrame(loop);\n      }\n      animId = requestAnimationFrame(loop);\n    }\n\n    function stop() {\n      if (animId) cancelAnimationFrame(animId);\n      animId = null;\n    }\n\n    return { mount, start, stop, spawn, particleCount: () => particles.length };\n  }\n\n  function mountEmbed(wrapId, dataId) {\n    const wrap = document.getElementById(wrapId);\n    const dataEl = document.getElementById(dataId);\n    if (!wrap || !dataEl) return;\n    const cfg = JSON.parse(dataEl.textContent);\n    const engine = createEngine(cfg);\n    engine.mount(wrap);\n    engine.start();\n  }\n\n  root.FalGlitchDustWebflow = { createEngine, mountEmbed };\n})(typeof window !== 'undefined' ? window : globalThis);\n";
+let webflowRuntimeSourceCache = null;
+
+async function ensureWebflowRuntimeSource() {
+  if (webflowRuntimeSourceCache) return webflowRuntimeSourceCache;
+  if (typeof WEBFLOW_EMBED_RUNTIME_SRC === 'string' && WEBFLOW_EMBED_RUNTIME_SRC) {
+    webflowRuntimeSourceCache = WEBFLOW_EMBED_RUNTIME_SRC;
+    return webflowRuntimeSourceCache;
+  }
+  try {
+    const res = await fetch('webflow-embed-runtime.js');
+    if (res.ok) {
+      webflowRuntimeSourceCache = await res.text();
+      return webflowRuntimeSourceCache;
+    }
+  } catch (e) {}
+  throw new Error('webflow-embed-runtime.js not found — use a local server.');
+}
+
+async function buildWebflowEmbedHtml() {
   const uid = 'fal' + Math.random().toString(36).slice(2, 11);
   const wrapId = 'falwrap_' + uid;
   const dataId = 'faldata_' + uid;
-  const exportT = performance.now();
-  const payload = {
-    W,
-    H,
-    bg: getBg(),
-    burst: v('burst'),
-    clusterN: Math.round(v('clusterN')),
-    speed: v('speed'),
-    staccato: v('staccato'),
-    animDuration: parseFloat(document.getElementById('animDuration').value),
-    blanketNodeSpeedEnabled: isBlanketNodeSpeedEnabled(),
-    blanketNodeSpeed: getBlanketNodeSpeed(),
-    blanketTextSpeedEnabled: isBlanketTextSpeedEnabled(),
-    blanketTextSpeed: getBlanketTextSpeed(),
-    particles: particles.map(p => ({
-      x: p.x,
-      y: p.y,
-      baseX: p.baseX,
-      baseY: p.baseY,
-      vx: p.vx,
-      vy: p.vy,
-      ci: p.ci,
-      on: p.on,
-      col: p.col,
-      sz: p.sz,
-      shape: p.shape,
-    })),
-    lastBurstAge: exportT - lastBurst,
-    nextBeatIn: v('staccato') > 0 ? Math.max(0, nextBeatAt - exportT) : null,
-    beatIndex,
-    cycleAge: exportT - cycleStart,
-  };
-  const jsonForHtml = JSON.stringify(payload).replace(/</g, '\\u003c');
-  const runtime = buildWebflowEmbedRuntimeScript(wrapId, dataId);
+  const config = collectWebflowEmbedConfig();
+  const jsonForHtml = JSON.stringify(config).replace(/</g, '\\u003c');
+  const runtime = await ensureWebflowRuntimeSource();
+  const bootstrap =
+    "(function(){'use strict';" + runtime +
+    ";FalGlitchDustWebflow.mountEmbed('" + wrapId + "','" + dataId + "');})();";
   return (
-    '<!-- fal Glitch Dust (animated SVG) — Webflow: Add → Embed → paste. -->\n' +
+    '<!-- fal Glitch Dust (procedural) — Webflow: Add → Embed → paste. -->\n' +
     '<div id="' + wrapId + '" class="fal-webflow-embed" style="max-width:100%;line-height:0;display:block;"></div>\n' +
     '<scr' + 'ipt type="application/json" id="' + dataId + '">' + jsonForHtml + '</scr' + 'ipt>\n' +
-    '<scr' + 'ipt>' + runtime + '</scr' + 'ipt>\n'
+    '<scr' + 'ipt>' + bootstrap + '</scr' + 'ipt>\n'
   );
 }
 
-function buildWebflowEmbedRuntimeScript(wrapId, dataId) {
-  return (
-    "(function(){'use strict';" +
-    "var NS='http://www.w3.org/2000/svg';" +
-    "var w=document.getElementById('" + wrapId + "');if(!w)return;" +
-    "var d=JSON.parse(document.getElementById('" + dataId + "').textContent);" +
-    "var W=d.W,H=d.H,animTimeScale=(d.blanketNodeSpeedEnabled?d.blanketNodeSpeed:1)||1,baseCycleMs=(d.animDuration||3.5)*1000,cycleMs=baseCycleMs;" +
-    "w.innerHTML='<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 '+W+' '+H+'\" preserveAspectRatio=\"xMidYMid meet\" shape-rendering=\"crispEdges\" style=\"width:100%;max-width:100%;height:auto;display:block;\"><rect x=\"0\" y=\"0\" width=\"'+W+'\" height=\"'+H+'\" shape-rendering=\"crispEdges\"/><g></g></svg>';" +
-    "var svg=w.firstElementChild,bgR=svg.children[0],gR=svg.children[1];" +
-    "var particles=d.particles.map(function(p){" +
-    "var o={x:p.x,y:p.y,baseX:p.baseX,baseY:p.baseY,vx:p.vx,vy:p.vy,ci:p.ci,on:p.on,col:p.col,sz:p.sz,shape:p.shape};" +
-    "var el=document.createElementNS(NS,p.shape==='circle'?'circle':'rect');el.setAttribute('shape-rendering','crispEdges');o._el=el;gR.appendChild(el);return o;});" +
-    "var burst=d.burst,clusterN=d.clusterN|0,speed=d.speed,staccato=d.staccato,bg=d.bg;" +
-    "var FRAME_MS=1000/24;var t0=performance.now();" +
-    "var lastBurst=t0-(d.lastBurstAge||0);var nextBeatAt=(typeof d.nextBeatIn==='number'&&!isNaN(d.nextBeatIn))?t0+d.nextBeatIn:Infinity;" +
-    "var beatIndex=d.beatIndex||0;var lastFrame=0;var cycleStart=t0-(d.cycleAge||0);" +
-    "function lerp(a,b,t){return a+(b-a)*t;}function rnd(a,b){return a+Math.random()*(b-a);}" +
-    "function nextBeatDelay(){var s=staccato/100;if(s===0)return Infinity;var minGap=lerp(baseCycleMs*0.15,80,s),maxGap=lerp(baseCycleMs*0.55,600,s);" +
-    "var delay;if(Math.random()<0.3*s)delay=rnd(80,300);else delay=rnd(minGap,maxGap);return delay/animTimeScale;}" +
-    "function scheduleNextBeat(now){nextBeatAt=now+nextBeatDelay();}" +
-    "function fireStaccatoBeat(ts){var s=staccato/100,nc=clusterN;if(nc<1){beatIndex++;scheduleNextBeat(ts);return;}var spd=speed/100,kick=lerp(0.05,1.2,s)*lerp(0.1,1,spd),numAffected=Math.ceil(rnd(0.5,lerp(1,3,s))),affected=new Set;" +
-    "while(affected.size<numAffected)affected.add(Math.floor(Math.random()*nc));" +
-    "particles.forEach(function(p){if(!affected.has(p.ci))return;var a=Math.random()*Math.PI*2;" +
-    "p.vx+=Math.cos(a)*kick*rnd(0.5,1.5);p.vy+=Math.sin(a)*kick*rnd(0.5,1.5);if(Math.random()<lerp(0.05,0.45,s))p.on=p.on?0:1;});beatIndex++;scheduleNextBeat(ts);}" +
-    "function triggerBurst(ts){var nc=clusterN;if(nc<1){lastBurst=ts;return;}var bgc=Math.floor(Math.random()*nc),burstDir=Math.random()*Math.PI*2,spd=speed/100,kick=lerp(0.1,1.5,spd);" +
-    "particles.forEach(function(p){if(p.ci===bgc){var a=burstDir+rnd(-0.5,0.5);p.vx+=Math.cos(a)*kick*rnd(1.2,2.5);p.vy+=Math.sin(a)*kick*rnd(1.2,2.5);}if(Math.random()<0.06)p.on=p.on?0:1;});lastBurst=ts;}" +
-    "function drawFrame(ts){if(ts-cycleStart>=cycleMs){particles.forEach(function(p){p.x=p.baseX;p.y=p.baseY;p.vx=0;p.vy=0;p.on=1;});cycleStart=ts;lastBurst=ts;scheduleNextBeat(ts);}" +
-    "if(bg==='transparent'){bgR.setAttribute('fill','none');}else{bgR.setAttribute('fill',bg);}if(ts-lastBurst>=burst*1000/animTimeScale)triggerBurst(ts);" +
-    "if(staccato>0&&ts>=nextBeatAt)fireStaccatoBeat(ts);var spd=speed/100,drag=0.91;" +
-    "particles.forEach(function(p){if(!p.on){p._el.setAttribute('visibility','hidden');return;}p.vx*=drag;p.vy*=drag;var jitter=lerp(0.0005,0.04,spd);" +
-    "p.vx+=(Math.random()-0.5)*jitter;p.vy+=(Math.random()-0.5)*jitter;p.x+=p.vx;p.y+=p.vy;var ret=lerp(0.001,0.012,spd);" +
-    "p.vx+=(p.baseX-p.x)*ret;p.vy+=(p.baseY-p.y)*ret;if(p.x<0){p.x=0;p.vx*=-0.3;}if(p.x>W-p.sz){p.x=W-p.sz;p.vx*=-0.3;}if(p.y<0){p.y=0;p.vy*=-0.3;}if(p.y>H-p.sz){p.y=H-p.sz;p.vy*=-0.3;}" +
-    "p.snapPx=Math.round(p.x/p.sz)*p.sz;p.snapPy=Math.round(p.y/p.sz)*p.sz;});" +
-    "var occupied=new Set();function drawP(p){if(!p.on)return;var k=p.snapPx+','+p.snapPy;if(occupied.has(k)){p._el.setAttribute('visibility','hidden');return;}occupied.add(k);var el=p._el;el.setAttribute('visibility','visible');el.setAttribute('fill',p.col);" +
-    "if(p.shape==='circle'){var r=p.sz/2;el.setAttribute('cx',p.snapPx+r);el.setAttribute('cy',p.snapPy+r);el.setAttribute('r',r);}else{el.setAttribute('x',p.snapPx);el.setAttribute('y',p.snapPy);el.setAttribute('width',p.sz);el.setAttribute('height',p.sz);}}" +
-    "particles.forEach(function(p){if(p.shape==='rect')drawP(p);});particles.forEach(function(p){if(p.shape==='circle')drawP(p);});}" +
-    "function loop(ts){if(ts-lastFrame>=FRAME_MS){drawFrame(ts);lastFrame=ts;}requestAnimationFrame(loop);}requestAnimationFrame(loop);})();"
-  );
+function formatWebflowEmbedSize(html, config) {
+  const kb = (new Blob([html]).size / 1024).toFixed(1);
+  const sliderKeys = Object.keys(config.sliders || {}).length;
+  return kb + ' KB · ' + config.style + ' · ' + sliderKeys + ' params';
 }
 
 function applyTextSettings(text) {
@@ -8660,85 +8666,252 @@ document.getElementById('svgBtn').onclick = () => {
   navigator.clipboard.writeText(s).then(() => { document.getElementById('status').textContent = 'SVG copied (full 1920×1080).'; });
 };
 
-document.getElementById('webflowBtn').onclick = () => {
-  const html = buildWebflowEmbedHtml();
-  navigator.clipboard.writeText(html).then(() => {
-    document.getElementById('status').textContent = 'fal Webflow embed copied.';
-  }).catch(() => {
-    document.getElementById('status').textContent = 'Could not copy — try Export.';
+document.getElementById('webflowBtn').onclick = async () => {
+  const status = document.getElementById('status');
+  if (status) status.textContent = 'Building Webflow embed…';
+  try {
+    const html = await buildWebflowEmbedHtml();
+    const config = collectWebflowEmbedConfig();
+    await navigator.clipboard.writeText(html);
+    if (status) status.textContent = 'Webflow embed copied (' + formatWebflowEmbedSize(html, config) + ').';
+  } catch (err) {
+    if (status) status.textContent = 'Webflow copy failed — ' + (err?.message || 'try a local server.');
+    console.error(err);
+  }
+};
+
+document.getElementById('webflowExportBtn').onclick = async () => {
+  const status = document.getElementById('status');
+  if (status) status.textContent = 'Building Webflow embed…';
+  try {
+    const html = await buildWebflowEmbedHtml();
+    const config = collectWebflowEmbedConfig();
+    const filename = `fal-glitch-dust-webflow-${W}x${H}-${Date.now()}.txt`;
+    const blob = new Blob([html], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+    if (status) status.textContent = 'Exported ' + filename + ' (' + formatWebflowEmbedSize(html, config) + ').';
+  } catch (err) {
+    if (status) status.textContent = 'Webflow export failed — ' + (err?.message || 'try a local server.');
+    console.error(err);
+  }
+};
+
+function collectLottieVisibleParticles() {
+  const items = [];
+  const occupied = new Set();
+  function visit(p) {
+    if (!p.on) return;
+    const snap = p.snapPx != null ? { px: p.snapPx, py: p.snapPy } : snapNode(p.x, p.y, p.sz);
+    const key = nodeKey(snap.px, snap.py);
+    if (occupied.has(key)) return;
+    if (particleInOverlayClearZones(snap.px, snap.py, p.sz)) return;
+    if (particleUsesPaletteMedia(p)) return;
+    const drawScale = getParticleDrawScale(p, p.drawScale != null ? p.drawScale : 1);
+    if (drawScale < 0.02) return;
+    occupied.add(key);
+    items.push({ id: key, p, px: snap.px, py: snap.py, drawScale });
+  }
+  particles.forEach(p => { if (p.shape === 'rect') visit(p); });
+  particles.forEach(p => { if (p.shape === 'circle') visit(p); });
+  return items;
+}
+
+function collectLottieVisibleMap() {
+  const map = new Map();
+  collectLottieVisibleParticles().forEach(item => map.set(item.id, item));
+  return map;
+}
+
+function lottieRoundNum(n) {
+  return Math.round(n * 1000) / 1000;
+}
+
+function lottieHoldKeyframes(frameStates, id, pick, fallback, format) {
+  const wrap = format;
+  const k = [];
+  let prev = null;
+  frameStates.forEach(({ frame, map }) => {
+    const val = wrap(pick(map.get(id)));
+    const key = JSON.stringify(val);
+    if (key !== prev) {
+      k.push({ t: frame, s: val, h: 1 });
+      prev = key;
+    }
   });
-};
+  if (!k.length) k.push({ t: 0, s: wrap(fallback), h: 1 });
+  return { a: 1, k };
+}
 
-document.getElementById('webflowExportBtn').onclick = () => {
-  const html = buildWebflowEmbedHtml();
-  const filename = `fal-glitch-dust-webflow-${W}x${H}-${Date.now()}.txt`;
-  const blob = new Blob([html], { type: 'text/plain;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.rel = 'noopener';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-  document.getElementById('status').textContent = `Exported ${filename}`;
-};
+const lottieFmtOpacity = v => [lottieRoundNum(v)];
+const lottieFmtPos3 = v => [lottieRoundNum(v[0]), lottieRoundNum(v[1]), 0];
+const lottieFmtScale3 = v => [lottieRoundNum(v[0]), lottieRoundNum(v[1]), 100];
+const lottieFmtPos2 = v => [lottieRoundNum(v[0]), lottieRoundNum(v[1])];
+const lottieFmtScale2 = v => [lottieRoundNum(v[0]), lottieRoundNum(v[1])];
 
-function buildLottieJson() {
-  const fr = 24;
-  const ip = 0;
-  const op = Math.round(fr * parseFloat(document.getElementById('animDuration').value));
-  const trEnd = {
+function lottieShapeTransform() {
+  return {
     ty: 'tr',
-    p: { a: 0, k: [0, 0, 0] },
-    a: { a: 0, k: [0, 0, 0] },
-    s: { a: 0, k: [100, 100, 100] },
+    p: { a: 0, k: [0, 0] },
+    a: { a: 0, k: [0, 0] },
+    s: { a: 0, k: [100, 100] },
     r: { a: 0, k: 0 },
     o: { a: 0, k: 100 },
     sk: { a: 0, k: 0 },
     sa: { a: 0, k: 0 },
     nm: 'Transform',
   };
-  const shapes = [];
-  let ix = 1;
-  if (getBg() !== 'transparent') {
-    const bgRgb = hexToRgba01(getBg()).slice(0, 3);
-    shapes.push({
+}
+
+function sampleLottieFrameStates(fps) {
+  const cycleMs = getAnimDurationMs();
+  const totalFrames = Math.max(1, Math.round(cycleMs / 1000 * fps));
+  const wasPaused = paused;
+  const prevExportInProgress = exportInProgress;
+  exportInProgress = true;
+  pauseAnim();
+  dustScrubAt = -1;
+  if (getAnimStyle() === 'dust' && !dustSpawnState) captureDustSpawnState();
+  pausePaletteMediaForExport();
+
+  const frameStates = [];
+  try {
+    for (let i = 0; i < totalFrames; i++) {
+      const progress = i / totalFrames;
+      const sampleTs = progress * cycleMs;
+      renderFrameContent(progress, sampleTs, sampleTs, { exportMode: true, skipPaletteMedia: true });
+      frameStates.push({ frame: i, map: collectLottieVisibleMap() });
+    }
+  } finally {
+    exportInProgress = prevExportInProgress;
+    dustScrubAt = -1;
+    cycleStart = performance.now();
+    syncPaletteGifTicker();
+    drawFrame(performance.now());
+    if (!wasPaused) startAnim();
+    else pauseAnim();
+  }
+  return { fps, totalFrames, frameStates };
+}
+
+function buildLottieParticlePath(p) {
+  return p.shape === 'circle'
+    ? { ty: 'el', d: 1, p: { a: 0, k: [0, 0] }, s: { a: 0, k: [p.sz, p.sz] }, nm: 'Ellipse' }
+    : { ty: 'rc', d: 1, p: { a: 0, k: [0, 0] }, s: { a: 0, k: [p.sz, p.sz] }, r: { a: 0, k: 0 }, nm: 'Rect' };
+}
+
+function buildLottieParticleLayer(id, meta, frameStates, ind, ip, op) {
+  const p = meta.p;
+  const fillRgb = hexToRgba01(p.col).slice(0, 3);
+  const fallbackPos = [meta.px + p.sz / 2, meta.py + p.sz / 2];
+  return {
+    ddd: 0,
+    ind,
+    ty: 4,
+    nm: 'node_' + id,
+    sr: 1,
+    ks: {
+      o: lottieHoldKeyframes(frameStates, id, it => (it ? 100 : 0), 0, lottieFmtOpacity),
+      r: { a: 0, k: 0 },
+      p: lottieHoldKeyframes(frameStates, id, it => (
+        it ? [it.px + it.p.sz / 2, it.py + it.p.sz / 2] : fallbackPos
+      ), fallbackPos, lottieFmtPos3),
+      a: { a: 0, k: [0, 0, 0] },
+      s: lottieHoldKeyframes(frameStates, id, it => {
+        if (!it) return [100, 100];
+        const pct = Math.max(1, Math.min(100, it.drawScale * 100));
+        return [pct, pct];
+      }, [100, 100], lottieFmtScale3),
+    },
+    ao: 0,
+    shapes: [{
+      ty: 'gr',
+      it: [
+        buildLottieParticlePath(p),
+        { ty: 'fl', c: { a: 0, k: fillRgb }, o: { a: 0, k: 100 }, r: 1, nm: 'Fill' },
+        lottieShapeTransform(),
+      ],
+      nm: 'Shape',
+      np: 3,
+      mn: 'ADBE Vector Group',
+    }],
+    ip,
+    op,
+    st: 0,
+    bm: 0,
+  };
+}
+
+function buildLottieBackgroundLayer(ip, op, ind) {
+  const bgRgb = hexToRgba01(getBg()).slice(0, 3);
+  return {
+    ddd: 0,
+    ind,
+    ty: 4,
+    nm: 'Background',
+    sr: 1,
+    ks: {
+      o: { a: 0, k: 100 },
+      r: { a: 0, k: 0 },
+      p: { a: 0, k: [0, 0, 0] },
+      a: { a: 0, k: [0, 0, 0] },
+      s: { a: 0, k: [100, 100, 100] },
+    },
+    ao: 0,
+    shapes: [{
       ty: 'gr',
       it: [
         { ty: 'rc', d: 1, p: { a: 0, k: [0, 0] }, s: { a: 0, k: [W, H] }, r: { a: 0, k: 0 }, nm: 'BG' },
         { ty: 'fl', c: { a: 0, k: bgRgb }, o: { a: 0, k: 100 }, r: 1, nm: 'BG Fill' },
-        { ...trEnd, p: { a: 0, k: [W / 2, H / 2, 0] } },
+        { ...lottieShapeTransform(), p: { a: 0, k: lottieFmtPos2([W / 2, H / 2]) } },
       ],
       nm: 'Background',
       np: 3,
       mn: 'ADBE Vector Group',
-      ix: ix++,
-    });
-  }
-  let pi = 0;
-  forEachVisibleParticle((p, px, py) => {
-    const cx = px + p.sz / 2;
-    const cy = py + p.sz / 2;
-    const drawScale = getParticleDrawScale(p, p.drawScale != null ? p.drawScale : 1);
-    const fillRgb = hexToRgba01(p.col).slice(0, 3);
-    const path = p.shape === 'circle'
-      ? { ty: 'el', d: 1, p: { a: 0, k: [0, 0] }, s: { a: 0, k: [p.sz * drawScale, p.sz * drawScale] }, nm: 'Ellipse' }
-      : { ty: 'rc', d: 1, p: { a: 0, k: [0, 0] }, s: { a: 0, k: [p.sz * drawScale, p.sz * drawScale] }, r: { a: 0, k: 0 }, nm: 'Rect' };
-    shapes.push({
-      ty: 'gr',
-      it: [
-        path,
-        { ty: 'fl', c: { a: 0, k: fillRgb }, o: { a: 0, k: 100 }, r: 1, nm: 'Fill' },
-        { ...trEnd, p: { a: 0, k: [cx, cy, 0] } },
-      ],
-      nm: 'p' + pi++,
-      np: 3,
-      mn: 'ADBE Vector Group',
-      ix: ix++,
+    }],
+    ip,
+    op,
+    st: 0,
+    bm: 0,
+  };
+}
+
+function buildLottieJson() {
+  if (!particles.length) beginCycle();
+  const fr = parseInt(document.getElementById('exportFps')?.value, 10) || 24;
+  const ip = 0;
+  const { totalFrames, frameStates } = sampleLottieFrameStates(fr);
+  const op = totalFrames;
+
+  const metaById = new Map();
+  frameStates.forEach(({ map }) => {
+    map.forEach((item, id) => {
+      if (!metaById.has(id)) metaById.set(id, item);
     });
   });
+  if (!metaById.size) {
+    throw new Error('No visible nodes in loop — try Generate, then export again.');
+  }
+
+  const layers = [];
+  let ind = 1;
+  if (getBg() !== 'transparent') {
+    layers.push(buildLottieBackgroundLayer(ip, op, ind++));
+  }
+
+  [...metaById.entries()]
+    .sort((a, b) => a[1].py - b[1].py || a[1].px - b[1].px)
+    .forEach(([id, meta]) => {
+      layers.push(buildLottieParticleLayer(id, meta, frameStates, ind++, ip, op));
+    });
+
   return {
     v: '5.7.4',
     fr,
@@ -8750,42 +8923,38 @@ function buildLottieJson() {
     ddd: 0,
     assets: [],
     markers: [],
-    layers: [
-      {
-        ddd: 0,
-        ind: 1,
-        ty: 4,
-        nm: 'Artwork',
-        sr: 1,
-        ks: {
-          o: { a: 0, k: 100 },
-          r: { a: 0, k: 0 },
-          p: { a: 0, k: [0, 0, 0] },
-          a: { a: 0, k: [0, 0, 0] },
-          s: { a: 0, k: [100, 100, 100] },
-        },
-        ao: 0,
-        shapes,
-        ip,
-        op,
-        st: 0,
-        bm: 0,
-      },
-    ],
+    layers,
   };
 }
 
-document.getElementById('jsonBtn').onclick = () => {
-  const text = JSON.stringify(buildLottieJson(), null, 2);
-  navigator.clipboard.writeText(text).then(() => {
-    document.getElementById('status').textContent = 'Lottie JSON copied (static frame, ' + document.getElementById('animDuration').value + 's comp length).';
-  }).catch(() => {
-    document.getElementById('status').textContent = 'Could not copy.';
-  });
-};
+function lottieExportSummary(payload) {
+  const bgCount = getBg() !== 'transparent' ? 1 : 0;
+  const nodeCount = payload.layers.length - bgCount;
+  const seconds = (payload.op / payload.fr).toFixed(2);
+  return `${nodeCount} nodes · ${payload.fr} fps · ${seconds}s`;
+}
 
-document.getElementById('jsonExportBtn').onclick = () => {
-  const text = JSON.stringify(buildLottieJson(), null, 2);
+function runLottieExport(copyToClipboard) {
+  const status = document.getElementById('status');
+  if (status) status.textContent = 'Building Lottie animation…';
+  let payload;
+  try {
+    payload = buildLottieJson();
+  } catch (err) {
+    if (status) status.textContent = 'Lottie export failed — ' + (err?.message || 'try again.');
+    console.error(err);
+    return;
+  }
+  const text = JSON.stringify(payload, null, 2);
+  const note = lottieExportSummary(payload);
+  if (copyToClipboard) {
+    navigator.clipboard.writeText(text).then(() => {
+      if (status) status.textContent = `Lottie copied (${note}).`;
+    }).catch(() => {
+      if (status) status.textContent = 'Could not copy.';
+    });
+    return;
+  }
   const filename = `fal-glitch-dust-lottie-${W}x${H}-${Date.now()}.json`;
   const blob = new Blob([text], { type: 'application/json;charset=utf-8' });
   const url = URL.createObjectURL(blob);
@@ -8796,9 +8965,13 @@ document.getElementById('jsonExportBtn').onclick = () => {
   document.body.appendChild(a);
   a.click();
   a.remove();
-  URL.revokeObjectURL(url);
-  document.getElementById('status').textContent = `Exported ${filename}`;
-};
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+  if (status) status.textContent = `Exported ${filename} · ${note}`;
+}
+
+document.getElementById('jsonBtn').onclick = () => runLottieExport(true);
+
+document.getElementById('jsonExportBtn').onclick = () => runLottieExport(false);
 
 syncSvgViewport();
 initAllDialSliders();
