@@ -771,6 +771,11 @@
     <label for="nodeMediaEnabled">Image / GIF / video per color</label>
   </div>
   <div id="nodeMediaPanel">
+    <div class="ctrl-check">
+      <input type="checkbox" id="backgroundMediaEnabled">
+      <label for="backgroundMediaEnabled">Mask media in background gaps</label>
+    </div>
+    <div id="backgroundMediaRow"></div>
     <div class="ctrl lite-palette-media-advanced">
       <label>Palette blend</label>
       <input type="range" id="nodeMediaBlend" min="0" max="100" value="0" step="1">
@@ -781,7 +786,7 @@
       <label for="nodeMediaGifLoop">Loop GIFs in preview</label>
     </div>
     <div id="paletteMediaList"></div>
-    <div class="hint">Upload one file per swatch · image, GIF, or MP4</div>
+    <div class="hint">Upload per swatch or background gaps · image, GIF, or MP4</div>
   </div>
   </div>
 
@@ -1428,6 +1433,7 @@
           </filter>
         </defs>
         <rect id="svgBg" x="0" y="0" width="1920" height="1080" shape-rendering="crispEdges" />
+        <g id="backgroundMediaRoot"></g>
         <g id="paletteMediaRoot"></g>
         <g id="particleRoot"></g>
         <g id="textRoot" class="overlay-text-layer"></g>
@@ -1463,6 +1469,7 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 const svg = document.getElementById('s');
 const svgBg = document.getElementById('svgBg');
 const paletteMediaRoot = document.getElementById('paletteMediaRoot');
+const backgroundMediaRoot = document.getElementById('backgroundMediaRoot');
 const particleRoot = document.getElementById('particleRoot');
 const textRoot = document.getElementById('textRoot');
 const promptTextRoot = document.getElementById('promptTextRoot');
@@ -4157,9 +4164,26 @@ function pickColor() {
 
 const paletteMediaMap = new Map();
 const paletteMediaLayerMap = new Map();
+const BACKGROUND_MEDIA_KEY = '__background__';
+let backgroundMediaMaskShapes = null;
 let lastNodeMediaProgress = 0;
 
+function isBackgroundMediaEnabled() {
+  const el = document.getElementById('backgroundMediaEnabled');
+  return el ? el.checked : false;
+}
+
+function backgroundMediaReady() {
+  const slot = paletteMediaMap.get(BACKGROUND_MEDIA_KEY);
+  return !!(slot && slot.ready);
+}
+
+function hasBackgroundMedia() {
+  return isBackgroundMediaEnabled() && backgroundMediaReady();
+}
+
 function normalizePaletteColorKey(hex) {
+  if (hex === BACKGROUND_MEDIA_KEY) return BACKGROUND_MEDIA_KEY;
   let h = String(hex || '').trim().toUpperCase();
   if (!h) return '#000000';
   if (!h.startsWith('#')) h = '#' + h;
@@ -4210,7 +4234,52 @@ function updateNodeMediaUi() {
   const enabled = isNodeMediaEnabled();
   const panel = document.getElementById('nodeMediaPanel');
   if (panel) panel.style.opacity = enabled ? '1' : '0.45';
+  renderBackgroundMediaRow();
   renderPaletteMediaList();
+}
+
+function renderBackgroundMediaRow() {
+  const rowHost = document.getElementById('backgroundMediaRow');
+  if (!rowHost) return;
+  rowHost.replaceChildren();
+  const slot = paletteMediaMap.get(BACKGROUND_MEDIA_KEY);
+  const row = document.createElement('div');
+  row.className = 'palette-media-row';
+
+  const swatch = document.createElement('span');
+  swatch.className = 'palette-media-swatch bg-swatch-transparent';
+  swatch.title = 'Background gaps';
+
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = 'image/*,video/*,.gif';
+  fileInput.onchange = () => {
+    const file = fileInput.files && fileInput.files[0];
+    if (file) {
+      loadPaletteMediaFile(BACKGROUND_MEDIA_KEY, file).catch(err => {
+        const nameEl = row.querySelector('.palette-media-name');
+        if (nameEl) nameEl.textContent = 'Failed: ' + (err.message || 'load error');
+      });
+    }
+  };
+
+  const nameEl = document.createElement('span');
+  nameEl.className = 'palette-media-name';
+  nameEl.textContent = slot && slot.name
+    ? slot.name + (slot.type === 'video' ? ' · vid' : slot.type === 'gif' ? ' · gif' : '')
+    : 'No background file';
+
+  const clearBtn = document.createElement('button');
+  clearBtn.type = 'button';
+  clearBtn.textContent = 'Clear';
+  clearBtn.disabled = !slot;
+  clearBtn.onclick = () => clearPaletteMedia(BACKGROUND_MEDIA_KEY);
+
+  row.appendChild(swatch);
+  row.appendChild(fileInput);
+  row.appendChild(nameEl);
+  row.appendChild(clearBtn);
+  rowHost.appendChild(row);
 }
 
 function renderPaletteMediaList() {
@@ -4552,7 +4621,7 @@ function prepareNodeMediaFrame(progress) {
 }
 
 async function syncPaletteMediaForExport(progress) {
-  if (!isNodeMediaEnabled() || !hasAnyPaletteMedia()) return;
+  if (!hasBackgroundMedia() && !(isNodeMediaEnabled() && hasAnyPaletteMedia())) return;
   await prepareNodeMediaFrameAsync(progress, { forExport: true });
 }
 
@@ -4673,6 +4742,93 @@ function drawParticlesToExportCanvas(ctx, dw, dh) {
   ctx.restore();
 }
 
+function paintAllParticlesMaskOnContext(maskCtx) {
+  let any = false;
+  maskCtx.fillStyle = 'white';
+  forEachVisibleParticle((p, px, py) => {
+    if (particleInOverlayClearZones(px, py, p.sz)) return;
+    const drawScale = p.drawScale != null ? p.drawScale : 1;
+    const animAlpha = clamp01(drawScale);
+    const particleScale = getParticleDrawScale(p, drawScale);
+    if (particleScale < 0.02 || animAlpha < 0.02) return;
+    drawUnionMaskShapeToContext(maskCtx, p, px, py, particleScale);
+    any = true;
+  });
+  return any;
+}
+
+function appendInverseUnionMaskShape(p, scale, maskShapesG) {
+  const s = getParticleDrawScale(p, scale);
+  const animAlpha = clamp01(scale);
+  if (s < 0.02 || animAlpha < 0.02) return;
+  const cx = p.snapPx + p.sz / 2;
+  const cy = p.snapPy + p.sz / 2;
+  const side = p.sz * s;
+  const el = document.createElementNS(SVG_NS, p.shape === 'circle' ? 'circle' : 'rect');
+  if (p.shape === 'circle') {
+    el.setAttribute('cx', String(cx));
+    el.setAttribute('cy', String(cy));
+    el.setAttribute('r', String(Math.max(0.5, side / 2)));
+  } else {
+    el.setAttribute('x', String(cx - side / 2));
+    el.setAttribute('y', String(cy - side / 2));
+    el.setAttribute('width', String(Math.max(0.5, side)));
+    el.setAttribute('height', String(Math.max(0.5, side)));
+  }
+  el.setAttribute('fill', 'black');
+  maskShapesG.appendChild(el);
+}
+
+function resetBackgroundMediaUnionMask() {
+  if (!backgroundMediaMaskShapes) return;
+  backgroundMediaMaskShapes.replaceChildren();
+  if (!hasBackgroundMedia()) return;
+  forEachVisibleParticle((p, px, py) => {
+    if (particleInOverlayClearZones(px, py, p.sz)) return;
+    const drawScale = p.drawScale != null ? p.drawScale : 1;
+    const animAlpha = clamp01(drawScale);
+    appendInverseUnionMaskShape(p, animAlpha, backgroundMediaMaskShapes);
+  });
+}
+
+function compositeBackgroundMediaOntoCanvas(ctx, dw, dh) {
+  if (!hasBackgroundMedia()) return;
+  const slot = getPaletteMedia(BACKGROUND_MEDIA_KEY);
+  if (!slot || !slot.ready) return;
+  const sx = dw / W;
+  const sy = dh / H;
+  const layerScratch = document.createElement('canvas');
+  layerScratch.width = W;
+  layerScratch.height = H;
+  const layerCtx = layerScratch.getContext('2d');
+  const maskScratch = document.createElement('canvas');
+  maskScratch.width = W;
+  maskScratch.height = H;
+  const maskCtx = maskScratch.getContext('2d');
+
+  layerCtx.clearRect(0, 0, W, H);
+  layerCtx.globalCompositeOperation = 'source-over';
+  if (slot.type === 'gif' && slot.source && slot.source.complete && slot.source.naturalWidth > 0) {
+    drawPaletteMediaCover(layerCtx, slot.source, slot.source.naturalWidth, slot.source.naturalHeight);
+  } else if (slot.canvas && slot.canvas.width > 0 && slot.canvas.height > 0) {
+    layerCtx.drawImage(slot.canvas, 0, 0);
+  } else {
+    return;
+  }
+
+  maskCtx.clearRect(0, 0, W, H);
+  if (!paintAllParticlesMaskOnContext(maskCtx)) return;
+
+  layerCtx.globalCompositeOperation = 'destination-out';
+  layerCtx.drawImage(maskScratch, 0, 0);
+  layerCtx.globalCompositeOperation = 'source-over';
+
+  ctx.save();
+  ctx.scale(sx, sy);
+  ctx.drawImage(layerScratch, 0, 0);
+  ctx.restore();
+}
+
 function compositePaletteMediaOntoCanvas(ctx, dw, dh) {
   if (!isNodeMediaEnabled() || !hasAnyPaletteMedia()) return;
   const sx = dw / W;
@@ -4687,6 +4843,7 @@ function compositePaletteMediaOntoCanvas(ctx, dw, dh) {
   const maskCtx = maskScratch.getContext('2d');
 
   paletteMediaMap.forEach((slot, key) => {
+    if (key === BACKGROUND_MEDIA_KEY) return;
     if (!slot || !slot.ready) return;
 
     layerCtx.clearRect(0, 0, W, H);
@@ -4714,6 +4871,8 @@ function compositePaletteMediaOntoCanvas(ctx, dw, dh) {
 }
 
 function stripPaletteMediaFromExportSvgClone(clone) {
+  const cloneBgMediaRoot = clone.querySelector('#backgroundMediaRoot');
+  if (cloneBgMediaRoot) cloneBgMediaRoot.replaceChildren();
   const clonePaletteRoot = clone.querySelector('#paletteMediaRoot');
   if (clonePaletteRoot) clonePaletteRoot.replaceChildren();
   const maskRoot = clone.querySelector('#paletteMediaMasks');
@@ -4833,7 +4992,11 @@ async function loadPaletteMediaFile(colorKey, file) {
     refreshPaletteMediaDisplayUrl(slot);
   }
 
-  document.getElementById('nodeMediaEnabled').checked = true;
+  if (key === BACKGROUND_MEDIA_KEY) {
+    document.getElementById('backgroundMediaEnabled').checked = true;
+  } else {
+    document.getElementById('nodeMediaEnabled').checked = true;
+  }
   updateNodeMediaUi();
   remountParticleElements();
   drawFrame(performance.now());
@@ -4841,6 +5004,15 @@ async function loadPaletteMediaFile(colorKey, file) {
 
 function repaintAllPaletteMedia() {
   repaintAllPaletteMediaSources();
+}
+
+function clearPaletteColorMasks() {
+  const maskRoot = svg.querySelector('#paletteMediaMasks');
+  if (!maskRoot) return;
+  const bgMask = maskRoot.querySelector('#pmBgMask');
+  [...maskRoot.childNodes].forEach(node => {
+    if (node !== bgMask) node.remove();
+  });
 }
 
 function clearPaletteMediaMaskDefs() {
@@ -4863,7 +5035,100 @@ function ensurePaletteMediaMaskDefs() {
 function clearPaletteMediaLayers() {
   if (paletteMediaRoot) paletteMediaRoot.replaceChildren();
   paletteMediaLayerMap.clear();
-  clearPaletteMediaMaskDefs();
+  clearPaletteColorMasks();
+}
+
+function clearBackgroundMediaLayer() {
+  if (backgroundMediaRoot) backgroundMediaRoot.replaceChildren();
+  backgroundMediaMaskShapes = null;
+  const maskRoot = svg.querySelector('#paletteMediaMasks');
+  if (maskRoot) {
+    const bgMask = maskRoot.querySelector('#pmBgMask');
+    if (bgMask) bgMask.remove();
+  }
+}
+
+function mountBackgroundMediaLayer() {
+  clearBackgroundMediaLayer();
+  if (!hasBackgroundMedia()) return;
+
+  const maskRoot = ensurePaletteMediaMaskDefs();
+  if (!maskRoot) return;
+  const maskId = 'pmBgMask';
+  const slot = getPaletteMedia(BACKGROUND_MEDIA_KEY);
+
+  const mask = document.createElementNS(SVG_NS, 'mask');
+  mask.setAttribute('id', maskId);
+  mask.setAttribute('maskUnits', 'userSpaceOnUse');
+  mask.setAttribute('maskContentUnits', 'userSpaceOnUse');
+  const maskBg = document.createElementNS(SVG_NS, 'rect');
+  maskBg.setAttribute('x', '0');
+  maskBg.setAttribute('y', '0');
+  maskBg.setAttribute('width', String(W));
+  maskBg.setAttribute('height', String(H));
+  maskBg.setAttribute('fill', 'white');
+  mask.appendChild(maskBg);
+  backgroundMediaMaskShapes = document.createElementNS(SVG_NS, 'g');
+  mask.appendChild(backgroundMediaMaskShapes);
+  maskRoot.appendChild(mask);
+
+  const layerG = document.createElementNS(SVG_NS, 'g');
+  layerG.setAttribute('data-color', BACKGROUND_MEDIA_KEY);
+  layerG.setAttribute('mask', 'url(#' + maskId + ')');
+
+  const fo = document.createElementNS(SVG_NS, 'foreignObject');
+  fo.setAttribute('x', '0');
+  fo.setAttribute('y', '0');
+  fo.setAttribute('width', String(W));
+  fo.setAttribute('height', String(H));
+  fo.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
+  fo.setAttribute('visibility', 'visible');
+
+  const imgEl = document.createElementNS(SVG_NS, 'image');
+  imgEl.setAttribute('x', '0');
+  imgEl.setAttribute('y', '0');
+  imgEl.setAttribute('width', String(W));
+  imgEl.setAttribute('height', String(H));
+  imgEl.setAttribute('preserveAspectRatio', 'none');
+  imgEl.setAttribute('shape-rendering', 'crispEdges');
+  imgEl.setAttribute('href', slot && slot.displayUrl ? slot.displayUrl : '');
+  imgEl.setAttribute('opacity', '1');
+  imgEl.setAttribute('visibility', 'hidden');
+
+  let canvas = slot.canvas;
+  if (slot.type === 'gif' && !isPaletteGifLoopEnabled()) {
+    ensurePaletteMediaCanvas(slot);
+    paintPaletteMediaSource(slot);
+    canvas = slot.canvas;
+    canvas.style.display = 'block';
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    const wrap = createPaletteMediaFoWrap();
+    wrap.appendChild(canvas);
+    fo.appendChild(wrap);
+  } else if (slot.type === 'gif') {
+    imgEl.setAttribute('href', slot.objectUrl);
+    imgEl.setAttribute('visibility', 'visible');
+    fo.setAttribute('visibility', 'hidden');
+  } else if (slot.type === 'video') {
+    mountPaletteMediaInFo(slot, fo);
+    syncPaletteVideoPreview(slot, lastNodeMediaProgress || 0);
+  } else {
+    ensurePaletteMediaCanvas(slot);
+    canvas = slot.canvas;
+    slot.canvasDirty = true;
+    canvas.style.display = 'block';
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    const wrap = createPaletteMediaFoWrap();
+    wrap.appendChild(canvas);
+    fo.appendChild(wrap);
+  }
+
+  layerG.appendChild(fo);
+  layerG.appendChild(imgEl);
+  backgroundMediaRoot.appendChild(layerG);
+  resetBackgroundMediaUnionMask();
 }
 
 function mountPaletteMediaLayers() {
@@ -4872,7 +5137,6 @@ function mountPaletteMediaLayers() {
 
   const maskRoot = ensurePaletteMediaMaskDefs();
   if (!maskRoot) return;
-  maskRoot.replaceChildren();
 
   getActivePaletteColors().forEach(hex => {
     if (!paletteMediaReadyForColor(hex)) return;
@@ -5007,6 +5271,7 @@ function appendParticleUnionMaskShape(p, scale) {
 }
 
 function remountParticleElements() {
+  mountBackgroundMediaLayer();
   mountPaletteMediaLayers();
   mountParticleElements(getAnimStyle() === 'stream');
 }
@@ -5903,6 +6168,7 @@ function drawScaledParticle(p, scale) {
 
 function drawParticlesDeduped() {
   resetPaletteMediaUnionMasks();
+  resetBackgroundMediaUnionMask();
   const occupiedNodes = new Set();
   const buildUnionMask = isNodeMediaEnabled() && hasAnyPaletteMedia();
   function drawOne(p) {
@@ -6557,6 +6823,7 @@ function drawClusterFrame(ts, frameOpts) {
   const occupiedNodes = new Set();
   const buildUnionMask = isNodeMediaEnabled() && hasAnyPaletteMedia();
   resetPaletteMediaUnionMasks();
+  resetBackgroundMediaUnionMask();
   function drawParticle(p) {
     if (!p.on) {
       p.el.setAttribute('visibility', 'hidden');
@@ -6986,6 +7253,41 @@ function buildPaletteBlendOverlayMarkup(p, px, py, particleScale, animAlpha, ble
   return `<rect x="${cx - side / 2}" y="${cy - side / 2}" width="${Math.max(0.5, side)}" height="${Math.max(0.5, side)}" fill="${p.col}" opacity="${opacity}" shape-rendering="crispEdges"/>`;
 }
 
+function buildInverseUnionMaskShapeMarkup(p, px, py, particleScale) {
+  const cx = px + p.sz / 2;
+  const cy = py + p.sz / 2;
+  const side = p.sz * particleScale;
+  if (p.shape === 'circle') {
+    const r = Math.max(0.5, side / 2);
+    return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="black"/>`;
+  }
+  const w = Math.max(0.5, side);
+  const h = Math.max(0.5, side);
+  return `<rect x="${cx - side / 2}" y="${cy - side / 2}" width="${w}" height="${h}" fill="black"/>`;
+}
+
+function buildBackgroundMediaUnionExport() {
+  const slot = getPaletteMedia(BACKGROUND_MEDIA_KEY);
+  if (!slot || !slot.displayUrl) return { maskDefs: '', mediaLayer: '' };
+  let maskShapes = '';
+  forEachVisibleParticle((p, px, py) => {
+    if (particleInOverlayClearZones(px, py, p.sz)) return;
+    const drawScale = p.drawScale != null ? p.drawScale : 1;
+    const animAlpha = clamp01(drawScale);
+    const particleScale = getParticleDrawScale(p, drawScale);
+    if (particleScale < 0.02 || animAlpha < 0.02) return;
+    maskShapes += buildInverseUnionMaskShapeMarkup(p, px, py, particleScale);
+  });
+  if (!maskShapes) return { maskDefs: '', mediaLayer: '' };
+  const maskId = 'pmExportBgMask';
+  let maskDefs = `<mask id="${maskId}" maskUnits="userSpaceOnUse">`;
+  maskDefs += `<rect x="0" y="0" width="${W}" height="${H}" fill="white"/>`;
+  maskDefs += maskShapes;
+  maskDefs += `</mask>`;
+  const mediaLayer = `<image href="${slot.displayUrl}" x="0" y="0" width="${W}" height="${H}" mask="url(#${maskId})" preserveAspectRatio="none" shape-rendering="crispEdges"/>`;
+  return { maskDefs, mediaLayer };
+}
+
 function buildPaletteMediaUnionExport() {
   const blend = v('nodeMediaBlend') / 100;
   let maskDefs = '';
@@ -7032,14 +7334,15 @@ function buildSvgString(opts) {
     : `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" shape-rendering="crispEdges">`;
   const bg = getBg();
   const mediaProgress = getNodeLoopProgress(lastRenderProgress);
-  if (hasAnyPaletteMedia()) {
+  if (hasAnyPaletteMedia() || hasBackgroundMedia()) {
     paletteMediaMap.forEach(slot => {
       if (slot.ready && slot.canvas) refreshPaletteMediaDisplayUrl(slot);
     });
   }
+  const bgMediaExport = hasBackgroundMedia() ? buildBackgroundMediaUnionExport() : null;
   const unionExport = isNodeMediaEnabled() && hasAnyPaletteMedia() ? buildPaletteMediaUnionExport() : null;
-  let defsMarkup = unionExport ? unionExport.maskDefs : '';
-  let particleMarkup = unionExport ? (unionExport.mediaLayers + unionExport.colorOverlays) : '';
+  let defsMarkup = (bgMediaExport ? bgMediaExport.maskDefs : '') + (unionExport ? unionExport.maskDefs : '');
+  let particleMarkup = (bgMediaExport ? bgMediaExport.mediaLayer : '') + (unionExport ? (unionExport.mediaLayers + unionExport.colorOverlays) : '');
   let s = open;
   if (bg !== 'transparent') s += `<rect width="${W}" height="${H}" fill="${bg}" shape-rendering="crispEdges"/>`;
   forEachVisibleParticle((p, px, py) => {
@@ -7478,6 +7781,7 @@ function collectSettings() {
       enabled: isNodeMediaEnabled(),
       blend: document.getElementById('nodeMediaBlend').value,
       gifLoop: isPaletteGifLoopEnabled(),
+      backgroundEnabled: isBackgroundMediaEnabled(),
     },
     text: {
       content: getOverlayTextRaw(),
@@ -7609,6 +7913,9 @@ function applySettings(settings, opts) {
     }
     if (s.nodeMedia.gifLoop != null) {
       document.getElementById('nodeMediaGifLoop').checked = s.nodeMedia.gifLoop !== false;
+    }
+    if (s.nodeMedia.backgroundEnabled != null) {
+      document.getElementById('backgroundMediaEnabled').checked = s.nodeMedia.backgroundEnabled === true;
     }
   }
   updateNodeMediaUi();
@@ -8053,9 +8360,15 @@ async function renderSvgToCanvas(ctx, svgEl, opts) {
     }
   }
 
-  const hasPaletteMedia = isNodeMediaEnabled() && hasAnyPaletteMedia();
-  if (hasPaletteMedia) {
+  const hasColorPaletteMedia = isNodeMediaEnabled() && hasAnyPaletteMedia();
+  const hasBgMedia = hasBackgroundMedia();
+  if (hasBgMedia || hasColorPaletteMedia) {
     ensurePaletteMediaExportSourcesReady();
+  }
+  if (hasBgMedia) {
+    compositeBackgroundMediaOntoCanvas(ctx, dw, dh);
+  }
+  if (hasColorPaletteMedia) {
     compositePaletteMediaOntoCanvas(ctx, dw, dh);
     drawParticlesToExportCanvas(ctx, dw, dh);
   }
@@ -8068,7 +8381,7 @@ async function renderSvgToCanvas(ctx, svgEl, opts) {
   clone.setAttribute('xmlns', SVG_NS);
 
   stripPaletteMediaFromExportSvgClone(clone);
-  if (hasPaletteMedia) {
+  if (hasColorPaletteMedia) {
     const cloneParticleRoot = clone.querySelector('#particleRoot');
     if (cloneParticleRoot) cloneParticleRoot.replaceChildren();
     const cloneBg = clone.querySelector('#svgBg');
@@ -9122,6 +9435,13 @@ syncSvgViewport();
 initAllDialSliders();
 initBgColorUi();
 document.getElementById('nodeMediaEnabled').onchange = () => {
+  updateNodeMediaUi();
+  remountParticleElements();
+  syncPaletteGifTicker();
+  drawFrame(performance.now());
+  schedulePresetAutosave();
+};
+document.getElementById('backgroundMediaEnabled').onchange = () => {
   updateNodeMediaUi();
   remountParticleElements();
   syncPaletteGifTicker();

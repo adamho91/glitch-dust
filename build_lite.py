@@ -76,6 +76,11 @@ PALETTE_MEDIA_IN_GRID = """  <div class="sect">Palette Media</div>
     <label for="nodeMediaEnabled">Mask image / video per palette color</label>
   </div>
   <div id="nodeMediaPanel">
+    <div class="ctrl-check">
+      <input type="checkbox" id="backgroundMediaEnabled">
+      <label for="backgroundMediaEnabled">Mask media in background gaps</label>
+    </div>
+    <div id="backgroundMediaRow"></div>
     <div class="ctrl">
       <label>Palette blend</label>
       <input type="range" id="nodeMediaBlend" min="0" max="100" value="0" step="1">
@@ -86,7 +91,7 @@ PALETTE_MEDIA_IN_GRID = """  <div class="sect">Palette Media</div>
       <label for="nodeMediaGifLoop">Loop GIFs in preview</label>
     </div>
     <div id="paletteMediaList"></div>
-    <div class="hint">One upload per swatch · image, GIF, or video · union mask · GIFs loop when enabled below</div>
+    <div class="hint">One upload per swatch · image, GIF, or video · union mask · background fills gaps between particles</div>
   </div>
 
 """
@@ -98,6 +103,11 @@ LITE_PALETTE_MEDIA_BLOCK = """  <div class="lite-palette-media">
     <label for="nodeMediaEnabled">Image / GIF / video per color</label>
   </div>
   <div id="nodeMediaPanel">
+    <div class="ctrl-check">
+      <input type="checkbox" id="backgroundMediaEnabled">
+      <label for="backgroundMediaEnabled">Mask media in background gaps</label>
+    </div>
+    <div id="backgroundMediaRow"></div>
     <div class="ctrl lite-palette-media-advanced">
       <label>Palette blend</label>
       <input type="range" id="nodeMediaBlend" min="0" max="100" value="0" step="1">
@@ -108,7 +118,7 @@ LITE_PALETTE_MEDIA_BLOCK = """  <div class="lite-palette-media">
       <label for="nodeMediaGifLoop">Loop GIFs in preview</label>
     </div>
     <div id="paletteMediaList"></div>
-    <div class="hint">Upload one file per swatch · image, GIF, or MP4</div>
+    <div class="hint">Upload per swatch or background gaps · image, GIF, or MP4</div>
   </div>
   </div>
 
