@@ -8088,10 +8088,8 @@ async function renderSvgToCanvas(ctx, svgEl, opts) {
 
   const mount = getExportSvgMount();
   mount.replaceChildren(clone);
-  if (!hasPaletteMedia) {
-    const blob = new Blob([new XMLSerializer().serializeToString(clone)], { type: 'image/svg+xml;charset=utf-8' });
-    await rasterizeSvgBlobToCanvas(ctx, blob, dw, dh);
-  }
+  const blob = new Blob([new XMLSerializer().serializeToString(clone)], { type: 'image/svg+xml;charset=utf-8' });
+  await rasterizeSvgBlobToCanvas(ctx, blob, dw, dh);
 
   textRestore.forEach(({ node, parent, next }) => {
     if (next && next.parentNode === parent) parent.insertBefore(node, next);
