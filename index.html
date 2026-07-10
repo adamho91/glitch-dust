@@ -104,7 +104,41 @@
   .tonal-preset-group:first-child { margin-top: 0; border-top: none; padding-top: 0; }
   .tonal-preview { display: flex; gap: 4px; margin-bottom: 8px; min-height: 20px; align-items: center; flex-wrap: wrap; }
   .tonal-preview .chip { width: 22px; height: 22px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.12); }
+  .tonal-preview .chip.is-editable { cursor: pointer; }
+  .tonal-preview .chip.is-editable:hover { border-color: var(--ui-accent); box-shadow: 0 0 0 1px var(--ui-accent-a33); }
   .tonal-preview span { font-size: 10px; color: #555; }
+  .fal-palette-picker {
+    position: fixed;
+    z-index: 10000;
+    background: #1a1a1a;
+    border: 1px solid #444;
+    border-radius: 8px;
+    padding: 8px 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    width: 268px;
+  }
+  .fal-palette-picker[hidden] { display: none !important; }
+  .fal-palette-picker-group { margin-bottom: 6px; }
+  .fal-palette-picker-group:last-child { margin-bottom: 0; }
+  .fal-palette-picker-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #666;
+    margin-bottom: 4px;
+  }
+  .fal-palette-picker-swatches { display: flex; flex-wrap: wrap; gap: 4px; }
+  .fal-palette-swatch {
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    border: 2px solid rgba(255,255,255,0.1);
+    padding: 0;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .fal-palette-swatch:hover { border-color: #888; }
+  .fal-palette-swatch.active { border-color: var(--ui-accent); box-shadow: 0 0 0 1px var(--ui-accent-a33); }
   .bg-swatches { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
   .bg-swatch {
     width: 28px; height: 28px; border-radius: 4px;
@@ -757,7 +791,7 @@
   </div>
   <div class="tonal-preview" id="tonalPreview"></div>
   <div class="tonal-presets" id="tonalPresets"></div>
-  <div class="hint">Grouped by color family · chips = node palette · dust mode applies suggested bg.</div>
+  <div class="hint">Grouped by color family · click preview chips to pick fal colors · double-click chip to cycle prompt color</div>
 
   <div class="sect">Background</div>
   <div class="bg-swatches" id="bgSwatches"></div>
@@ -3923,6 +3957,19 @@ const FAL_4 = FAL_5.map(p => ({
 }));
 const TONAL_BY_COUNT = { 2: FAL_2, 3: FAL_3, 4: FAL_4, 5: FAL_5 };
 
+const FAL_BRAND_PALETTE = [
+  { id: 'purple', label: 'Purple', colors: ['#5718C0', '#AB77FF', '#D5BBFF'] },
+  { id: 'blue', label: 'Blue', colors: ['#115EF3', '#3FB5FE', '#C5E9FF'] },
+  { id: 'teal', label: 'Teal / Sage', colors: ['#99EDFF', '#96AFAC', '#E5ECE7'] },
+  { id: 'green', label: 'Green / Lime', colors: ['#004012', '#ADFF00', '#F1FFD2', '#C8FF66'] },
+  { id: 'earth', label: 'Earth / Yellow', colors: ['#403700', '#FFFF00', '#D9D7CC'] },
+  { id: 'red', label: 'Red / Pink', colors: ['#EC0648', '#F57EC3', '#FFC4D8'] },
+  { id: 'neutral', label: 'Neutral', colors: ['#000000', '#FFFFFF'] },
+];
+
+let falPalettePickerEl = null;
+let falPalettePickerIndex = -1;
+
 const TONAL_GROUP_ORDER = [
   { id: 'blue', label: 'Blue / Cyan' },
   { id: 'green', label: 'Green / Teal' },
@@ -3994,6 +4041,115 @@ PALETTE.forEach((s) => {
   };
 });
 
+function findMatchingTonalPreset() {
+  const presets = TONAL_BY_COUNT[tonalCount] || [];
+  const norm = arr => arr.map(normalizePaletteColorKey);
+  const current = norm(activeTonalColors);
+  return presets.find(p => {
+    const presetColors = norm(p.colors);
+    if (presetColors.length !== current.length) return false;
+    return presetColors.every((c, i) => c === current[i]);
+  }) || null;
+}
+
+function setTonalColorAt(index, hex) {
+  const normalized = normalizePaletteColorKey(hex);
+  activeTonalColors[index] = normalized;
+  const match = findMatchingTonalPreset();
+  activePresetId = match ? match.id : null;
+  renderTonalPresets();
+  renderTonalPreview();
+  syncPromptBorderFromPalette();
+  if (isLogoFollowPalette()) syncLogoColorsFromPalette(getLogoPaletteOffsetFromColors());
+  syncPromptSpaceColorFromPalette();
+  renderPaletteMediaList();
+  beginCycle();
+  schedulePresetAutosave();
+}
+
+function initFalPalettePicker() {
+  if (typeof GLITCH_DUST_LITE !== 'undefined' && GLITCH_DUST_LITE) return;
+  falPalettePickerEl = document.createElement('div');
+  falPalettePickerEl.id = 'falPalettePicker';
+  falPalettePickerEl.className = 'fal-palette-picker';
+  falPalettePickerEl.hidden = true;
+  FAL_BRAND_PALETTE.forEach(group => {
+    const groupEl = document.createElement('div');
+    groupEl.className = 'fal-palette-picker-group';
+    const label = document.createElement('div');
+    label.className = 'fal-palette-picker-label';
+    label.textContent = group.label;
+    const swatches = document.createElement('div');
+    swatches.className = 'fal-palette-picker-swatches';
+    group.colors.forEach(colorHex => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'fal-palette-swatch';
+      btn.style.backgroundColor = colorHex;
+      btn.title = colorHex;
+      btn.dataset.hex = colorHex;
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        if (falPalettePickerIndex >= 0) setTonalColorAt(falPalettePickerIndex, colorHex);
+        closeFalPalettePicker();
+      };
+      swatches.appendChild(btn);
+    });
+    groupEl.appendChild(label);
+    groupEl.appendChild(swatches);
+    falPalettePickerEl.appendChild(groupEl);
+  });
+  document.body.appendChild(falPalettePickerEl);
+  document.addEventListener('click', (e) => {
+    if (!falPalettePickerEl || falPalettePickerEl.hidden) return;
+    if (falPalettePickerEl.contains(e.target)) return;
+    if (e.target.closest('.tonal-preview .chip.is-editable')) return;
+    closeFalPalettePicker();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeFalPalettePicker();
+  });
+}
+
+function openFalPalettePicker(chip, colorIndex) {
+  if (!falPalettePickerEl) return;
+  falPalettePickerIndex = colorIndex;
+  const current = activeTonalColors[colorIndex];
+  falPalettePickerEl.querySelectorAll('.fal-palette-swatch').forEach(btn => {
+    btn.classList.toggle('active', normalizePaletteColorKey(btn.dataset.hex) === normalizePaletteColorKey(current));
+  });
+  falPalettePickerEl.hidden = false;
+  falPalettePickerEl.style.visibility = 'hidden';
+  falPalettePickerEl.style.left = '0';
+  falPalettePickerEl.style.top = '0';
+  const pw = falPalettePickerEl.offsetWidth;
+  const ph = falPalettePickerEl.offsetHeight;
+  const rect = chip.getBoundingClientRect();
+  let left = rect.left;
+  let top = rect.bottom + 6;
+  if (left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
+  if (top + ph > window.innerHeight - 8) top = Math.max(8, rect.top - ph - 6);
+  falPalettePickerEl.style.left = Math.max(8, left) + 'px';
+  falPalettePickerEl.style.top = top + 'px';
+  falPalettePickerEl.style.visibility = '';
+}
+
+function closeFalPalettePicker() {
+  if (!falPalettePickerEl) return;
+  falPalettePickerEl.hidden = true;
+  falPalettePickerIndex = -1;
+}
+
+function bindTonalChipPicker(chip, colorIndex) {
+  if (typeof GLITCH_DUST_LITE !== 'undefined' && GLITCH_DUST_LITE) return;
+  chip.classList.add('is-editable');
+  chip.title = (activeTonalColors[colorIndex] || '') + ' · click to pick from fal palette · double-click to cycle prompt text color';
+  chip.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openFalPalettePicker(chip, colorIndex);
+  });
+}
+
 function renderTonalPreview() {
   const el = document.getElementById('tonalPreview');
   el.replaceChildren();
@@ -4004,12 +4160,17 @@ function renderTonalPreview() {
     renderPaletteMediaList();
     return;
   }
-  activeTonalColors.forEach(hex => {
+  activeTonalColors.forEach((hex, i) => {
     const chip = document.createElement('div');
     chip.className = 'chip';
     chip.style.background = hex;
-    chip.title = hex + ' · double-click to cycle prompt text color';
+    if (typeof GLITCH_DUST_LITE === 'undefined' || !GLITCH_DUST_LITE) {
+      chip.title = hex + ' · click to pick from fal palette · double-click to cycle prompt text color';
+    } else {
+      chip.title = hex + ' · double-click to cycle prompt text color';
+    }
     bindPaletteChipCycle(chip, activeTonalColors, hex);
+    bindTonalChipPicker(chip, i);
     el.appendChild(chip);
   });
   renderPaletteMediaList();
@@ -9385,6 +9546,7 @@ document.getElementById('jsonExportBtn').onclick = () => runLottieExport(false);
 syncSvgViewport();
 initAllDialSliders();
 initBgColorUi();
+initFalPalettePicker();
 document.getElementById('nodeMediaEnabled').onchange = () => {
   updateNodeMediaUi();
   remountParticleElements();

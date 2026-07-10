@@ -306,6 +306,13 @@ if 'id="logoColorCycle"' not in html or html.count('id="logoColorCycle"') != 1:
     raise SystemExit("lite build missing or duplicate logo color cycle")
 if 'lite-palette-media' not in html or 'id="paletteMediaList"' not in html:
     raise SystemExit("lite build missing palette media block")
+
+html = html.replace(
+    '  <div class="hint">Grouped by color family · click preview chips to pick fal colors · double-click chip to cycle prompt color</div>',
+    '  <div class="hint">Grouped by color family · chips = node palette · dust mode applies suggested bg.</div>',
+    1,
+)
+
 export_pos = html.find('  </div>\n\n  <div class="sect">Export Video</div>')
 if export_pos == -1:
     raise SystemExit("lite build missing export section outside lite-hide")
