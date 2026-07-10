@@ -4652,8 +4652,6 @@ function compositePaletteMediaOntoCanvas(ctx, dw, dh) {
     }
 
     maskCtx.clearRect(0, 0, W, H);
-    maskCtx.fillStyle = 'black';
-    maskCtx.fillRect(0, 0, W, H);
     if (!paintUnionMaskForColorOnContext(maskCtx, key)) return;
 
     layerCtx.globalCompositeOperation = 'destination-in';
