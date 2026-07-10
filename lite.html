@@ -4579,8 +4579,51 @@ function drawUnionMaskShapesToContext(mctx, maskShapesG) {
   });
 }
 
+function drawUnionMaskShapeToContext(mctx, p, px, py, particleScale) {
+  const cx = px + p.sz / 2;
+  const cy = py + p.sz / 2;
+  const side = p.sz * particleScale;
+  if (p.shape === 'circle') {
+    mctx.beginPath();
+    mctx.arc(cx, cy, Math.max(0.5, side / 2), 0, Math.PI * 2);
+    mctx.fill();
+    return;
+  }
+  const w = Math.max(0.5, side);
+  const h = Math.max(0.5, side);
+  mctx.fillRect(cx - side / 2, cy - side / 2, w, h);
+}
+
+function paintUnionMaskForColorOnContext(maskCtx, colorKey) {
+  const key = normalizePaletteColorKey(colorKey);
+  const occupied = new Set();
+  let any = false;
+  maskCtx.fillStyle = 'white';
+
+  function visit(p) {
+    if (!p.on) return;
+    if (normalizePaletteColorKey(p.col) !== key) return;
+    const px = p.snapPx != null ? p.snapPx : p.x;
+    const py = p.snapPy != null ? p.snapPy : p.y;
+    if (particleInOverlayClearZones(px, py, p.sz)) return;
+    const node = nodeKey(px, py);
+    if (occupied.has(node)) return;
+    occupied.add(node);
+    const drawScale = p.drawScale != null ? p.drawScale : 1;
+    const animAlpha = clamp01(drawScale);
+    const particleScale = getParticleDrawScale(p, drawScale);
+    if (particleScale < 0.02 || animAlpha < 0.02) return;
+    drawUnionMaskShapeToContext(maskCtx, p, px, py, particleScale);
+    any = true;
+  }
+
+  particles.forEach(p => { if (p.shape === 'rect') visit(p); });
+  particles.forEach(p => { if (p.shape === 'circle') visit(p); });
+  return any;
+}
+
 function compositePaletteMediaOntoCanvas(ctx, dw, dh) {
-  if (!isNodeMediaEnabled() || !paletteMediaLayerMap.size) return;
+  if (!isNodeMediaEnabled() || !hasAnyPaletteMedia()) return;
   const sx = dw / W;
   const sy = dh / H;
   const layerScratch = document.createElement('canvas');
@@ -4592,19 +4635,17 @@ function compositePaletteMediaOntoCanvas(ctx, dw, dh) {
   maskScratch.height = H;
   const maskCtx = maskScratch.getContext('2d');
 
-  paletteMediaLayerMap.forEach((layer, key) => {
+  getActivePaletteColors().forEach(hex => {
+    if (!paletteMediaReadyForColor(hex)) return;
+    const key = normalizePaletteColorKey(hex);
     const slot = getPaletteMedia(key);
     if (!slot || !slot.ready) return;
-    if (slot.type !== 'gif' && !slot.canvas) return;
-    if (!layer.maskShapes || !layer.maskShapes.childNodes.length) return;
 
     layerCtx.clearRect(0, 0, W, H);
     layerCtx.globalCompositeOperation = 'source-over';
-    if (slot.canvas && slot.canvas.width > 0 && slot.canvas.height > 0) {
-      layerCtx.drawImage(slot.canvas, 0, 0);
-    } else if (slot.type === 'gif' && slot.source && slot.source.complete && slot.source.naturalWidth > 0) {
+    if (slot.type === 'gif' && slot.source && slot.source.complete && slot.source.naturalWidth > 0) {
       drawPaletteMediaCover(layerCtx, slot.source, slot.source.naturalWidth, slot.source.naturalHeight);
-    } else if (slot.canvas) {
+    } else if (slot.canvas && slot.canvas.width > 0 && slot.canvas.height > 0) {
       layerCtx.drawImage(slot.canvas, 0, 0);
     } else {
       return;
@@ -4613,8 +4654,7 @@ function compositePaletteMediaOntoCanvas(ctx, dw, dh) {
     maskCtx.clearRect(0, 0, W, H);
     maskCtx.fillStyle = 'black';
     maskCtx.fillRect(0, 0, W, H);
-    maskCtx.fillStyle = 'white';
-    drawUnionMaskShapesToContext(maskCtx, layer.maskShapes);
+    if (!paintUnionMaskForColorOnContext(maskCtx, key)) return;
 
     layerCtx.globalCompositeOperation = 'destination-in';
     layerCtx.drawImage(maskScratch, 0, 0);
@@ -4625,6 +4665,13 @@ function compositePaletteMediaOntoCanvas(ctx, dw, dh) {
     ctx.drawImage(layerScratch, 0, 0);
     ctx.restore();
   });
+}
+
+function stripPaletteMediaFromExportSvgClone(clone) {
+  const clonePaletteRoot = clone.querySelector('#paletteMediaRoot');
+  if (clonePaletteRoot) clonePaletteRoot.replaceChildren();
+  const maskRoot = clone.querySelector('#paletteMediaMasks');
+  if (maskRoot) maskRoot.replaceChildren();
 }
 
 function clearPaletteMedia(colorKey, opts) {
@@ -7966,9 +8013,8 @@ async function renderSvgToCanvas(ctx, svgEl, opts) {
   clone.setAttribute('viewBox', `0 0 ${W} ${H}`);
   clone.setAttribute('xmlns', SVG_NS);
 
+  stripPaletteMediaFromExportSvgClone(clone);
   if (hasPaletteMedia || opts.transparent) {
-    const clonePaletteRoot = clone.querySelector('#paletteMediaRoot');
-    if (clonePaletteRoot) clonePaletteRoot.replaceChildren();
     const cloneBg = clone.querySelector('#svgBg');
     if (cloneBg) cloneBg.setAttribute('fill', 'none');
   }
