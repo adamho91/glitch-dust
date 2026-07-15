@@ -8572,9 +8572,10 @@ async function renderSvgToCanvas(ctx, svgEl, opts) {
   if (hasColorPaletteMedia) {
     const cloneParticleRoot = clone.querySelector('#particleRoot');
     if (cloneParticleRoot) cloneParticleRoot.replaceChildren();
-    const cloneBg = clone.querySelector('#svgBg');
-    if (cloneBg) cloneBg.setAttribute('fill', 'none');
-  } else if (opts.transparent) {
+  }
+  // Background media is already composited on the canvas; keep SVG bg clear so
+  // rasterizing the clone does not paint an opaque rect over the video frames.
+  if (hasColorPaletteMedia || hasBgMedia || opts.transparent) {
     const cloneBg = clone.querySelector('#svgBg');
     if (cloneBg) cloneBg.setAttribute('fill', 'none');
   }
