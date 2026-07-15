@@ -629,7 +629,7 @@
     <label>Preset name</label>
     <input type="text" id="presetName" class="preset-name-input" maxlength="48" placeholder="Preset name">
   </div>
-  <div class="hint">Built-in Default loads on first visit · edits auto-save to the active preset · ⇧1/2/3 switch pages</div>
+  <div class="hint">Built-in Default loads on first visit · edits auto-save to the active preset · ⇧1/2/3/4 switch pages</div>
   </div>
 
   <div class="sect">Aspect ratio</div>
@@ -4678,9 +4678,13 @@ function syncPaletteVideoPreview(slot, progress) {
 }
 
 function syncPaletteMediaForPreview(progress) {
-  if (!isNodeMediaEnabled()) return;
-  paletteMediaMap.forEach(slot => {
-    if (slot.ready && slot.type === 'video') syncPaletteVideoPreview(slot, progress);
+  paletteMediaMap.forEach((slot, key) => {
+    if (!slot || !slot.ready || slot.type !== 'video') return;
+    if (key === BACKGROUND_MEDIA_KEY) {
+      if (hasBackgroundMedia()) syncPaletteVideoPreview(slot, progress);
+      return;
+    }
+    if (isNodeMediaEnabled()) syncPaletteVideoPreview(slot, progress);
   });
 }
 
@@ -4753,19 +4757,32 @@ let paletteMediaFrameSerial = 0;
 
 async function prepareNodeMediaFrameAsync(progress, opts) {
   opts = opts || {};
-  if (!isNodeMediaEnabled()) return;
+  const needBg = hasBackgroundMedia();
+  const needNodes = isNodeMediaEnabled() && hasAnyPaletteMedia();
+  if (!needBg && !needNodes) return;
+
   const serial = ++paletteMediaFrameSerial;
   lastNodeMediaProgress = progress;
 
   const videoSlots = [];
-  paletteMediaMap.forEach(slot => {
-    if (slot.ready && slot.type === 'video') videoSlots.push(slot);
+  paletteMediaMap.forEach((slot, key) => {
+    if (!slot || !slot.ready || slot.type !== 'video') return;
+    if (key === BACKGROUND_MEDIA_KEY) {
+      if (needBg) videoSlots.push(slot);
+      return;
+    }
+    if (needNodes) videoSlots.push(slot);
   });
   await Promise.all(videoSlots.map(slot => syncPaletteMediaVideoTime(slot, progress, opts)));
   if (!opts.forExport && serial !== paletteMediaFrameSerial) return;
 
-  paletteMediaMap.forEach(slot => {
-    if (!slot.ready) return;
+  paletteMediaMap.forEach((slot, key) => {
+    if (!slot || !slot.ready) return;
+    if (key === BACKGROUND_MEDIA_KEY) {
+      if (!needBg) return;
+    } else if (!needNodes) {
+      return;
+    }
     if (!paletteMediaNeedsPaint(slot, opts)) return;
     paintPaletteMediaSource(slot);
     if (!opts.forExport && slot.type === 'image') refreshPaletteMediaDisplayUrl(slot);
@@ -4971,6 +4988,13 @@ function compositeBackgroundMediaOntoCanvas(ctx, dw, dh) {
   layerCtx.globalCompositeOperation = 'source-over';
   if (slot.type === 'gif' && slot.source && slot.source.complete && slot.source.naturalWidth > 0) {
     drawPaletteMediaCover(layerCtx, slot.source, slot.source.naturalWidth, slot.source.naturalHeight);
+  } else if (
+    slot.type === 'video' &&
+    slot.source &&
+    slot.source.readyState >= 2 &&
+    slot.source.videoWidth > 0
+  ) {
+    drawPaletteMediaCover(layerCtx, slot.source, slot.source.videoWidth, slot.source.videoHeight);
   } else if (slot.canvas && slot.canvas.width > 0 && slot.canvas.height > 0) {
     layerCtx.drawImage(slot.canvas, 0, 0);
   } else {
@@ -4978,11 +5002,12 @@ function compositeBackgroundMediaOntoCanvas(ctx, dw, dh) {
   }
 
   maskCtx.clearRect(0, 0, W, H);
-  if (!paintAllParticlesMaskOnContext(maskCtx)) return;
-
-  layerCtx.globalCompositeOperation = 'destination-out';
-  layerCtx.drawImage(maskScratch, 0, 0);
-  layerCtx.globalCompositeOperation = 'source-over';
+  // Inverse mask: cut particles out of the media. With no particles, show full media.
+  if (paintAllParticlesMaskOnContext(maskCtx)) {
+    layerCtx.globalCompositeOperation = 'destination-out';
+    layerCtx.drawImage(maskScratch, 0, 0);
+    layerCtx.globalCompositeOperation = 'source-over';
+  }
 
   ctx.save();
   ctx.scale(sx, sy);
@@ -7085,8 +7110,10 @@ function renderFrameContent(loopProgress, sampleTs, ts, opts) {
 
   if (exportMode) resetParticlesForExportFrame();
 
-  if (hasAnyPaletteMedia() && !(opts && opts.skipPaletteMedia)) {
-    if (!exportMode) syncPaletteMediaForPreview(nodeProgress);
+  if (!(opts && opts.skipPaletteMedia) && !exportMode) {
+    if (hasBackgroundMedia() || (isNodeMediaEnabled() && hasAnyPaletteMedia())) {
+      syncPaletteMediaForPreview(nodeProgress);
+    }
   }
 
   const style = getAnimStyle();
