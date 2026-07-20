@@ -1077,7 +1077,12 @@
       <option value="60">60</option>
     </select>
   </div>
-  <div class="hint">MP4 = H.264 · WebM = preview · GIF = animated loop · use local server if export fails from Dropbox</div>
+  <div class="hint">MP4 = H.264 · WebM = preview · GIF = animated loop · transparent GIF mattes text edges for softer AA</div>
+  <div class="ctrl" id="gifMatteRow">
+    <label for="gifMatteColor">GIF text matte</label>
+    <input type="color" id="gifMatteColor" value="#242424" title="Partial-alpha text edges are blended into this color before 1-bit GIF transparency">
+  </div>
+  <div class="hint">Used only for transparent GIF export · match the color behind the GIF when placed</div>
 
   <div class="action-panel">
     <div class="btn-row action-play">
@@ -3753,7 +3758,12 @@ function updateBgSwatchUi() {
   });
   const row = document.getElementById('bgCustomRow');
   if (row) row.style.display = bgSel.value === 'custom' ? '' : 'none';
-}
+  const gifMatteRow = document.getElementById('gifMatteRow');
+  if (gifMatteRow) gifMatteRow.style.display = bgSel.value === 'transparent' ? '' : 'none';
+  const gifMatteHint = gifMatteRow && gifMatteRow.nextElementSibling;
+  if (gifMatteHint && gifMatteHint.classList.contains('hint')) {
+    gifMatteHint.style.display = bgSel.value === 'transparent' ? '' : 'none';
+  }
 
 function setBgSelection(value, opts) {
   opts = opts || {};
@@ -8388,12 +8398,14 @@ function drawExportSvgTexts(ctx, svgEl) {
 
     ctx.save();
     ctx.transform(ctm.a, ctm.b, ctm.c, ctm.d, ctm.e, ctm.f);
+    ctx.imageSmoothingEnabled = true;
     ctx.font = `${fontWeight} ${fontSize}px "Focal Upright", sans-serif`;
     ctx.fillStyle = fill;
     ctx.globalAlpha *= opacity;
     if (letterSpacing && 'letterSpacing' in ctx) ctx.letterSpacing = `${letterSpacing}px`;
     ctx.textAlign = canvasTextAlignFromSvg(anchor);
     ctx.textBaseline = canvasTextBaselineFromSvg(baseline);
+    if ('textRendering' in ctx) ctx.textRendering = 'optimizeLegibility';
 
     const tspans = [...textEl.children].filter(child => child.localName === 'tspan');
     if (tspans.length) {
@@ -8686,14 +8698,75 @@ function findGifTransparentIndex(palette) {
   return -1;
 }
 
-function encodeGifFrameRgba(rgba, quantize, applyPalette, prequantize, transparent) {
+// GIF only supports binary transparency. Anti-aliased text edges are partial-alpha
+// pixels that get hard-thresholded unless we matte them into opaque RGB first.
+function estimateGifMatteRgb(rgba) {
+  let sumL = 0;
+  let n = 0;
+  for (let i = 0; i < rgba.length; i += 4) {
+    if (rgba[i + 3] < 200) continue;
+    sumL += 0.2126 * rgba[i] + 0.7152 * rgba[i + 1] + 0.0722 * rgba[i + 2];
+    n++;
+  }
+  const avg = n ? sumL / n : 0;
+  // Dark content (black text) → dark matte so fringes read soft on dark placements.
+  // Light content → light matte for light placements.
+  if (avg < 140) return [36, 36, 36];
+  return [220, 220, 220];
+}
+
+function parseGifMatteRgb(value) {
+  if (!value) return null;
+  if (Array.isArray(value) && value.length >= 3) {
+    return [
+      Math.max(0, Math.min(255, value[0] | 0)),
+      Math.max(0, Math.min(255, value[1] | 0)),
+      Math.max(0, Math.min(255, value[2] | 0)),
+    ];
+  }
+  let h = String(value).replace('#', '').trim();
+  if (h.length === 3) h = h.split('').map(c => c + c).join('');
+  if (h.length !== 6) return null;
+  const n = parseInt(h, 16);
+  if (Number.isNaN(n)) return null;
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+function mattePartialAlphaForGif(rgba, matteRgb, dropBelow) {
+  const cutoff = dropBelow == null ? 10 : dropBelow;
+  const mr = matteRgb[0];
+  const mg = matteRgb[1];
+  const mb = matteRgb[2];
+  for (let i = 0; i < rgba.length; i += 4) {
+    const a = rgba[i + 3];
+    if (a === 0 || a === 255) continue;
+    if (a < cutoff) {
+      rgba[i] = 0;
+      rgba[i + 1] = 0;
+      rgba[i + 2] = 0;
+      rgba[i + 3] = 0;
+      continue;
+    }
+    const af = a / 255;
+    const ia = 1 - af;
+    rgba[i] = (rgba[i] * af + mr * ia + 0.5) | 0;
+    rgba[i + 1] = (rgba[i + 1] * af + mg * ia + 0.5) | 0;
+    rgba[i + 2] = (rgba[i + 2] * af + mb * ia + 0.5) | 0;
+    rgba[i + 3] = 255;
+  }
+}
+
+function encodeGifFrameRgba(rgba, quantize, applyPalette, prequantize, transparent, matteRgb) {
   if (!transparent) {
     const palette = quantize(rgba, 256);
     const index = applyPalette(rgba, palette);
     return { palette, index, transparentIndex: -1 };
   }
+  const matte = parseGifMatteRgb(matteRgb) || estimateGifMatteRgb(rgba);
+  mattePartialAlphaForGif(rgba, matte, 10);
   if (prequantize) {
-    prequantize(rgba, { roundRGB: 5, roundAlpha: 10, oneBitAlpha: 127 });
+    // Fringes are now opaque RGB ramps — keep more levels than the old roundRGB:5 crush.
+    prequantize(rgba, { roundRGB: 2, roundAlpha: 1, oneBitAlpha: 127 });
   }
   const quantOpts = {
     format: 'rgba4444',
@@ -8964,6 +9037,8 @@ async function exportVideoGif(fps, cycleMs, totalFrames, canvas, ctx, exportOpts
   const h = canvas.height;
   const frameDelay = Math.max(20, Math.round(1000 / fps));
   const rgba = new Uint8Array(w * h * 4);
+  const matteEl = document.getElementById('gifMatteColor');
+  const matteRgb = transparent && matteEl ? matteEl.value : null;
 
   for (let i = 0; i < totalFrames; i++) {
     if (exportCancelRequested) throw new Error('cancelled');
@@ -8973,7 +9048,9 @@ async function exportVideoGif(fps, cycleMs, totalFrames, canvas, ctx, exportOpts
     await syncPaletteMediaForExport(getNodeLoopProgress(progress));
     await renderSvgToCanvas(ctx, svg, rasterOpts);
     rgba.set(ctx.getImageData(0, 0, w, h).data);
-    const { palette, index, transparentIndex } = encodeGifFrameRgba(rgba, quantize, applyPalette, prequantize, transparent);
+    const { palette, index, transparentIndex } = encodeGifFrameRgba(
+      rgba, quantize, applyPalette, prequantize, transparent, matteRgb
+    );
     const frameOpts = { palette, delay: frameDelay };
     if (i === 0) frameOpts.first = true;
     if (transparent && transparentIndex >= 0) {
