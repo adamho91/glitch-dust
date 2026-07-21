@@ -2193,6 +2193,8 @@ function buildLogoOverlayNode(opts) {
   const group = document.createElementNS(SVG_NS, 'g');
   group.setAttribute('class', 'fal-logo-overlay');
   group.setAttribute('data-logo-style', style);
+  // Root svg uses crispEdges for the particles; re-enable AA for the logo curves.
+  group.setAttribute('shape-rendering', 'geometricPrecision');
   group.setAttribute('transform', 'translate(' + place.x + ',' + place.y + ') scale(' + place.scale + ')');
   appendLogoMarkup(group, style, colors);
   return group;
