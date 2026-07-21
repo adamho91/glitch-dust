@@ -1079,6 +1079,10 @@
   </div>
   <div class="hint">MP4 = H.264 · WebM = preview · GIF = animated loop · transparent GIF uses a Screen Matte (Keylight-style)</div>
   <div id="gifMatteControls">
+    <div class="ctrl-check">
+      <input type="checkbox" id="gifMatteAuto" checked>
+      <label for="gifMatteAuto">Auto matte (light text → light matte)</label>
+    </div>
     <div class="ctrl" id="gifMatteRow">
       <label for="gifMatteColor">GIF matte</label>
       <input type="color" id="gifMatteColor" value="#242424" title="Partial-alpha edges are blended into this color before 1-bit GIF transparency">
@@ -8393,6 +8397,26 @@ function canvasTextBaselineFromSvg(baseline) {
   return 'alphabetic';
 }
 
+// Resolve the effective fill the way SVG rendering does: attribute on the element,
+// then inherited from ancestor groups, then computed style. Falling back straight to
+// black caused white/colored text to export as black whenever fill was inherited.
+function resolveSvgTextFill(textEl) {
+  const isUsable = f => f && f !== 'inherit' && f !== 'currentColor';
+  const own = textEl.getAttribute('fill');
+  if (isUsable(own)) return own;
+  let node = textEl.parentNode;
+  while (node && node.nodeType === 1 && node.localName !== 'svg') {
+    const f = node.getAttribute && node.getAttribute('fill');
+    if (isUsable(f)) return f;
+    node = node.parentNode;
+  }
+  try {
+    const computed = window.getComputedStyle(textEl).fill;
+    if (computed && computed !== 'none') return computed;
+  } catch (e) {}
+  return '#000000';
+}
+
 function drawExportSvgTexts(ctx, svgEl) {
   const texts = svgEl.querySelectorAll('text');
   texts.forEach(textEl => {
@@ -8401,7 +8425,7 @@ function drawExportSvgTexts(ctx, svgEl) {
 
     const fontSize = parseFloat(textEl.getAttribute('font-size') || '16');
     const fontWeight = textEl.getAttribute('font-weight') || '400';
-    const fill = textEl.getAttribute('fill') || '#000000';
+    const fill = resolveSvgTextFill(textEl);
     const anchor = textEl.getAttribute('text-anchor') || 'start';
     const baseline = textEl.getAttribute('dominant-baseline') || 'auto';
     const letterSpacing = parseFloat(textEl.getAttribute('letter-spacing') || '0');
@@ -8782,17 +8806,26 @@ function mattePartialAlphaForGif(rgba, matteRgb) {
 }
 
 function readGifMatteClipOpts() {
+  const autoEl = document.getElementById('gifMatteAuto');
   const matteEl = document.getElementById('gifMatteColor');
   const blackEl = document.getElementById('gifClipBlack');
   const whiteEl = document.getElementById('gifClipWhite');
+  const auto = autoEl ? autoEl.checked : true;
   return {
-    matteRgb: matteEl ? matteEl.value : null,
+    matteRgb: auto ? null : (matteEl ? matteEl.value : null),
     clipBlack: blackEl ? parseInt(blackEl.value, 10) || 0 : 18,
     clipWhite: whiteEl ? parseInt(whiteEl.value, 10) || 255 : 232,
   };
 }
 
 function initGifMatteControls() {
+  const autoEl = document.getElementById('gifMatteAuto');
+  const matteEl = document.getElementById('gifMatteColor');
+  if (autoEl && matteEl) {
+    const syncAuto = () => { matteEl.disabled = autoEl.checked; };
+    autoEl.onchange = syncAuto;
+    syncAuto();
+  }
   const blackEl = document.getElementById('gifClipBlack');
   const whiteEl = document.getElementById('gifClipWhite');
   const blackV = document.getElementById('gifClipBlackV');
