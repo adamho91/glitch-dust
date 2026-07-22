@@ -1081,7 +1081,7 @@
   <div id="gifMatteControls">
     <div class="ctrl-check">
       <input type="checkbox" id="gifMatteAuto" checked>
-      <label for="gifMatteAuto">Auto matte (light text → light matte)</label>
+      <label for="gifMatteAuto">Auto matte (per color — no light halo on dark text)</label>
     </div>
     <div class="ctrl" id="gifMatteRow">
       <label for="gifMatteColor">GIF matte</label>
@@ -1097,7 +1097,7 @@
       <input type="range" id="gifClipWhite" min="140" max="255" value="232" step="1" title="Alphas at or above this become fully opaque">
       <span class="val" id="gifClipWhiteV">232</span>
     </div>
-    <div class="hint">Transparent GIF only · match matte to the color behind the GIF · raise Clip Black / lower Clip White until edges look clean</div>
+    <div class="hint">Transparent GIF only · Auto mattes each edge from its own color · or uncheck and set matte to the color behind the GIF</div>
   </div>
 
   <div class="action-panel">
@@ -8733,20 +8733,14 @@ function findGifTransparentIndex(palette) {
   return -1;
 }
 
-// GIF only supports binary transparency. Anti-aliased text edges are partial-alpha
+// GIF only supports binary transparency. Anti-aliased edges are partial-alpha
 // pixels that get hard-thresholded unless we matte them into opaque RGB first.
-function estimateGifMatteRgb(rgba) {
-  let sumL = 0;
-  let n = 0;
-  for (let i = 0; i < rgba.length; i += 4) {
-    if (rgba[i + 3] < 200) continue;
-    sumL += 0.2126 * rgba[i] + 0.7152 * rgba[i + 1] + 0.0722 * rgba[i + 2];
-    n++;
-  }
-  const avg = n ? sumL / n : 0;
-  // Dark content (black text) → dark matte so fringes read soft on dark placements.
-  // Light content → light matte for light placements.
-  if (avg < 140) return [36, 36, 36];
+function gifMatteForFillRgb(r, g, b) {
+  const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  // Match matte polarity to the fill itself so black/dark glyphs never get a
+  // white halo and light glyphs never get a dark halo — works for every
+  // palette / logo / text color in the same frame (particles don't bias it).
+  if (lum < 140) return [36, 36, 36];
   return [220, 220, 220];
 }
 
@@ -8789,18 +8783,17 @@ function clipGifAlphaMatte(rgba, clipBlack, clipWhite) {
   }
 }
 
+// matteRgb: fixed placement color, or null for per-pixel auto from each fill.
 function mattePartialAlphaForGif(rgba, matteRgb) {
-  const mr = matteRgb[0];
-  const mg = matteRgb[1];
-  const mb = matteRgb[2];
   for (let i = 0; i < rgba.length; i += 4) {
     const a = rgba[i + 3];
     if (a === 0 || a === 255) continue;
+    const m = matteRgb || gifMatteForFillRgb(rgba[i], rgba[i + 1], rgba[i + 2]);
     const af = a / 255;
     const ia = 1 - af;
-    rgba[i] = (rgba[i] * af + mr * ia + 0.5) | 0;
-    rgba[i + 1] = (rgba[i + 1] * af + mg * ia + 0.5) | 0;
-    rgba[i + 2] = (rgba[i + 2] * af + mb * ia + 0.5) | 0;
+    rgba[i] = (rgba[i] * af + m[0] * ia + 0.5) | 0;
+    rgba[i + 1] = (rgba[i + 1] * af + m[1] * ia + 0.5) | 0;
+    rgba[i + 2] = (rgba[i + 2] * af + m[2] * ia + 0.5) | 0;
     rgba[i + 3] = 255;
   }
 }
@@ -8859,7 +8852,8 @@ function encodeGifFrameRgba(rgba, quantize, applyPalette, prequantize, transpare
     return { palette, index, transparentIndex: -1 };
   }
   matteOpts = matteOpts || {};
-  const matte = parseGifMatteRgb(matteOpts.matteRgb) || estimateGifMatteRgb(rgba);
+  // null matte → per-pixel auto from each fill color (black/white/palette all correct).
+  const matte = parseGifMatteRgb(matteOpts.matteRgb);
   const clipBlack = matteOpts.clipBlack != null ? matteOpts.clipBlack : 18;
   const clipWhite = matteOpts.clipWhite != null ? matteOpts.clipWhite : 232;
   clipGifAlphaMatte(rgba, clipBlack, clipWhite);
