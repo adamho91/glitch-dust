@@ -272,6 +272,116 @@
   .ctrl-check { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; padding-left: 2px; }
   .ctrl-check label { color: #999; cursor: pointer; user-select: none; }
   .ctrl-check input { width: 16px; height: 16px; accent-color: #ADFF00; cursor: pointer; flex-shrink: 0; }
+  @media (max-width: 900px) {
+    body { background: #111; }
+    .app { display: flex; flex-direction: column; }
+    .preview-panel {
+      order: 1;
+      min-height: clamp(380px, 68svh, 720px);
+      padding: 10px;
+      overflow: visible;
+      background: #111;
+      border-bottom: 1px solid #2a2a2a;
+    }
+    .preview-wrap {
+      flex: 1;
+      min-height: 320px;
+      border-radius: 8px;
+    }
+    .preview-panel .subtitle {
+      margin-bottom: 8px;
+      font-size: 10px;
+      line-height: 1.3;
+      color: #777;
+    }
+    .sidebar {
+      order: 2;
+      border-right: 0;
+      border-top: 1px solid #2a2a2a;
+      padding: 12px 12px 28px;
+      overflow: visible;
+    }
+  }
+  @media (max-width: 640px) {
+    body { font-size: 12px; }
+    .preview-panel { min-height: clamp(360px, 62svh, 640px); }
+    .preview-wrap { min-height: 280px; }
+    .layout { gap: 2px; }
+    .sect {
+      margin: 18px 0 8px;
+      color: #777;
+      letter-spacing: .1em;
+    }
+    .ctrl {
+      display: grid;
+      grid-template-columns: minmax(86px, 34%) minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 7px;
+      margin-bottom: 6px;
+      padding: 8px;
+      background: #1f1f1f;
+      border: 1px solid #2f2f2f;
+      border-radius: 8px;
+    }
+    .ctrl label {
+      width: auto;
+      font-size: 11px;
+      line-height: 1.2;
+      color: #b5b5b5;
+    }
+    .ctrl input[type=range] { min-width: 0; }
+    .ctrl span.val {
+      min-width: 30px;
+      font-size: 11px;
+      color: #f2f2f2;
+    }
+    .ctrl select,
+    .preset-bar-top select,
+    .preset-name-input,
+    .text-area {
+      min-height: 38px;
+      font-size: 13px;
+      border-radius: 7px;
+    }
+    .ctrl-check {
+      align-items: flex-start;
+      gap: 9px;
+      margin-bottom: 6px;
+      padding: 8px;
+      background: #1f1f1f;
+      border: 1px solid #2f2f2f;
+      border-radius: 8px;
+    }
+    .ctrl-check input { width: 18px; height: 18px; }
+    .ctrl-check label { line-height: 1.3; color: #b5b5b5; }
+    button {
+      min-height: 38px;
+      padding: 9px 12px;
+      border-radius: 7px;
+      font-size: 12px;
+    }
+    .btn-row button,
+    .preset-bar-actions button { flex: 1 1 calc(50% - 4px); }
+    .preset-bar {
+      gap: 8px;
+      padding: 8px;
+      background: #1c1c1c;
+      border: 1px solid #2f2f2f;
+      border-radius: 9px;
+    }
+    .preset-bar-top { gap: 8px; }
+    .tonal-presets { max-height: 220px; }
+    .tonal-preset {
+      min-height: 36px;
+      padding: 7px 9px;
+      border-radius: 7px;
+    }
+    .color-grid,
+    .bg-swatches,
+    .tonal-count { gap: 7px; }
+    .swatch input[type=color],
+    .bg-swatch { width: 34px; height: 34px; }
+  }
   .overlay-text-layer { pointer-events: none; }
   .canvas-text-panel {
     position: absolute;
@@ -629,7 +739,7 @@
     <label>Preset name</label>
     <input type="text" id="presetName" class="preset-name-input" maxlength="48" placeholder="Preset name">
   </div>
-  <div class="hint">Built-in Default loads on first visit · edits auto-save to the active preset · ⇧1/2/3/4 switch pages</div>
+  <div class="hint">Built-in Default loads on first visit · edits auto-save to the active preset · ⇧1/2/3 switch pages</div>
   </div>
 
   <div class="sect">Aspect ratio</div>

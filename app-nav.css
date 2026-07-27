@@ -67,3 +67,34 @@
   width: 100%;
   height: auto;
 }
+
+@media (max-width: 640px) {
+  .app-pages {
+    position: sticky;
+    top: 8px;
+    z-index: 20;
+    gap: 3px;
+    margin-bottom: 12px;
+    padding: 3px;
+    background: rgba(17, 17, 17, 0.94);
+    backdrop-filter: blur(10px);
+    border-color: #333;
+    border-radius: 8px;
+  }
+
+  .app-page-link {
+    min-height: 36px;
+    justify-content: center;
+    padding: 6px 3px;
+    border-radius: 6px;
+  }
+
+  .app-page-key {
+    font-size: 8px;
+    letter-spacing: 0.04em;
+  }
+
+  .app-page-label {
+    font-size: 9px;
+  }
+}
