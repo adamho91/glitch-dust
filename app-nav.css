@@ -69,6 +69,16 @@
 }
 
 @media (max-width: 640px) {
+  .app-brand-wrap {
+    margin-bottom: 8px;
+  }
+
+  .app-brand {
+    width: auto;
+    max-width: 100%;
+    height: 40px;
+  }
+
   .app-pages {
     position: sticky;
     top: 8px;
