@@ -3678,6 +3678,10 @@ function updatePreviewScale() {
   const subtitle = document.querySelector('.preview-panel .subtitle');
   if (!stage || !wrap) return;
   const canvas = stageCanvas || stage;
+  const isMobilePreview = window.matchMedia && window.matchMedia('(max-width: 640px)').matches;
+  const scaleHost = isMobilePreview ? (wrap.parentElement || wrap) : wrap;
+  const hostW = scaleHost.clientWidth || wrap.clientWidth;
+  const hostH = scaleHost.clientHeight || wrap.clientHeight;
 
   const isPortrait = H > W;
   wrap.classList.toggle('portrait', isPortrait);
@@ -3685,9 +3689,9 @@ function updatePreviewScale() {
 
   if (isPortrait) {
     const pad = 32;
-    const availH = Math.max(200, wrap.clientHeight - pad);
-    const availW = Math.max(160, wrap.clientWidth - pad);
-    const scale = Math.min(availW / W, availH / H, 0.48);
+    const availH = Math.max(200, hostH - pad);
+    const availW = Math.max(160, hostW - (isMobilePreview ? 0 : pad));
+    const scale = Math.min(availW / W, availH / H, isMobilePreview ? 1 : 0.48);
     const displayW = Math.max(120, Math.round(W * scale));
     canvas.style.maxWidth = displayW + 'px';
     canvas.style.width = displayW + 'px';
@@ -3695,9 +3699,11 @@ function updatePreviewScale() {
     stage.style.maxWidth = '';
     stage.style.width = '';
   } else {
-    const maxW = Math.min(960, Math.max(200, wrap.clientWidth - 24), Math.round(W * 0.5));
+    const maxW = isMobilePreview
+      ? Math.max(200, Math.round(hostW))
+      : Math.min(960, Math.max(200, wrap.clientWidth - 24), Math.round(W * 0.5));
     canvas.style.maxWidth = maxW + 'px';
-    canvas.style.width = '';
+    canvas.style.width = isMobilePreview ? '100%' : '';
     canvas.style.maxHeight = '';
     stage.style.maxWidth = '';
     stage.style.width = '';
