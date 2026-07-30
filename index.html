@@ -610,6 +610,7 @@
       display: contents;
     }
     .preview-panel {
+      gap: 8px;
       min-height: 0;
       padding-left: 6px;
       padding-right: 6px;
@@ -643,18 +644,19 @@
       background: #181818;
       box-shadow: none;
       backdrop-filter: none;
+      border-radius: 10px;
     }
     .canvas-logo-panel { order: 3; }
     .canvas-panel-head {
-      min-height: 40px;
-      padding: 10px 12px;
+      min-height: 36px;
+      padding: 9px 12px;
     }
     .canvas-panel-toggle {
       width: 28px;
       height: 28px;
       border-radius: 6px;
     }
-    .canvas-panel-body { padding: 0 12px 12px; }
+    .canvas-panel-body { padding: 0 10px 10px; }
     .canvas-text-panel .ctrl,
     .canvas-logo-panel .ctrl {
       display: grid;
@@ -677,7 +679,23 @@
       width: 34px;
       height: 30px;
     }
-    .canvas-text-panel .text-area { min-height: 68px; }
+    .canvas-text-panel .ctrl-check,
+    .canvas-logo-panel .ctrl-check {
+      margin-bottom: 7px;
+      padding: 8px 9px;
+      border-radius: 7px;
+    }
+    .canvas-text-panel .text-area {
+      min-height: 58px;
+      margin-bottom: 8px;
+    }
+    .panel-more-toggle {
+      margin: 6px 0 0;
+      padding: 8px 0 6px;
+    }
+    .canvas-text-panel .canvas-panel-section + .canvas-panel-section {
+      margin-top: 2px;
+    }
     .pin-grid,
     .align-grid,
     .logo-pin-grid {
@@ -689,7 +707,11 @@
       height: 32px;
       border-radius: 5px;
     }
-    #status { order: 4; }
+    #status {
+      order: 4;
+      margin: 2px 0 8px;
+      padding: 0 4px;
+    }
   }
   .dialkit-controls .dial-source {
     position: absolute;
@@ -1040,6 +1062,11 @@
     <label for="bakeInOut">Bake in / out — 0 fills → build → 0 fills</label>
   </div>
   <div class="hint">Catch-all: every style starts empty, waves/oscillates in, holds, then waves out to empty</div>
+  <div class="ctrl-check">
+    <input type="checkbox" id="infiniteLoop">
+    <label for="infiniteLoop">Infinite loop — never diffuse out</label>
+  </div>
+  <div class="hint">For website use: nodes keep flowing endlessly — skips the empty-out and rebuild between loops (overrides Bake in / out)</div>
 
   <div class="sect mode-breathe">Loop Wave</div>
   <div class="ctrl mode-breathe">
@@ -1313,6 +1340,7 @@
       <button id="svgBtn">Copy SVG</button>
       <button id="jsonBtn">Copy Lottie</button>
       <button id="webflowBtn" class="span-2">Copy Webflow embed</button>
+      <button id="specBtn" class="span-2" title="Copy every control's current value + range as JSON, for rebuilding this interaction in another tool">Copy Settings (JSON spec)</button>
     </div>
     <div class="action-group-label">Download</div>
     <div class="btn-grid action-export">
@@ -3773,6 +3801,11 @@ document.getElementById('bakeInOut').onchange = () => {
   drawFrame(performance.now());
   schedulePresetAutosave();
 };
+document.getElementById('infiniteLoop').onchange = () => {
+  updateMedianPreview();
+  drawFrame(performance.now());
+  schedulePresetAutosave();
+};
 document.getElementById('clusterBias').oninput = () => {
   document.getElementById('clusterBiasV').textContent = document.getElementById('clusterBias').value;
   beginCycle();
@@ -5902,13 +5935,21 @@ function isBakeInOut() {
   return document.getElementById('bakeInOut').checked;
 }
 
+function isInfiniteLoop() {
+  return document.getElementById('infiniteLoop').checked;
+}
+
 function getStyleLoopEnvelope(progress) {
+  if (isInfiniteLoop()) return 1;
   return isBakeInOut() ? sampleLoopOpacity(progress) : 1;
 }
 
 function applyTransitionBandRipple(bandScale, progress, p, phase) {
   if (bandScale < 0.03) return bandScale;
   const { isHold } = getLoopTiming(progress);
+  if (isInfiniteLoop()) {
+    return bandScale * (0.92 + 0.08 * Math.sin(phase * 3 + p.gx * 0.4 + p.gy * 0.3));
+  }
   if (isBakeInOut()) {
     if (isHold) {
       return bandScale * (0.92 + 0.08 * Math.sin(phase * 3 + p.gx * 0.4 + p.gy * 0.3));
@@ -5936,6 +5977,7 @@ function getLoopTiming(progress) {
 }
 
 function softenDiffusionForLoop(progress, diffMod) {
+  if (isInfiniteLoop()) return diffMod;
   if (isBakeInOut()) {
     const { isHold } = getLoopTiming(progress);
     if (isHold) return diffMod;
@@ -6455,6 +6497,7 @@ function spawnDataStream() {
 function nodeStagger() { return v('nodeSpread') / 100; }
 
 function breatheEnvelope(progress, p) {
+  if (isInfiniteLoop()) return 1;
   const global = sampleLoopOpacity(progress);
   const useStagger = isBakeInOut() || document.getElementById('loopWave').value === 'breathe';
   if (!useStagger) {
@@ -7179,7 +7222,7 @@ function drawClusterFrame(ts, frameOpts) {
     const diffMod = applyDiffusionWave(p, cols, rows, progress, sz, snap.px, snap.py);
     const loopEnv = getStyleLoopEnvelope(progress);
     p.drawScale = (p.on ? 1 : 0) * diffMod * loopEnv;
-    p.on = p.on && diffMod >= 0.03 ? 1 : 0;
+    if (!isInfiniteLoop()) p.on = p.on && diffMod >= 0.03 ? 1 : 0;
     p.snapPx = snap.px;
     p.snapPy = snap.py;
     applyOverlayTextExclusionToParticle(p, sz);
@@ -7263,6 +7306,14 @@ function resetDustLoop(ts) {
   scheduleNextBeat(ts);
 }
 
+// Infinite loop: revive a share of dimmed nodes at each wrap without touching
+// positions or burst timers, so the loop boundary stays invisible.
+function replenishDustLoop() {
+  particles.forEach(p => {
+    if (!p.on && Math.random() < 0.5) p.on = 1;
+  });
+}
+
 function resetParticlesForExportFrame() {
   particles.forEach(p => {
     p.x = p.baseX;
@@ -7332,7 +7383,10 @@ function drawFrame(ts) {
     scrubActive = false;
     if (ts - cycleStart >= cycleMs) {
       cycleStart = ts;
-      if (getAnimStyle() === 'dust') resetDustLoop(ts);
+      if (getAnimStyle() === 'dust') {
+        if (isInfiniteLoop()) replenishDustLoop();
+        else resetDustLoop(ts);
+      }
     }
     loopProgress = Math.min(1, (ts - cycleStart) / cycleMs);
     sampleTs = ts;
@@ -7755,6 +7809,7 @@ function collectWebflowEmbedConfig() {
     colorWeights: s.colorWeights,
     customWavePoints: s.customWavePoints,
     bakeInOut: s.bakeInOut,
+    infiniteLoop: s.infiniteLoop === true,
     oneMovePerNode: s.oneMovePerNode,
     blanketNodeSpeedEnabled: s.blanketNodeSpeedEnabled,
     blanketNodeSpeed: (s.blanketNodeSpeed || 100) / 100,
@@ -8138,6 +8193,7 @@ function collectSettings() {
     noiseSeed,
     oneMovePerNode: document.getElementById('oneMovePerNode').checked,
     bakeInOut: document.getElementById('bakeInOut').checked,
+    infiniteLoop: document.getElementById('infiniteLoop').checked,
     blanketNodeSpeedEnabled: isBlanketNodeSpeedEnabled(),
     blanketNodeSpeed: Math.round(getBlanketNodeSpeed() * 100),
     blanketTextSpeedEnabled: isBlanketTextSpeedEnabled(),
@@ -8253,6 +8309,7 @@ function applySettings(settings, opts) {
 
   document.getElementById('oneMovePerNode').checked = !!s.oneMovePerNode;
   document.getElementById('bakeInOut').checked = s.bakeInOut !== false;
+  document.getElementById('infiniteLoop').checked = s.infiniteLoop === true;
   const legacyBlanket = s.blanketAnimSpeedEnabled === true;
   const legacySpeed = s.blanketAnimSpeed != null ? s.blanketAnimSpeed : 100;
   document.getElementById('blanketNodeSpeedEnabled').checked =
@@ -9646,6 +9703,69 @@ document.getElementById('webflowBtn').onclick = async () => {
     if (status) status.textContent = 'Webflow embed copied (' + formatWebflowEmbedSize(html, config) + ').';
   } catch (err) {
     if (status) status.textContent = 'Webflow copy failed — ' + (err?.message || 'try a local server.');
+    console.error(err);
+  }
+};
+
+function describeControlLabel(el) {
+  if (el.id) {
+    const forLabel = document.querySelector(`label[for="${el.id}"]`);
+    if (forLabel) return forLabel.textContent.trim();
+  }
+  const row = el.closest('.ctrl, .ctrl-check');
+  const label = row ? row.querySelector('label') : null;
+  return label ? label.textContent.trim() : '';
+}
+
+// Full snapshot of every UI control (value + range + label) plus the semantic
+// settings object, so the current interaction can be rebuilt in another tool.
+function collectInteractionSpec() {
+  const controls = {};
+  document.querySelectorAll('input[id], select[id], textarea[id]').forEach(el => {
+    if (el.type === 'file' || el.type === 'hidden' || el.readOnly) return;
+    if (el.closest('.preset-bar') || el.id.startsWith('preset')) return;
+    const entry = {
+      control: el.tagName === 'SELECT' ? 'select' : el.tagName === 'TEXTAREA' ? 'textarea' : el.type,
+      label: describeControlLabel(el),
+      value: el.type === 'checkbox' ? el.checked : el.value,
+    };
+    if (el.type === 'range' || el.type === 'number') {
+      if (el.min !== '') entry.min = parseFloat(el.min);
+      if (el.max !== '') entry.max = parseFloat(el.max);
+      if (el.step !== '') entry.step = parseFloat(el.step);
+    }
+    if (el.tagName === 'SELECT') entry.options = [...el.options].map(o => o.value);
+    controls[el.id] = entry;
+  });
+  return {
+    _readme: 'fal Glitch Dust interaction spec. "controls" maps every UI control id to its current value, allowed range, and human label. "settings" is the semantic preset object (palette, overlay text/prompt/logo, wave points). "webflowConfig" is the exact config consumed by the standalone embed runtime — paste this whole spec into Glitch Dust Maxi to rebuild the pattern. Key groups: canvas + background, animation style, loop envelope (bakeInOut / infiniteLoop / waveBuild / waveFade / env curves), diffusion wave (sweepDepth, waveRipples, diffusionSoft, glitchShift, sweepAxis, oneMovePerNode), cluster physics (speed, burst, staccato, clusterN, pixAmt, pixSize), blanket speeds. Loop: progress = elapsed / duration; when infiniteLoop is true the field never fades out and dust physics never resets.',
+    tool: 'fal-glitch-dust',
+    page: location.pathname.split('/').pop() || 'index.html',
+    exportedAt: new Date().toISOString(),
+    canvas: { width: W, height: H, background: getBg() },
+    animStyle: getAnimStyle(),
+    loop: {
+      durationSec: getAnimDurationMs() / 1000,
+      fps: parseInt(document.getElementById('exportFps').value, 10) || 30,
+      bakeInOut: isBakeInOut(),
+      infiniteLoop: isInfiniteLoop(),
+    },
+    controls,
+    settings: collectSettings(),
+    webflowConfig: collectWebflowEmbedConfig(),
+  };
+}
+
+document.getElementById('specBtn').onclick = async () => {
+  const status = document.getElementById('status');
+  try {
+    const spec = collectInteractionSpec();
+    const text = JSON.stringify(spec, null, 2);
+    await navigator.clipboard.writeText(text);
+    const kb = (new Blob([text]).size / 1024).toFixed(1);
+    if (status) status.textContent = `Settings spec copied — ${Object.keys(spec.controls).length} controls, ${kb} KB JSON.`;
+  } catch (err) {
+    if (status) status.textContent = 'Settings copy failed — ' + (err?.message || 'clipboard unavailable.');
     console.error(err);
   }
 };
