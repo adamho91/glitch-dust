@@ -1904,6 +1904,32 @@ function measureLineWidths(lines, fontSize, fontWeight, trackingEm) {
   });
 }
 
+// Distance from the 'hanging' baseline to the alphabetic baseline, measured
+// from the browser's own rendering. Lets <text> sit on the universally
+// supported alphabetic baseline (Figma/Illustrator ignore dominant-baseline,
+// which shifted pasted SVG type off its boxes) with zero visual change.
+const hangingOffsetCache = new Map();
+function hangingBaselineOffset(fontSize, fontWeight) {
+  const key = fontWeight + '/' + fontSize;
+  if (hangingOffsetCache.has(key)) return hangingOffsetCache.get(key);
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  let delta = fontSize * 0.8;
+  if (ctx) {
+    const font = fontWeight + ' ' + fontSize + 'px "Focal Upright", sans-serif';
+    ctx.font = font;
+    ctx.textBaseline = 'alphabetic';
+    const a = ctx.measureText('Hgj').actualBoundingBoxAscent;
+    ctx.textBaseline = 'hanging';
+    const h = ctx.measureText('Hgj').actualBoundingBoxAscent;
+    if (isFinite(a) && isFinite(h)) delta = a - h;
+    // Don't cache values measured against a fallback font.
+    if (document.fonts && !document.fonts.check(font)) return delta;
+  }
+  hangingOffsetCache.set(key, delta);
+  return delta;
+}
+
 function measureTextInkMetrics(lines, fontSize, fontWeight, trackingEm, lineHeight) {
   const lineWidths = measureLineWidths(lines, fontSize, fontWeight, trackingEm);
   const maxW = lineWidths.length ? Math.max(...lineWidths) : 0;
@@ -3200,9 +3226,8 @@ function renderPromptRaggedLayout(frame, layout, style) {
 
         const textEl = document.createElementNS(SVG_NS, 'text');
         textEl.setAttribute('x', String(x + pad));
-        textEl.setAttribute('y', String(item.y + pad));
+        textEl.setAttribute('y', String(item.y + pad + hangingBaselineOffset(fontSize, fontWeight)));
         textEl.setAttribute('text-anchor', 'start');
-        textEl.setAttribute('dominant-baseline', 'hanging');
         textEl.setAttribute('font-family', "'Focal Upright', sans-serif");
         textEl.setAttribute('font-size', String(fontSize));
         textEl.setAttribute('font-weight', String(fontWeight));
@@ -3495,7 +3520,6 @@ function buildOverlayTextNodes(visibleText, opts) {
   textEl.setAttribute('x', '0');
   textEl.setAttribute('y', '0');
   textEl.setAttribute('text-anchor', svgTextAnchorForAlign(align));
-  textEl.setAttribute('dominant-baseline', 'hanging');
   textEl.setAttribute('font-family', "'Focal Upright', sans-serif");
   textEl.setAttribute('font-size', String(fontSize));
   textEl.setAttribute('font-weight', String(fontWeight));
@@ -3507,7 +3531,7 @@ function buildOverlayTextNodes(visibleText, opts) {
   lines.forEach((line, i) => {
     const tspan = document.createElementNS(SVG_NS, 'tspan');
     tspan.setAttribute('x', String(alignX));
-    if (i === 0) tspan.setAttribute('y', '0');
+    if (i === 0) tspan.setAttribute('y', String(hangingBaselineOffset(fontSize, fontWeight)));
     else tspan.setAttribute('dy', String(lineHeight));
     tspan.textContent = line || '\u00a0';
     textEl.appendChild(tspan);
@@ -9687,10 +9711,32 @@ bindVideoExportButton('mp4ExportBtn', 'mp4');
 bindVideoExportButton('webmExportBtn', 'webm');
 bindVideoExportButton('gifExportBtn', 'gif');
 
-document.getElementById('svgBtn').onclick = () => {
+document.getElementById('svgBtn').onclick = async () => {
+  const status = document.getElementById('status');
   syncOverlayClearZones(getTextLoopProgress(lastRenderProgress));
-  const s = buildSvgString({ responsive: false });
-  navigator.clipboard.writeText(s).then(() => { document.getElementById('status').textContent = 'SVG copied (full 1920×1080).'; });
+  let s = buildSvgString({ responsive: false });
+  let fontNote = '';
+  // Overlay/prompt text needs Focal Upright embedded, otherwise the pasted
+  // SVG falls back to another font and the type drifts off its boxes.
+  if (s.includes('<text')) {
+    try {
+      const dataUrl = await ensureExportFontsReady();
+      const fontDefs =
+        "<defs><style>@font-face{font-family:'Focal Upright';src:url('" + dataUrl +
+        "') format('truetype');font-weight:100 900;font-style:normal;}</style></defs>";
+      s = s.replace(/<svg[^>]*>/, m => m + fontDefs);
+      fontNote = ', Focal embedded';
+    } catch (e) {
+      fontNote = ', font embed failed — text may fall back';
+      console.warn('SVG copy: font embed failed', e);
+    }
+  }
+  try {
+    await navigator.clipboard.writeText(s);
+    status.textContent = `SVG copied (full ${W}×${H}${fontNote}).`;
+  } catch (e) {
+    status.textContent = 'SVG copy failed — ' + (e?.message || 'clipboard blocked.');
+  }
 };
 
 document.getElementById('webflowBtn').onclick = async () => {
