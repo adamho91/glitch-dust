@@ -949,6 +949,37 @@
     <span class="val" id="squarePctV">50</span>
   </div>
   <div class="hint">Shape mix + density map for all grid modes · 0 center bias = even</div>
+  <div class="ctrl">
+    <label>Fade anchor</label>
+    <div class="pin-grid" id="fadeDirGrid" role="radiogroup" aria-label="Density fade anchor">
+      <button type="button" class="pin-btn" data-dir="top-left" title="Dense top left" aria-label="Dense top left"><svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.25"/><circle cx="4.5" cy="4.5" r="1.75" fill="currentColor"/></svg></button>
+      <button type="button" class="pin-btn" data-dir="top" title="Dense top" aria-label="Dense top"><svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.25"/><circle cx="8" cy="4.5" r="1.75" fill="currentColor"/></svg></button>
+      <button type="button" class="pin-btn" data-dir="top-right" title="Dense top right" aria-label="Dense top right"><svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.25"/><circle cx="11.5" cy="4.5" r="1.75" fill="currentColor"/></svg></button>
+      <button type="button" class="pin-btn" data-dir="left" title="Dense left" aria-label="Dense left"><svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.25"/><circle cx="4.5" cy="8" r="1.75" fill="currentColor"/></svg></button>
+      <button type="button" class="pin-btn active" data-dir="off" title="Off — even density" aria-label="Off — even density"><svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.25"/><path d="M5.5 5.5l5 5M10.5 5.5l-5 5" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/></svg></button>
+      <button type="button" class="pin-btn" data-dir="right" title="Dense right" aria-label="Dense right"><svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.25"/><circle cx="11.5" cy="8" r="1.75" fill="currentColor"/></svg></button>
+      <button type="button" class="pin-btn" data-dir="bottom-left" title="Dense bottom left" aria-label="Dense bottom left"><svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.25"/><circle cx="4.5" cy="11.5" r="1.75" fill="currentColor"/></svg></button>
+      <button type="button" class="pin-btn" data-dir="bottom" title="Dense bottom" aria-label="Dense bottom"><svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.25"/><circle cx="8" cy="11.5" r="1.75" fill="currentColor"/></svg></button>
+      <button type="button" class="pin-btn" data-dir="bottom-right" title="Dense bottom right" aria-label="Dense bottom right"><svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.25"/><circle cx="11.5" cy="11.5" r="1.75" fill="currentColor"/></svg></button>
+    </div>
+    <select id="fadeDir" style="display:none" aria-hidden="true" tabindex="-1">
+      <option value="off" selected>off</option>
+      <option value="top-left">top-left</option>
+      <option value="top">top</option>
+      <option value="top-right">top-right</option>
+      <option value="left">left</option>
+      <option value="right">right</option>
+      <option value="bottom-left">bottom-left</option>
+      <option value="bottom">bottom</option>
+      <option value="bottom-right">bottom-right</option>
+    </select>
+  </div>
+  <div class="ctrl">
+    <label>Fade strength</label>
+    <input type="range" id="fadeStrength" min="0" max="100" value="100" step="1">
+    <span class="val" id="fadeStrengthV">100</span>
+  </div>
+  <div class="hint">Nodes are densest at the anchor and dissolve to none toward the opposite side — for website headers with no hard edge · × = off</div>
 
   <div class="sect mode-dust">Glitch Dust Shape</div>
 
@@ -3753,7 +3784,7 @@ document.getElementById('presetStory').onclick  = () => setPreset(1080, 1920);
 const sliderMap = {
   pixSize:'pixSizeV', shapeMin:'shapeMinV', shapeMax:'shapeMaxV', megaRarity:'megaRarityV',
   clusterDensity:'clusterDensityV', cornerFocus:'cornerFocusV', centerBias:'centerBiasV',
-  circlePct:'circlePctV', squarePct:'squarePctV',
+  circlePct:'circlePctV', squarePct:'squarePctV', fadeStrength:'fadeStrengthV',
   pixAmt:'pixAmtV', scatter:'scatterV', clusterN:'clusterNV', clusterBias:'clusterBiasV',
   branchLen:'branchLenV', branchSplit:'branchSplitV',
   axisBias:'axisBiasV', speed:'speedV', staccato:'staccatoV',
@@ -3778,7 +3809,7 @@ Object.keys(sliderMap).forEach(id => {
       updateMedianPreview();
       drawFrame(performance.now());
       schedulePresetAutosave();
-    } else if (['clusterDensity', 'cornerFocus', 'centerBias', 'circlePct', 'squarePct', 'megaRarity'].includes(id)) {
+    } else if (['clusterDensity', 'cornerFocus', 'centerBias', 'circlePct', 'squarePct', 'megaRarity', 'fadeStrength'].includes(id)) {
       beginCycle();
     } else {
       schedulePresetAutosave();
@@ -3812,6 +3843,25 @@ document.getElementById('cornerSpread').oninput = () => {
 document.getElementById('sweepAxis').onchange = () => {
   updateMedianPreview();
   drawFrame(performance.now());
+  schedulePresetAutosave();
+};
+function syncFadeDirUi() {
+  const dir = getFadeDir();
+  document.querySelectorAll('#fadeDirGrid .pin-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.dir === dir);
+  });
+}
+document.querySelectorAll('#fadeDirGrid .pin-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.getElementById('fadeDir').value = btn.dataset.dir;
+    syncFadeDirUi();
+    beginCycle();
+    schedulePresetAutosave();
+  });
+});
+document.getElementById('fadeDir').onchange = () => {
+  syncFadeDirUi();
+  beginCycle();
   schedulePresetAutosave();
 };
 document.getElementById('oneMovePerNode').onchange = () => {
@@ -5759,6 +5809,47 @@ function pickNodeShape(gx, gy, salt) {
   return h < cir / total ? 'circle' : 'rect';
 }
 
+function getFadeDir() {
+  const el = document.getElementById('fadeDir');
+  return el ? el.value : 'off';
+}
+
+// Directional fade: keep-probability factor for a node at normalized canvas
+// position (nx, ny). dir names the anchor (densest side); density falls off
+// smoothly toward the opposite side and reaches ~0 there at full strength.
+// Corners use a diagonal gradient. Returns 1 when off, so no regression.
+function fadeBiasKeepFactor(nx, ny, dir, strength) {
+  if (!dir || dir === 'off' || !(strength > 0)) return 1;
+  let t; // 0 at the anchor side, 1 at the far side
+  switch (dir) {
+    case 'left': t = nx; break;
+    case 'right': t = 1 - nx; break;
+    case 'top': t = ny; break;
+    case 'bottom': t = 1 - ny; break;
+    case 'top-left': t = (nx + ny) / 2; break;
+    case 'top-right': t = ((1 - nx) + ny) / 2; break;
+    case 'bottom-left': t = (nx + (1 - ny)) / 2; break;
+    case 'bottom-right': t = ((1 - nx) + (1 - ny)) / 2; break;
+    default: return 1;
+  }
+  const u = clamp01(1 - t);
+  const smooth = u * u * (3 - 2 * u);
+  return lerp(1, smooth, clamp01(strength));
+}
+
+function fadeFactorGrid(gx, gy, cols, rows) {
+  return fadeBiasKeepFactor(
+    gx / Math.max(1, cols - 1),
+    gy / Math.max(1, rows - 1),
+    getFadeDir(),
+    v('fadeStrength') / 100
+  );
+}
+
+function fadeFactorAtPx(x, y) {
+  return fadeBiasKeepFactor(x / Math.max(1, W), y / Math.max(1, H), getFadeDir(), v('fadeStrength') / 100);
+}
+
 function cellDensityMultiplier(gx, gy, cols, rows) {
   const nx = gx / Math.max(1, cols - 1);
   const ny = gy / Math.max(1, rows - 1);
@@ -5777,7 +5868,7 @@ function cellDensityMultiplier(gx, gy, cols, rows) {
     const d = Math.hypot(nx - 0.5, ny - 0.5) * 2;
     m *= lerp(1, 1.55 - d * 0.75, centerB);
   }
-  return Math.max(0.04, m);
+  return Math.max(0.04, m) * fadeFactorGrid(gx, gy, cols, rows);
 }
 
 function shouldSpawnCell(gx, gy, cols, rows, noiseVal) {
@@ -7027,6 +7118,8 @@ function spawnClusters() {
   const maxCellsPerCluster = Math.max(2, Math.round(clusterBudget / nc) * 2);
 
   function addParticle(bx, by, props) {
+    const ff = fadeFactorAtPx(bx, by);
+    if (ff < 1 && Math.random() >= ff) return false;
     const key = nodeKey(bx, by);
     if (occupied.has(key)) return false;
     occupied.add(key);
@@ -8102,7 +8195,7 @@ function setExportModal(open, pct, msg, frame) {
   }
 }
 
-const SETTING_SELECTS = ['animStyle', 'bgSel', 'loopWave', 'envInCurve', 'envOutCurve', 'pulseCurve', 'sweepAxis', 'circleNodes'];
+const SETTING_SELECTS = ['animStyle', 'bgSel', 'loopWave', 'envInCurve', 'envOutCurve', 'pulseCurve', 'sweepAxis', 'circleNodes', 'fadeDir'];
 
 function cloneSettings(obj) {
   return JSON.parse(JSON.stringify(obj));
@@ -8324,6 +8417,14 @@ function applySettings(settings, opts) {
   if (s.selects.bgSel === 'custom' && s.selects.bgCustom) {
     document.getElementById('bgCustom').value = s.selects.bgCustom;
   }
+  // Directional fade predates some presets — fall back to off/default so an
+  // old preset can't inherit the previous pattern's fade.
+  if (s.selects.fadeDir == null) document.getElementById('fadeDir').value = 'off';
+  if (s.sliders.fadeStrength == null) {
+    document.getElementById('fadeStrength').value = '100';
+    document.getElementById('fadeStrengthV').textContent = '100';
+  }
+  syncFadeDirUi();
   updateBgSwatchUi();
 
   document.querySelectorAll('#megaTiers button').forEach(btn => {
@@ -9719,6 +9820,13 @@ document.getElementById('svgBtn').onclick = async () => {
   // Overlay/prompt text needs Focal Upright embedded, otherwise the pasted
   // SVG falls back to another font and the type drifts off its boxes.
   if (s.includes('<text')) {
+    // Figma/Illustrator ignore embedded @font-face and match installed fonts
+    // by name. 'Focal Upright' is only this app's internal alias (the family
+    // inside the file is 'Focal'), so they substituted a random cut — often
+    // an italic. Lead with the real family name and pin the style upright;
+    // browsers without Focal installed still fall through to the embedded one.
+    s = s.replace(/font-family="'Focal Upright', sans-serif"/g,
+      'font-family="Focal, \'Focal Upright\', sans-serif" font-style="normal"');
     try {
       const dataUrl = await ensureExportFontsReady();
       const fontDefs =
