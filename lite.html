@@ -9291,10 +9291,10 @@ function encodeGifFrameRgba(rgba, quantize, applyPalette, prequantize, transpare
   const clipWhite = matteOpts.clipWhite != null ? matteOpts.clipWhite : 232;
   clipGifAlphaMatte(rgba, clipBlack, clipWhite);
   mattePartialAlphaForGif(rgba, matte);
-  if (prequantize) {
-    // Fringes are now opaque RGB ramps — keep more levels than the old roundRGB:5 crush.
-    prequantize(rgba, { roundRGB: 2, roundAlpha: 1, oneBitAlpha: 127 });
-  }
+  // No prequantize pass: gifenc's prequantize writes Math.round(v/round)*round
+  // into the Uint8Array, so saturated 255 channels wrap to 0 (#ADFF00 → #AE0001,
+  // white → black). The matte above already made fringes opaque and the
+  // rgba4444 quantize below does its own binning, so it adds nothing anyway.
   const quantOpts = {
     format: 'rgba4444',
     oneBitAlpha: 127,
