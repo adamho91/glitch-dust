@@ -6587,7 +6587,9 @@ function mountParticleElements(useGlow) {
 
   particles.forEach((p) => {
     const el = document.createElementNS(SVG_NS, p.shape === 'circle' ? 'circle' : 'rect');
-    el.setAttribute('shape-rendering', 'crispEdges');
+    // Root svg uses crispEdges for the square grid; circles need AA or their
+    // curved edges rasterize stair-stepped in preview and every export.
+    el.setAttribute('shape-rendering', p.shape === 'circle' ? 'geometricPrecision' : 'crispEdges');
     p.el = el;
     particleRoot.appendChild(p.el);
   });
@@ -6927,7 +6929,7 @@ function updateMedianPreview() {
       el.setAttribute('cy', cy);
       el.setAttribute('r', Math.max(0.5, (p.sz / 2) * s));
       el.setAttribute('fill', p.col);
-      el.setAttribute('shape-rendering', 'crispEdges');
+      el.setAttribute('shape-rendering', 'geometricPrecision');
       frag.appendChild(el);
     } else {
       const el = document.createElementNS(SVG_NS, 'rect');
@@ -7833,7 +7835,7 @@ function buildPaletteBlendOverlayMarkup(p, px, py, particleScale, animAlpha, ble
   const opacity = blend * animAlpha;
   if (p.shape === 'circle') {
     const r = Math.max(0.5, (p.sz / 2) * particleScale);
-    return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${p.col}" opacity="${opacity}" shape-rendering="crispEdges"/>`;
+    return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${p.col}" opacity="${opacity}" shape-rendering="geometricPrecision"/>`;
   }
   const side = p.sz * particleScale;
   return `<rect x="${cx - side / 2}" y="${cy - side / 2}" width="${Math.max(0.5, side)}" height="${Math.max(0.5, side)}" fill="${p.col}" opacity="${opacity}" shape-rendering="crispEdges"/>`;
@@ -7940,7 +7942,7 @@ function buildSvgString(opts) {
     const cy = py + p.sz / 2;
     if (p.shape === 'circle') {
       const r = Math.max(0.5, (p.sz / 2) * scale);
-      particleMarkup += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${p.col}" shape-rendering="crispEdges"/>`;
+      particleMarkup += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${p.col}" shape-rendering="geometricPrecision"/>`;
     } else {
       const side = p.sz * scale;
       particleMarkup += `<rect x="${cx - side / 2}" y="${cy - side / 2}" width="${Math.max(1, side)}" height="${Math.max(1, side)}" fill="${p.col}" shape-rendering="crispEdges"/>`;
