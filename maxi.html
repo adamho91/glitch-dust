@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>fal — Glitch Dust Maxi</title>
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body { background: #1a1a1a; color: #ccc; font-size: 13px; min-height: 100vh; overflow: hidden; font-family: system-ui, -apple-system, sans-serif; }
+  .app { display: grid; grid-template-columns: minmax(320px, 420px) 1fr; height: 100vh; }
+  .sidebar { overflow-y: auto; padding: 16px 16px 32px; border-right: 1px solid #2a2a2a; background: #161616; }
+  .preview-panel { display: flex; flex-direction: column; padding: 16px 20px; min-width: 0; min-height: 0; overflow: hidden; }
+  .subtitle { font-size: 11px; color: #666; margin-bottom: 12px; flex-shrink: 0; }
+  .sect { font-size: 10px; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: .08em; margin: 16px 0 8px; }
+  .sect:first-of-type { margin-top: 0; }
+  .ctrl { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+  .ctrl label { width: 96px; flex-shrink: 0; color: #999; }
+  .ctrl select { flex: 1; background: #2a2a2a; border: 1px solid #3a3a3a; color: #eee; border-radius: 4px; padding: 4px 6px; font-size: 12px; }
+  .ctrl-check { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; padding-left: 2px; }
+  .ctrl-check label { color: #999; cursor: pointer; user-select: none; }
+  .ctrl-check input { width: 16px; height: 16px; accent-color: #ADFF00; cursor: pointer; flex-shrink: 0; }
+  .text-area {
+    width: 100%; min-height: 110px; resize: vertical;
+    background: #222; border: 1px solid #3a3a3a; border-radius: 5px;
+    color: #eee; padding: 8px 10px; font-size: 11px; line-height: 1.35;
+    font-family: ui-monospace, Menlo, monospace; margin-bottom: 8px;
+  }
+  .text-area:focus { outline: none; border-color: var(--ui-accent); }
+  button { background: #2a2a2a; border: 1px solid #3a3a3a; color: #ccc; border-radius: 5px; padding: 7px 14px; font-size: 12px; cursor: pointer; transition: background 0.15s, color 0.15s; }
+  button:hover { background: #3a3a3a; color: #eee; }
+  button:active { background: #444; }
+  button.primary { border-color: var(--ui-accent); color: var(--ui-accent-light); }
+  button.primary:hover { background: var(--ui-accent-a22); }
+  button.danger { border-color: #5a2020; color: #f88; }
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+  .hint { color: #555; font-size: 11px; line-height: 1.45; margin-top: 6px; }
+  .spec-summary {
+    border: 1px solid #2d2d2d; border-radius: 8px; background: #1c1c1c;
+    padding: 10px 12px; margin-bottom: 8px; font-size: 12px; line-height: 1.7; color: #aaa;
+  }
+  .spec-summary b { color: #eee; font-weight: 600; }
+  .spec-summary .chips { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+  .spec-summary .chip { width: 18px; height: 18px; border-radius: 3px; border: 1px solid rgba(255,255,255,0.18); }
+  #status { font-size: 11px; color: #888; margin-top: 10px; min-height: 28px; flex-shrink: 0; line-height: 1.4; }
+
+  .container-presets { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 8px; }
+  .container-presets button { padding: 6px 9px; font-size: 11px; }
+
+  .bg-swatches { display: flex; gap: 5px; align-items: center; flex: 1; flex-wrap: wrap; }
+  .bg-swatches button { width: 22px; height: 22px; padding: 0; border-radius: 4px; border: 1px solid #4a4a4a; cursor: pointer; }
+  .bg-swatches button.checker {
+    background-image: linear-gradient(45deg, #333 25%, transparent 25%, transparent 75%, #333 75%),
+                      linear-gradient(45deg, #333 25%, #555 25%, #555 75%, #333 75%);
+    background-size: 8px 8px; background-position: 0 0, 4px 4px;
+  }
+  .bg-swatches input[type=color] { width: 26px; height: 24px; padding: 0; border: 1px solid #4a4a4a; border-radius: 4px; background: #222; cursor: pointer; }
+
+  .media-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+  .media-row .media-swatch { width: 22px; height: 22px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.18); flex-shrink: 0; }
+  .media-row input[type=file] { display: none; }
+  .media-row .media-pick { padding: 5px 9px; font-size: 11px; flex-shrink: 0; }
+  .media-row .media-url {
+    flex: 1; min-width: 0; background: #222; border: 1px solid #3a3a3a; border-radius: 4px;
+    color: #eee; padding: 5px 7px; font-size: 11px; font-family: ui-monospace, Menlo, monospace;
+  }
+  .media-row .media-url:focus { outline: none; border-color: var(--ui-accent); }
+  .media-row .media-clear { padding: 5px 8px; font-size: 11px; flex-shrink: 0; }
+  .media-row .media-name {
+    max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-size: 10px; color: #7a9a2a; flex-shrink: 0;
+  }
+
+  /* Preview: a resizable "Webflow container" sitting on a checkerboard */
+  .preview-wrap {
+    flex: 1; min-height: 0; overflow: auto; border: 1px solid #333; border-radius: 6px;
+    background: #111; padding: 28px; position: relative;
+    background-image: linear-gradient(45deg, #181818 25%, transparent 25%, transparent 75%, #181818 75%),
+                      linear-gradient(45deg, #181818 25%, transparent 25%, transparent 75%, #181818 75%);
+    background-size: 20px 20px; background-position: 0 0, 10px 10px;
+  }
+  .demo-container {
+    position: relative; width: 100%; max-width: 100%; height: 420px;
+    min-width: 160px; min-height: 90px;
+    border: 1px dashed #4a4a4a; border-radius: 4px; overflow: hidden;
+    resize: both; background: transparent;
+  }
+  .demo-container::after {
+    content: 'your Webflow container — drag corner to resize';
+    position: absolute; right: 8px; bottom: 6px; z-index: 4;
+    font-size: 9px; letter-spacing: .05em; color: rgba(255,255,255,0.45);
+    background: rgba(0,0,0,0.45); padding: 2px 6px; border-radius: 3px; pointer-events: none;
+  }
+  .embed-host { position: absolute; inset: 0; overflow: hidden; line-height: 0; }
+  .container-size-label { font-size: 10px; color: #555; margin-top: 6px; }
+</style>
+<link rel="stylesheet" href="ui-theme.css">
+<link rel="stylesheet" href="app-nav.css">
+<script src="app-nav.js" defer></script>
+</head>
+<body>
+<div class="app">
+<aside class="sidebar">
+<div class="app-brand-wrap">
+  <img class="app-brand" src="assets/app-brand.svg" alt="fal Glitch Dust" width="562" height="175">
+</div>
+
+<div class="sect">Glitch Dust Maxi</div>
+<div class="hint" style="margin:0 0 12px">
+  Silo one pattern: in Glitch Dust or Lite, click <b>Copy Settings (JSON spec)</b>, paste it below, and export a Webflow embed that fills whatever container you drop it into.
+</div>
+
+<div class="sect">1 · Import pattern</div>
+<textarea id="specInput" class="text-area" spellcheck="false" placeholder='Paste the JSON from "Copy Settings (JSON spec)" here…'></textarea>
+<div class="btn-row">
+  <button type="button" class="primary" id="loadBtn">Load pattern</button>
+  <button type="button" id="pasteBtn">Paste from clipboard</button>
+  <button type="button" class="danger" id="clearBtn">Clear</button>
+</div>
+<div id="specSummary" class="spec-summary" style="display:none"></div>
+
+<div class="sect">2 · Container fill</div>
+<div class="ctrl">
+  <label for="fitMode">Fit</label>
+  <select id="fitMode">
+    <option value="cover" selected>Cover — fill container, crop overflow</option>
+    <option value="contain">Contain — fit inside, letterbox</option>
+    <option value="stretch">Stretch — distort to exact container</option>
+    <option value="adapt">Adapt — regenerate pattern at container size</option>
+    <option value="natural">Natural — full width, own height</option>
+  </select>
+</div>
+<div class="ctrl-check">
+  <input type="checkbox" id="padRespect" checked>
+  <label for="padRespect">Respect container padding (embed insets by the parent's padding)</label>
+</div>
+<div class="ctrl-check">
+  <input type="checkbox" id="transparentBg">
+  <label for="transparentBg">Transparent background (pattern only, page shows through)</label>
+</div>
+<div class="ctrl-check">
+  <input type="checkbox" id="forceInfinite">
+  <label for="forceInfinite">Infinite loop (never diffuse out)</label>
+</div>
+<div class="hint">Cover / Contain / Stretch make the embed fill 100% of its parent — in Webflow set the parent element to <b>position: relative</b> with a real height. Adapt rebuilds the pattern at the container's exact size (no cropping, re-generates on resize). Natural behaves like the standard embed (full width, aspect-ratio height).</div>
+
+<div class="sect">3 · Playback &amp; interaction</div>
+<div class="ctrl">
+  <label for="playSpeed">Speed</label>
+  <input type="range" id="playSpeed" min="25" max="200" step="5" value="100" style="flex:1">
+  <span id="playSpeedVal" style="width:44px;text-align:right;color:#eee">1.00×</span>
+</div>
+<div class="hint">Slows or speeds the whole animation — loop, drift, bursts, glitch — without changing its character. 0.25× = quarter speed (calm), 2× = double.</div>
+<div class="ctrl-check" style="margin-top:10px">
+  <input type="checkbox" id="hoverFreeze">
+  <label for="hoverFreeze">Hover calm zone — pattern freezes near the pointer (ships in embed)</label>
+</div>
+<div class="ctrl">
+  <label for="hoverRadius">Proximity</label>
+  <input type="range" id="hoverRadius" min="40" max="600" step="20" value="160" style="flex:1">
+  <span id="hoverRadiusVal" style="width:44px;text-align:right;color:#eee">160px</span>
+</div>
+<div class="hint">Nodes within the proximity radius of the user's mouse, trackpad, or thumb stop moving and hold their current look; everything outside keeps animating. Radius is in source-canvas pixels. Try it in the preview.</div>
+
+<div class="sect">4 · Palette media (masks)</div>
+<div id="mediaList"><div class="hint" style="margin:0">Load a pattern to see its palette.</div></div>
+<div class="hint">Reveals an image through every node of that palette color — the embed version of Glitch Dust's <b>Mask image / video per palette color</b>. Uploads are inlined into the embed and auto-compressed until the snippet fits Webflow's 50k limit (the status line reports what happened); a hosted asset URL (Webflow asset / CDN) keeps full quality and the smallest embed. Images work everywhere; GIFs may show a single frame; video isn't supported in embeds.</div>
+
+<div class="sect">Demo container (preview only)</div>
+<div class="container-presets">
+  <button type="button" data-dim="fullx420">Hero · 100% × 420</button>
+  <button type="button" data-dim="fullx200">Banner · 100% × 200</button>
+  <button type="button" data-dim="480x480">Card · 480 × 480</button>
+  <button type="button" data-dim="320x560">Tall · 320 × 560</button>
+</div>
+<div class="ctrl">
+  <label for="demoPad">Padding</label>
+  <input type="range" id="demoPad" min="0" max="64" step="4" value="0" style="flex:1">
+  <span id="demoPadVal" style="width:44px;text-align:right;color:#eee">0px</span>
+</div>
+<div class="ctrl">
+  <label>Backdrop</label>
+  <div class="bg-swatches" id="bgSwatches">
+    <button type="button" class="checker" data-bg="checker" title="Checkerboard (shows transparency)"></button>
+    <button type="button" data-bg="#FFFFFF" style="background:#FFFFFF" title="#FFFFFF"></button>
+    <button type="button" data-bg="#000000" style="background:#000000" title="#000000"></button>
+    <button type="button" data-bg="#ADFF00" style="background:#ADFF00" title="#ADFF00"></button>
+    <button type="button" data-bg="#FFFF00" style="background:#FFFF00" title="#FFFF00"></button>
+    <button type="button" data-bg="#99EDFF" style="background:#99EDFF" title="#99EDFF"></button>
+    <button type="button" data-bg="#EC0648" style="background:#EC0648" title="#EC0648"></button>
+    <input type="color" id="bgCustomPick" value="#111111" title="Custom backdrop color">
+  </div>
+</div>
+<div class="hint">Or drag the dashed box's corner in the preview to test any container shape. Padding simulates your Webflow container's padding; Backdrop paints the preview window behind the embed to match your site's background (preview only, never exported).</div>
+
+<div class="sect">5 · Export</div>
+<div class="btn-row">
+  <button type="button" class="primary" id="copyEmbedBtn" disabled>Copy Webflow embed</button>
+  <button type="button" id="downloadEmbedBtn" disabled>Download .txt</button>
+  <button type="button" id="restartBtn" disabled>Restart preview</button>
+</div>
+<div class="hint">Webflow: Add → Embed → paste. The snippet is one self-contained HTML block (minified runtime inlined, no external files) and the status line reports its character count against Webflow's 50,000 limit.</div>
+
+<p class="hint" style="margin-top:16px">⇧1 Glitch Dust · ⇧2 Lite · ⇧3 Lower Thirds</p>
+</aside>
+
+<main class="preview-panel">
+  <p class="subtitle" id="subtitle">No pattern loaded — paste a settings spec to preview</p>
+  <div class="preview-wrap">
+    <div class="demo-container" id="demoContainer">
+      <div class="embed-host" id="embedHost"></div>
+    </div>
+  </div>
+  <div class="container-size-label" id="containerSize"></div>
+  <div id="status"></div>
+</main>
+</div>
+
+<script src="webflow-embed-runtime.js"></script>
+<script src="webflow-embed-runtime.min.src.js"></script>
+<script>
+'use strict';
+const STORAGE_KEY = 'fal-maxi-spec-v1';
+
+let cfg = null;        // embed runtime config derived from the imported spec
+let specMeta = null;   // { tool, page, exportedAt } for the summary
+let engine = null;
+
+function setStatus(msg) {
+  document.getElementById('status').textContent = msg || '';
+}
+
+/* ---------- import ---------- */
+
+// Mirrors collectWebflowEmbedConfig() in index.html, but sourced from the
+// pasted spec instead of the live DOM (fallback for specs without webflowConfig).
+function configFromSettings(s) {
+  const bgVal = s.selects.bgSel === 'custom' ? (s.selects.bgCustom || '#000000') : s.selects.bgSel;
+  return {
+    v: 2,
+    W: s.canvasW || 1920,
+    H: s.canvasH || 1080,
+    bg: bgVal,
+    style: (s.selects && s.selects.animStyle) || 'dust',
+    noiseSeed: s.noiseSeed != null ? s.noiseSeed : Math.floor(Math.random() * 1e9),
+    sliders: s.sliders || {},
+    selects: s.selects || {},
+    megaTiers: s.megaTiers,
+    tonalCount: s.tonalCount,
+    activeTonalColors: s.activeTonalColors,
+    colorAll: s.colorAll,
+    colorWeights: s.colorWeights,
+    customWavePoints: s.customWavePoints,
+    bakeInOut: s.bakeInOut,
+    infiniteLoop: s.infiniteLoop === true,
+    oneMovePerNode: s.oneMovePerNode,
+    blanketNodeSpeedEnabled: s.blanketNodeSpeedEnabled,
+    blanketNodeSpeed: (s.blanketNodeSpeed || 100) / 100,
+    circleNodes: parseInt(s.selects && s.selects.circleNodes, 10) || 2,
+    animDuration: parseFloat(s.sliders && s.sliders.animDuration) || 4,
+  };
+}
+
+function parseSpec(raw) {
+  const parsed = JSON.parse(raw);
+  // Accept: full spec with webflowConfig, full spec with settings, a bare
+  // webflowConfig object, or a bare settings object.
+  if (parsed.webflowConfig) return { cfg: parsed.webflowConfig, meta: parsed };
+  if (parsed.settings && parsed.settings.sliders) return { cfg: configFromSettings(parsed.settings), meta: parsed };
+  if (parsed.sliders && parsed.selects && parsed.v === 2) return { cfg: parsed, meta: null };
+  if (parsed.sliders && parsed.selects) return { cfg: configFromSettings(parsed), meta: null };
+  throw new Error('Unrecognized format — paste the output of "Copy Settings (JSON spec)".');
+}
+
+function summarizeSpec() {
+  const box = document.getElementById('specSummary');
+  if (!cfg) { box.style.display = 'none'; return; }
+  const colors = (cfg.activeTonalColors && cfg.activeTonalColors.length ? cfg.activeTonalColors : cfg.colorAll) || [];
+  const chips = colors.slice(0, 12).map(hex => `<span class="chip" style="background:${hex}" title="${hex}"></span>`).join('');
+  const from = specMeta ? `${specMeta.page || specMeta.tool || 'spec'}${specMeta.exportedAt ? ' · ' + specMeta.exportedAt.slice(0, 10) : ''}` : 'bare config';
+  box.innerHTML =
+    `<b>${cfg.style}</b> · ${cfg.W}×${cfg.H} · ${cfg.animDuration}s loop` +
+    ` · ${cfg.infiniteLoop ? 'infinite' : cfg.bakeInOut ? 'bake in/out' : 'standard'} · bg ${cfg.bg}` +
+    `<br>from: ${from}` +
+    (chips ? `<div class="chips">${chips}</div>` : '');
+  box.style.display = 'block';
+}
+
+/* ---------- palette media (masks) ---------- */
+
+// colorLower -> { src, label } · session-only (data URLs are too big for localStorage)
+const mediaSlots = new Map();
+
+// The colors the runtime actually draws with (mirrors its pickColor()).
+function activePaletteColors() {
+  if (!cfg) return [];
+  const list = cfg.tonalCount === 'all'
+    ? (cfg.colorAll || [])
+    : (cfg.activeTonalColors && cfg.activeTonalColors.length ? cfg.activeTonalColors : cfg.colorAll) || [];
+  const seen = new Set();
+  return list.filter(hex => {
+    const k = String(hex).toLowerCase();
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}
+
+function renderMediaList() {
+  const list = document.getElementById('mediaList');
+  const colors = activePaletteColors();
+  if (!colors.length) {
+    list.innerHTML = '<div class="hint" style="margin:0">Load a pattern to see its palette.</div>';
+    return;
+  }
+  // Drop media assigned to colors that no longer exist in this pattern.
+  [...mediaSlots.keys()].forEach(k => {
+    if (!colors.some(hex => String(hex).toLowerCase() === k)) mediaSlots.delete(k);
+  });
+  list.innerHTML = '';
+  colors.forEach(hex => {
+    const key = String(hex).toLowerCase();
+    const slot = mediaSlots.get(key);
+    const row = document.createElement('div');
+    row.className = 'media-row';
+
+    const sw = document.createElement('span');
+    sw.className = 'media-swatch';
+    sw.style.background = hex;
+    sw.title = hex;
+    row.appendChild(sw);
+
+    const file = document.createElement('input');
+    file.type = 'file';
+    file.accept = 'image/*';
+    const pick = document.createElement('button');
+    pick.type = 'button';
+    pick.className = 'media-pick';
+    pick.textContent = 'Upload';
+    pick.onclick = () => file.click();
+    file.onchange = () => {
+      const f = file.files && file.files[0];
+      if (!f) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        mediaSlots.set(key, { src: String(reader.result), label: f.name });
+        renderMediaList();
+        restartPreview();
+        setStatus(`Media set for ${hex} (${(f.size / 1024).toFixed(0)} KB — inlined in embed).`);
+      };
+      reader.onerror = () => setStatus('Could not read that file.');
+      reader.readAsDataURL(f);
+    };
+    row.appendChild(pick);
+    row.appendChild(file);
+
+    const url = document.createElement('input');
+    url.type = 'text';
+    url.className = 'media-url';
+    url.placeholder = 'or hosted image URL…';
+    url.value = slot && !slot.src.startsWith('data:') ? slot.src : '';
+    url.addEventListener('change', () => {
+      const val = url.value.trim();
+      if (val) {
+        mediaSlots.set(key, { src: val, label: 'URL' });
+        setStatus(`Media URL set for ${hex}.`);
+      } else if (slot && !slot.src.startsWith('data:')) {
+        mediaSlots.delete(key);
+      }
+      renderMediaList();
+      restartPreview();
+    });
+    row.appendChild(url);
+
+    if (slot && slot.src.startsWith('data:')) {
+      const name = document.createElement('span');
+      name.className = 'media-name';
+      name.textContent = slot.label || 'file';
+      name.title = slot.label || '';
+      row.appendChild(name);
+    }
+
+    const clear = document.createElement('button');
+    clear.type = 'button';
+    clear.className = 'media-clear';
+    clear.textContent = '×';
+    clear.title = 'Clear media for this color';
+    clear.style.visibility = slot ? 'visible' : 'hidden';
+    clear.onclick = () => {
+      mediaSlots.delete(key);
+      renderMediaList();
+      restartPreview();
+      setStatus(`Media cleared for ${hex}.`);
+    };
+    row.appendChild(clear);
+
+    list.appendChild(row);
+  });
+}
+
+function currentPaletteMedia() {
+  const out = [];
+  mediaSlots.forEach((slot, color) => {
+    if (slot && slot.src) out.push({ color, src: slot.src });
+  });
+  return out;
+}
+
+function loadFromTextarea() {
+  const raw = document.getElementById('specInput').value.trim();
+  if (!raw) { setStatus('Nothing to load — paste a settings spec first.'); return; }
+  try {
+    const { cfg: parsedCfg, meta } = parseSpec(raw);
+    cfg = parsedCfg;
+    specMeta = meta;
+    try { localStorage.setItem(STORAGE_KEY, raw); } catch (e) {}
+    document.getElementById('transparentBg').checked = cfg.bg === 'transparent';
+    document.getElementById('forceInfinite').checked = cfg.infiniteLoop === true;
+    document.getElementById('copyEmbedBtn').disabled = false;
+    document.getElementById('downloadEmbedBtn').disabled = false;
+    document.getElementById('restartBtn').disabled = false;
+    summarizeSpec();
+    renderMediaList();
+    restartPreview();
+    setStatus('Pattern loaded.');
+  } catch (err) {
+    setStatus('Import failed: ' + err.message);
+  }
+}
+
+/* ---------- preview ---------- */
+
+function currentConfig() {
+  const out = JSON.parse(JSON.stringify(cfg));
+  if (document.getElementById('transparentBg').checked) out.bg = 'transparent';
+  out.infiniteLoop = document.getElementById('forceInfinite').checked;
+  const speed = parseInt(document.getElementById('playSpeed').value, 10) / 100;
+  if (speed !== 1) out.timeScale = speed;
+  if (document.getElementById('hoverFreeze').checked) {
+    out.hoverFreeze = true;
+    out.hoverRadius = parseInt(document.getElementById('hoverRadius').value, 10) || 160;
+  }
+  const media = currentPaletteMedia();
+  if (media.length) out.paletteMedia = media;
+  return out;
+}
+
+// Mirror the exported embed's padding behavior in the preview: the host
+// insets by the demo container's computed padding when padRespect is on.
+function applyHostPadding() {
+  const host = document.getElementById('embedHost');
+  if (document.getElementById('padRespect').checked) {
+    const cs = getComputedStyle(document.getElementById('demoContainer'));
+    host.style.top = cs.paddingTop;
+    host.style.right = cs.paddingRight;
+    host.style.bottom = cs.paddingBottom;
+    host.style.left = cs.paddingLeft;
+  } else {
+    host.style.top = host.style.right = host.style.bottom = host.style.left = '0px';
+  }
+}
+
+function applyFitToSvg(svg, fit) {
+  if (!svg) return;
+  if (fit === 'natural') {
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    svg.style.width = '100%';
+    svg.style.height = 'auto';
+    svg.style.maxWidth = '100%';
+    return;
+  }
+  const par = fit === 'cover' ? 'xMidYMid slice' : fit === 'stretch' ? 'none' : 'xMidYMid meet';
+  svg.setAttribute('preserveAspectRatio', par);
+  svg.style.width = '100%';
+  svg.style.height = '100%';
+  svg.style.maxWidth = 'none';
+}
+
+function restartPreview() {
+  if (!cfg) return;
+  if (engine) { engine.stop(); engine = null; }
+  applyHostPadding();
+  const host = document.getElementById('embedHost');
+  host.innerHTML = '';
+  const conf = currentConfig();
+  const fit = document.getElementById('fitMode').value;
+  if (fit === 'adapt') {
+    conf.W = Math.max(50, Math.round(host.clientWidth) || conf.W);
+    conf.H = Math.max(50, Math.round(host.clientHeight) || conf.H);
+  }
+  engine = FalGlitchDustWebflow.createEngine(conf);
+  engine.mount(host);
+  engine.start();
+  applyFitToSvg(host.firstElementChild, fit === 'adapt' ? 'stretch' : fit);
+  const speed = conf.timeScale || 1;
+  document.getElementById('subtitle').textContent =
+    `${conf.style} · source canvas ${conf.W}×${conf.H} · ${conf.animDuration}s ${conf.infiniteLoop ? 'infinite' : ''} loop` +
+    `${speed !== 1 ? ` · ${speed.toFixed(2)}× speed` : ''} · fit: ${fit}`;
+}
+
+/* ---------- export ---------- */
+
+let runtimeSourceCache = null;
+async function ensureRuntimeSource() {
+  if (runtimeSourceCache) return runtimeSourceCache;
+  // The minified runtime keeps the embed under Webflow's 50k limit;
+  // regenerate both files with: python3 scripts/build-embed-runtime-min.py
+  if (window.FAL_EMBED_RUNTIME_MIN_SRC) {
+    runtimeSourceCache = window.FAL_EMBED_RUNTIME_MIN_SRC;
+    return runtimeSourceCache;
+  }
+  // Fallback for when the .src.js bundle is missing (fetch needs the local server).
+  try {
+    let res = await fetch('webflow-embed-runtime.min.js');
+    if (!res.ok) res = await fetch('webflow-embed-runtime.js');
+    if (!res.ok) throw new Error('not found');
+    runtimeSourceCache = await res.text();
+    return runtimeSourceCache;
+  } catch (e) {
+    throw new Error('runtime source unavailable — regenerate webflow-embed-runtime.min.src.js (python3 scripts/build-embed-runtime-min.py) or open Maxi via the local server.');
+  }
+}
+
+// Trim float noise so the inlined config JSON stays small.
+function compactConfig(conf) {
+  const out = JSON.parse(JSON.stringify(conf));
+  const r4 = n => Math.round(n * 10000) / 10000;
+  if (typeof out.noiseSeed === 'number') out.noiseSeed = r4(out.noiseSeed);
+  if (Array.isArray(out.customWavePoints)) {
+    out.customWavePoints = out.customWavePoints.map(p => ({ x: r4(p.x), y: r4(p.y) }));
+  }
+  return out;
+}
+
+// The engine start code — everything the embed runs once FalGlitchDustWebflow exists.
+function buildStartJs(wrapId, dataId, fit, padRespect) {
+  const fill = fit !== 'natural';
+  const par = fit === 'cover' ? 'xMidYMid slice'
+    : (fit === 'stretch' || fit === 'adapt') ? 'none' : 'xMidYMid meet';
+  if (!fill) {
+    // Natural: in-flow, so the parent's padding applies on its own.
+    return "FalGlitchDustWebflow.mountEmbed('" + wrapId + "','" + dataId + "');";
+  }
+  let start =
+    "var w=document.getElementById('" + wrapId + "');" +
+    // Inset the wrapper by the containing block's computed padding.
+    'function pad(){' +
+    (padRespect
+      ? 'var cb=w.offsetParent||w.parentElement;if(!cb)return;var cs=getComputedStyle(cb);' +
+        'w.style.top=cs.paddingTop;w.style.right=cs.paddingRight;w.style.bottom=cs.paddingBottom;w.style.left=cs.paddingLeft;'
+      : '') +
+    '}' +
+    'function fitSvg(){var s=w.firstElementChild;if(!s)return;' +
+    "s.setAttribute('preserveAspectRatio','" + par + "');" +
+    "s.style.width='100%';s.style.height='100%';s.style.maxWidth='none';}";
+  if (fit === 'adapt') {
+    start +=
+      "var cfg=JSON.parse(document.getElementById('" + dataId + "').textContent);" +
+      'var eng=null,lw=0,lh=0;' +
+      'function boot(){pad();var bw=Math.max(50,Math.round(w.clientWidth)||cfg.W);var bh=Math.max(50,Math.round(w.clientHeight)||cfg.H);' +
+      'lw=bw;lh=bh;if(eng)eng.stop();w.innerHTML=\'\';' +
+      'var c=JSON.parse(JSON.stringify(cfg));c.W=bw;c.H=bh;' +
+      'eng=FalGlitchDustWebflow.createEngine(c);eng.mount(w);eng.start();fitSvg();}' +
+      'boot();var rt=null;' +
+      "window.addEventListener('resize',function(){clearTimeout(rt);rt=setTimeout(function(){pad();" +
+      'if(Math.abs(w.clientWidth-lw)>2||Math.abs(w.clientHeight-lh)>2)boot();},200);});';
+  } else {
+    start +=
+      "pad();FalGlitchDustWebflow.mountEmbed('" + wrapId + "','" + dataId + "');fitSvg();" +
+      (padRespect ? "window.addEventListener('resize',pad);" : '');
+  }
+  return start;
+}
+
+function wrapPlainRuntime(runtime, startJs) {
+  return "(function(){'use strict';" + runtime + ';' + startJs + '})();';
+}
+
+// Self-extracting variant: inlines the gzipped runtime (~60% smaller) and
+// inflates it with the browser-native DecompressionStream before starting.
+// Used only when the plain runtime would push the embed over the 50k limit.
+function wrapGzRuntime(gzB64, startJs) {
+  return "(function(){'use strict';" +
+    "var B='" + gzB64 + "';" +
+    'function go(){' + startJs + '}' +
+    'var s=atob(B),u=new Uint8Array(s.length);' +
+    'for(var i=0;i<s.length;i++)u[i]=s.charCodeAt(i);' +
+    "new Response(new Blob([u]).stream().pipeThrough(new DecompressionStream('gzip'))).text()" +
+    '.then(function(c){(0,eval)(c);go();})' +
+    ".catch(function(e){console.error('fal embed: runtime decompress failed',e);});" +
+    '})();';
+}
+
+function assembleEmbedHtml(note, wrapId, wrapStyle, dataId, conf, scriptJs) {
+  const jsonForHtml = JSON.stringify(conf).replace(/</g, '\\u003c');
+  return (
+    note +
+    '<div id="' + wrapId + '" class="fal-maxi-embed" style="' + wrapStyle + '"></div>\n' +
+    '<scr' + 'ipt type="application/json" id="' + dataId + '">' + jsonForHtml + '</scr' + 'ipt>\n' +
+    '<scr' + 'ipt>' + scriptJs + '</scr' + 'ipt>\n'
+  );
+}
+
+// Downscale + re-encode a data-URL image (WebP when the browser can encode
+// it, JPEG otherwise). Used to shrink uploads until the embed fits.
+async function squeezeImageDataUrl(src, maxSide, quality) {
+  const img = new Image();
+  await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = src; });
+  const w = img.naturalWidth || 1;
+  const h = img.naturalHeight || 1;
+  const scale = Math.min(1, maxSide / Math.max(w, h));
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(w * scale));
+  c.height = Math.max(1, Math.round(h * scale));
+  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  let out = c.toDataURL('image/webp', quality);
+  if (!out.startsWith('data:image/webp')) out = c.toDataURL('image/jpeg', quality);
+  return out;
+}
+
+let lastBuildNote = '';
+
+async function buildMaxiEmbedHtml() {
+  const uid = 'fal' + Math.random().toString(36).slice(2, 11);
+  const wrapId = 'falwrap_' + uid;
+  const dataId = 'faldata_' + uid;
+  const fit = document.getElementById('fitMode').value;
+  const padRespect = document.getElementById('padRespect').checked;
+  const fill = fit !== 'natural';
+  const wrapStyle = fill
+    ? 'position:absolute;inset:0;overflow:hidden;line-height:0;'
+    : 'max-width:100%;line-height:0;display:block;';
+  const note = fill
+    ? '<!-- fal Glitch Dust Maxi (' + fit + (padRespect ? ' · respects padding' : '') + ') — fills its parent. In Webflow, give the PARENT element position:relative and a height, then Add → Embed → paste this inside it. -->\n'
+    : '<!-- fal Glitch Dust Maxi (natural) — full width, aspect-ratio height. Webflow: Add → Embed → paste. -->\n';
+  const startJs = buildStartJs(wrapId, dataId, fit, padRespect);
+  const runtime = await ensureRuntimeSource();
+  const conf = compactConfig(currentConfig());
+  lastBuildNote = '';
+
+  let html = assembleEmbedHtml(note, wrapId, wrapStyle, dataId, conf, wrapPlainRuntime(runtime, startJs));
+  if (html.length <= WEBFLOW_EMBED_LIMIT) return html;
+
+  // Over the limit: swap in the self-extracting gzipped runtime (~22k saved).
+  const gz = window.FAL_EMBED_RUNTIME_MIN_GZB64;
+  const scriptFor = c => assembleEmbedHtml(note, wrapId, wrapStyle, dataId, c,
+    gz ? wrapGzRuntime(gz, startJs) : wrapPlainRuntime(runtime, startJs));
+  if (gz) {
+    html = scriptFor(conf);
+    lastBuildNote = 'compressed runtime';
+    if (html.length <= WEBFLOW_EMBED_LIMIT) return html;
+  }
+
+  // Still over: progressively downscale / recompress uploaded palette media.
+  const uploads = (conf.paletteMedia || []).filter(m => m.src.indexOf('data:') === 0);
+  if (uploads.length) {
+    const steps = [
+      { side: 720, q: 0.62 }, { side: 640, q: 0.52 }, { side: 560, q: 0.45 },
+      { side: 480, q: 0.4 }, { side: 400, q: 0.34 }, { side: 320, q: 0.28 },
+      { side: 256, q: 0.24 },
+    ];
+    for (const step of steps) {
+      for (const m of uploads) {
+        m.src = await squeezeImageDataUrl(m.src, step.side, step.q);
+      }
+      html = scriptFor(conf);
+      lastBuildNote = 'compressed runtime · uploads recompressed to ≤' + step.side + 'px';
+      if (html.length <= WEBFLOW_EMBED_LIMIT) return html;
+    }
+    lastBuildNote += ' — STILL OVER: swap the upload for a hosted URL';
+  }
+  return html;
+}
+
+const WEBFLOW_EMBED_LIMIT = 50000;
+
+function embedSizeNote(html) {
+  const n = html.length;
+  return n <= WEBFLOW_EMBED_LIMIT
+    ? `${n.toLocaleString()} chars — fits Webflow's ${WEBFLOW_EMBED_LIMIT.toLocaleString()} limit`
+    : `${n.toLocaleString()} chars — OVER Webflow's ${WEBFLOW_EMBED_LIMIT.toLocaleString()} limit by ${(n - WEBFLOW_EMBED_LIMIT).toLocaleString()}`;
+}
+
+function copyTextFallback(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch (e) {}
+  ta.remove();
+  return ok;
+}
+
+async function copyEmbed() {
+  if (!cfg) return;
+  setStatus('Building embed…');
+  let html;
+  try {
+    html = await buildMaxiEmbedHtml();
+  } catch (err) {
+    setStatus('Embed build failed — ' + err.message);
+    return;
+  }
+  let copied = false;
+  try {
+    await navigator.clipboard.writeText(html);
+    copied = true;
+  } catch (err) {
+    copied = copyTextFallback(html);
+  }
+  if (copied) {
+    setStatus(`Webflow embed copied · ${embedSizeNote(html)}${lastBuildNote ? ' · ' + lastBuildNote : ''} · fit: ${document.getElementById('fitMode').value}.`);
+  } else {
+    // Never leave the old clipboard contents in place silently.
+    setStatus('Clipboard blocked — downloading the embed as .txt instead. ' + embedSizeNote(html));
+    downloadEmbed();
+  }
+}
+
+async function downloadEmbed() {
+  if (!cfg) return;
+  setStatus('Building embed…');
+  try {
+    const html = await buildMaxiEmbedHtml();
+    const conf = currentConfig();
+    const blob = new Blob([html], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `fal-maxi-webflow-${conf.style}-${Date.now()}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+    setStatus('Embed downloaded · ' + embedSizeNote(html) + (lastBuildNote ? ' · ' + lastBuildNote : '') + '.');
+  } catch (err) {
+    setStatus('Download failed — ' + err.message);
+  }
+}
+
+/* ---------- wiring ---------- */
+
+document.getElementById('loadBtn').addEventListener('click', loadFromTextarea);
+document.getElementById('pasteBtn').addEventListener('click', async () => {
+  try {
+    const text = await navigator.clipboard.readText();
+    document.getElementById('specInput').value = text;
+    loadFromTextarea();
+  } catch (e) {
+    setStatus('Clipboard read blocked — paste manually (⌘V) into the box.');
+  }
+});
+document.getElementById('clearBtn').addEventListener('click', () => {
+  document.getElementById('specInput').value = '';
+  cfg = null;
+  specMeta = null;
+  mediaSlots.clear();
+  renderMediaList();
+  if (engine) { engine.stop(); engine = null; }
+  document.getElementById('embedHost').innerHTML = '';
+  document.getElementById('specSummary').style.display = 'none';
+  document.getElementById('copyEmbedBtn').disabled = true;
+  document.getElementById('downloadEmbedBtn').disabled = true;
+  document.getElementById('restartBtn').disabled = true;
+  document.getElementById('subtitle').textContent = 'No pattern loaded — paste a settings spec to preview';
+  try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+  setStatus('Cleared.');
+});
+
+document.getElementById('fitMode').addEventListener('change', () => {
+  applyFitToSvg(document.getElementById('embedHost').firstElementChild, document.getElementById('fitMode').value);
+  restartPreview();
+});
+document.getElementById('transparentBg').addEventListener('change', restartPreview);
+document.getElementById('forceInfinite').addEventListener('change', restartPreview);
+document.getElementById('padRespect').addEventListener('change', restartPreview);
+
+let speedTimer = null;
+document.getElementById('playSpeed').addEventListener('input', () => {
+  const speed = parseInt(document.getElementById('playSpeed').value, 10) / 100;
+  document.getElementById('playSpeedVal').textContent = speed.toFixed(2) + '×';
+  clearTimeout(speedTimer);
+  speedTimer = setTimeout(restartPreview, 150);
+});
+
+document.getElementById('hoverFreeze').addEventListener('change', restartPreview);
+let hoverTimer = null;
+document.getElementById('hoverRadius').addEventListener('input', () => {
+  document.getElementById('hoverRadiusVal').textContent = document.getElementById('hoverRadius').value + 'px';
+  clearTimeout(hoverTimer);
+  hoverTimer = setTimeout(restartPreview, 150);
+});
+
+document.getElementById('demoPad').addEventListener('input', () => {
+  const px = document.getElementById('demoPad').value;
+  document.getElementById('demoPadVal').textContent = px + 'px';
+  document.getElementById('demoContainer').style.padding = px + 'px';
+  applyHostPadding();
+});
+
+// Preview-only backdrop behind the demo container (never exported).
+const PREVIEW_BG_KEY = 'fal-maxi-previewbg-v1';
+function applyPreviewBg(val, save) {
+  const wrap = document.querySelector('.preview-wrap');
+  // Setting the shorthand clears the checkerboard gradients; empty restores them.
+  wrap.style.background = (!val || val === 'checker') ? '' : val;
+  if (save !== false) {
+    try { localStorage.setItem(PREVIEW_BG_KEY, val || 'checker'); } catch (e) {}
+  }
+}
+document.querySelectorAll('#bgSwatches button').forEach(btn => {
+  btn.addEventListener('click', () => applyPreviewBg(btn.dataset.bg));
+});
+document.getElementById('bgCustomPick').addEventListener('input', e => applyPreviewBg(e.target.value));
+try {
+  const savedBg = localStorage.getItem(PREVIEW_BG_KEY);
+  if (savedBg && savedBg !== 'checker') {
+    applyPreviewBg(savedBg, false);
+    if (/^#[0-9a-f]{6}$/i.test(savedBg)) document.getElementById('bgCustomPick').value = savedBg;
+  }
+} catch (e) {}
+document.getElementById('restartBtn').addEventListener('click', restartPreview);
+document.getElementById('copyEmbedBtn').addEventListener('click', copyEmbed);
+document.getElementById('downloadEmbedBtn').addEventListener('click', downloadEmbed);
+
+document.querySelectorAll('.container-presets button[data-dim]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const [w, h] = btn.dataset.dim.split('x');
+    const box = document.getElementById('demoContainer');
+    box.style.width = w === 'full' ? '100%' : w + 'px';
+    box.style.height = h + 'px';
+  });
+});
+
+// Remember how the demo container was resized (preview preference only —
+// the exported embed always sizes to its real Webflow parent).
+const CONTAINER_KEY = 'fal-maxi-container-v1';
+try {
+  const savedBox = JSON.parse(localStorage.getItem(CONTAINER_KEY));
+  if (savedBox && savedBox.w && savedBox.h) {
+    const box = document.getElementById('demoContainer');
+    box.style.width = savedBox.w;
+    box.style.height = savedBox.h;
+  }
+} catch (e) {}
+
+const sizeLabel = document.getElementById('containerSize');
+let adaptTimer = null;
+let boxSaveTimer = null;
+new ResizeObserver(entries => {
+  const r = entries[0].contentRect;
+  sizeLabel.textContent = `container: ${Math.round(r.width)} × ${Math.round(r.height)} px`;
+  if (cfg && document.getElementById('fitMode').value === 'adapt') {
+    clearTimeout(adaptTimer);
+    adaptTimer = setTimeout(restartPreview, 250);
+  }
+  // Inline width/height only exist once the user has dragged the corner or
+  // clicked a preset — don't freeze the default fluid 100% into pixels.
+  const box = document.getElementById('demoContainer');
+  if (box.style.width || box.style.height) {
+    clearTimeout(boxSaveTimer);
+    boxSaveTimer = setTimeout(() => {
+      try {
+        localStorage.setItem(CONTAINER_KEY, JSON.stringify({ w: box.style.width, h: box.style.height }));
+      } catch (e) {}
+    }, 300);
+  }
+}).observe(document.getElementById('demoContainer'));
+
+// Restore last imported pattern
+try {
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (saved) {
+    document.getElementById('specInput').value = saved;
+    loadFromTextarea();
+  }
+} catch (e) {}
+</script>
+</body>
+</html>

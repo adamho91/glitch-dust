@@ -175,6 +175,9 @@
   button.primary { border-color: var(--ui-accent); color: var(--ui-accent-light); }
   button.primary:hover { background: var(--ui-accent-a22); }
   .hint { color: #444; }
+  .sidebar-footer-link { margin-top: 18px; font-size: 11px; line-height: 1.45; }
+  .sidebar-footer-link a { color: #666; text-decoration: none; border-bottom: 1px dotted #444; }
+  .sidebar-footer-link a:hover { color: var(--ui-accent-light); border-bottom-color: var(--ui-accent-dark); }
   .media-upload-row { display: flex; gap: 6px; align-items: center; margin-bottom: 7px; flex-wrap: wrap; }
   .media-upload-row input[type=file] { flex: 1; min-width: 0; font-size: 11px; color: #aaa; }
   .media-upload-row button { padding: 5px 10px; font-size: 11px; }
@@ -1379,6 +1382,8 @@
       <button id="webflowExportBtn">Export Webflow</button>
     </div>
   </div>
+
+  <div class="hint sidebar-footer-link"><a href="maxi.html">Glitch Dust Maxi ↗</a> — turn a settings spec into a container-filling Webflow embed</div>
 
 </div>
 </aside>
