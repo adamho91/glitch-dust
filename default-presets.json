@@ -3720,6 +3720,199 @@
           "pin": "bottom-left"
         }
       }
+    },
+    {
+      "id": "builtin-fal-agent",
+      "name": "fal Agent",
+      "builtin": true,
+      "settings": {
+        "v": 1,
+        "canvasW": 1920,
+        "canvasH": 1080,
+        "sliders": {
+          "pixSize": "20",
+          "shapeMin": "100",
+          "shapeMax": "23",
+          "megaRarity": "9",
+          "clusterDensity": "53",
+          "cornerFocus": "8",
+          "centerBias": "0",
+          "circlePct": "20",
+          "squarePct": "41",
+          "fadeStrength": "100",
+          "pixAmt": "240",
+          "scatter": "0",
+          "clusterN": "4",
+          "clusterBias": "0",
+          "branchLen": "16",
+          "branchSplit": "61",
+          "axisBias": "80",
+          "speed": "4",
+          "staccato": "0",
+          "waveScale": "39",
+          "gridFill": "55",
+          "streamGradient": "72",
+          "streamJitter": "65",
+          "sweepDepth": "69",
+          "waveRipples": "42",
+          "diffusionSoft": "15",
+          "glitchShift": "68",
+          "nodeMediaBlend": "0",
+          "isolines": "4",
+          "isoBand": "70",
+          "isoFill": "51",
+          "waveBuild": "30",
+          "waveFade": "70",
+          "nodeSpread": "12",
+          "pulseDepth": "58",
+          "pulseRate": "3",
+          "cornerSpread": "90",
+          "burst": "1.75",
+          "animDuration": "4"
+        },
+        "selects": {
+          "animStyle": "voxel",
+          "bgSel": "#000000",
+          "loopWave": "breathe",
+          "envInCurve": "easeOut",
+          "envOutCurve": "easeIn",
+          "pulseCurve": "none",
+          "sweepAxis": "v",
+          "circleNodes": "2",
+          "fadeDir": "bottom"
+        },
+        "megaTiers": [
+          2,
+          7,
+          8
+        ],
+        "tonalCount": 3,
+        "activePresetId": null,
+        "activeTonalColors": [
+          "#5718C0",
+          "#D5BBFF",
+          "#ADFF00"
+        ],
+        "customWavePoints": [
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 0.18,
+            "y": 0.55
+          },
+          {
+            "x": 0.38,
+            "y": 0.92
+          },
+          {
+            "x": 0.62,
+            "y": 1
+          },
+          {
+            "x": 0.82,
+            "y": 0.55
+          },
+          {
+            "x": 1,
+            "y": 0
+          }
+        ],
+        "colorAll": [
+          "#3d5a00",
+          "#adff00",
+          "#c8ff66",
+          "#115ef3",
+          "#3fb5fe",
+          "#c5e9ff",
+          "#99edff",
+          "#ffff00",
+          "#ec0648",
+          "#f57ec3",
+          "#ffffff",
+          "#000000"
+        ],
+        "colorWeights": [
+          "12",
+          "12",
+          "5",
+          "12",
+          "20",
+          "10",
+          "8",
+          "8",
+          "5",
+          "5",
+          "5",
+          "0"
+        ],
+        "noiseSeed": 198.61365539373224,
+        "oneMovePerNode": true,
+        "bakeInOut": true,
+        "infiniteLoop": false,
+        "blanketNodeSpeedEnabled": false,
+        "blanketNodeSpeed": 70,
+        "blanketTextSpeedEnabled": false,
+        "blanketTextSpeed": 100,
+        "nodesFlowDuringText": false,
+        "nodeMedia": {
+          "enabled": true,
+          "blend": "0",
+          "gifLoop": true,
+          "backgroundEnabled": true
+        },
+        "text": {
+          "content": "fal Agent",
+          "enabled": true,
+          "typewriter": false,
+          "unit": "chars",
+          "revealSpeed": 100,
+          "clearPattern": true,
+          "clearStrict": false,
+          "fontSize": 160,
+          "fontWeight": 480,
+          "lineHeight": 92,
+          "pin": "top-left",
+          "align": "left",
+          "marginPx": 60,
+          "color": "#ffffff"
+        },
+        "promptText": {
+          "content": "Something here and here",
+          "enabled": true,
+          "typewriter": false,
+          "unit": "chars",
+          "revealSpeed": 395,
+          "fontSize": 50,
+          "fontWeight": 400,
+          "boxRadius": 0,
+          "boxColor": "#5718c0",
+          "followPalette": true,
+          "lineWrapOffset": true,
+          "lineWrapOffsetPx": -48,
+          "spaceColorEnabled": false,
+          "spaceColor": "#5718c0",
+          "spaceGlitchRhythm": false,
+          "spaceGapShuffle": true,
+          "spaceGapShuffleMs": 250,
+          "textColor": "#ffffff",
+          "align": "left"
+        },
+        "logo": {
+          "enabled": true,
+          "style": "brand",
+          "colorAccent": "#d5bbff",
+          "colorDetail": "#5719c1",
+          "followPalette": false,
+          "logoPaletteOffset": 0,
+          "size": 100,
+          "marginNodes": 3,
+          "clearPattern": true,
+          "matchText": false,
+          "pin": "bottom-left"
+        }
+      }
     }
   ]
 }
