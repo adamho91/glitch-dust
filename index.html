@@ -4595,7 +4595,72 @@ function applyTonalPreset(preset, opts) {
   if (!opts || !opts.skipRegen) beginCycle();
 }
 
+function scoreTonalPresetOverlap(preset, colors) {
+  const presetSet = new Set((preset.colors || []).map(normalizePaletteColorKey));
+  let shared = 0;
+  for (const c of colors) {
+    if (presetSet.has(c)) shared++;
+  }
+  const containsAll = colors.length > 0 && shared === colors.length;
+  return (containsAll ? 1000 : 0) + shared * 20 - Math.abs((preset.colors || []).length - colors.length);
+}
+
+function pickRelatedTonalPreset(targetCount, colors) {
+  const presets = TONAL_BY_COUNT[targetCount] || [];
+  if (!presets.length) return null;
+  let best = null;
+  let bestScore = -Infinity;
+  for (const p of presets) {
+    const score = scoreTonalPresetOverlap(p, colors);
+    if (score > bestScore) {
+      bestScore = score;
+      best = p;
+    }
+  }
+  return best;
+}
+
+const TONAL_EXPAND_FALLBACKS = [
+  '#ADFF00', '#FFFFFF', '#115EF3', '#FFFF00', '#EC0648',
+  '#99EDFF', '#F57EC3', '#AB77FF', '#5718C0', '#000000',
+];
+
+function resizeActiveTonalColors(targetCount) {
+  const colors = (activeTonalColors || []).map(normalizePaletteColorKey);
+  if (colors.length === targetCount) return colors.slice();
+  if (colors.length > targetCount) return colors.slice(0, targetCount);
+
+  const next = colors.slice();
+  const related = pickRelatedTonalPreset(targetCount, next);
+  if (related) {
+    for (const hex of related.colors.map(normalizePaletteColorKey)) {
+      if (next.length >= targetCount) break;
+      if (!next.includes(hex)) next.push(hex);
+    }
+  }
+  for (const hex of TONAL_EXPAND_FALLBACKS.map(normalizePaletteColorKey)) {
+    if (next.length >= targetCount) break;
+    if (!next.includes(hex)) next.push(hex);
+  }
+  while (next.length < targetCount) next.push('#FFFFFF');
+  return next;
+}
+
+function applyTonalColors(colors, opts) {
+  activeTonalColors = colors.map(normalizePaletteColorKey);
+  const match = findMatchingTonalPreset();
+  activePresetId = match ? match.id : null;
+  renderTonalPresets();
+  renderTonalPreview();
+  syncPromptBorderFromPalette();
+  if (isLogoFollowPalette()) syncLogoColorsFromPalette(getLogoPaletteOffsetFromColors());
+  syncPromptSpaceColorFromPalette();
+  renderPaletteMediaList();
+  if (!opts || !opts.skipRegen) beginCycle();
+}
+
 function setTonalCount(count) {
+  const prevCount = tonalCount;
   tonalCount = count;
   document.querySelectorAll('#tonalCount button').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.count === String(count));
@@ -4603,16 +4668,22 @@ function setTonalCount(count) {
   document.getElementById('colorRow').classList.toggle('hidden', count !== 'all');
   if (count === 'all') {
     activePresetId = null;
-  } else {
-    const presets = TONAL_BY_COUNT[count];
-    const match = presets.find(p => p.id === activePresetId);
-    applyTonalPreset(match || presets[0]);
+    renderTonalPresets();
+    renderTonalPreview();
+    syncPromptSpaceColorFromPalette();
+    beginCycle();
     return;
   }
-  renderTonalPresets();
-  renderTonalPreview();
-  syncPromptSpaceColorFromPalette();
-  beginCycle();
+
+  // Keep the user's current colors when moving between 2/3/4/5 — only add or trim slots.
+  if (prevCount !== 'all' && Array.isArray(activeTonalColors) && activeTonalColors.length) {
+    applyTonalColors(resizeActiveTonalColors(count));
+    return;
+  }
+
+  const presets = TONAL_BY_COUNT[count] || [];
+  const match = presets.find(p => p.id === activePresetId);
+  applyTonalPreset(match || presets[0]);
 }
 
 document.querySelectorAll('#tonalCount button').forEach(btn => {
