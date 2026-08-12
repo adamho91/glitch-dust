@@ -1407,7 +1407,7 @@
   <div id="gifMatteControls">
     <div class="ctrl-check">
       <input type="checkbox" id="gifMatteAuto" checked>
-      <label for="gifMatteAuto">Auto matte (per color — no light halo on dark text)</label>
+      <label for="gifMatteAuto">Auto edges (restore color — no dark halo on circles)</label>
     </div>
     <div class="ctrl" id="gifMatteRow">
       <label for="gifMatteColor">GIF matte</label>
@@ -1415,15 +1415,15 @@
     </div>
     <div class="ctrl">
       <label for="gifClipBlack">Clip Black</label>
-      <input type="range" id="gifClipBlack" min="0" max="120" value="18" step="1" title="Alphas at or below this become fully transparent">
-      <span class="val" id="gifClipBlackV">18</span>
+      <input type="range" id="gifClipBlack" min="0" max="120" value="96" step="1" title="Alphas at or below this become fully transparent">
+      <span class="val" id="gifClipBlackV">96</span>
     </div>
     <div class="ctrl">
       <label for="gifClipWhite">Clip White</label>
-      <input type="range" id="gifClipWhite" min="140" max="255" value="232" step="1" title="Alphas at or above this become fully opaque">
-      <span class="val" id="gifClipWhiteV">232</span>
+      <input type="range" id="gifClipWhite" min="140" max="255" value="160" step="1" title="Alphas at or above this become fully opaque">
+      <span class="val" id="gifClipWhiteV">160</span>
     </div>
-    <div class="hint">Transparent GIF only · Auto mattes each edge from its own color · or uncheck and set matte to the color behind the GIF</div>
+    <div class="hint">Transparent GIF only · circles export crisp (no AA fringe) · Auto restores edge color · or set matte to the color behind the GIF</div>
   </div>
 
   <div class="action-panel">
@@ -5306,7 +5306,52 @@ function ensurePaletteMediaExportSourcesReady() {
   });
 }
 
-function drawParticleToExportCanvas(ctx, p, px, py, alpha) {
+function hardenCanvasImageAlpha(imgData, threshold) {
+  const cut = threshold != null ? threshold : 128;
+  const d = imgData.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const a = d[i + 3];
+    if (a === 0 || a === 255) continue;
+    if (a < cut) {
+      d[i] = 0;
+      d[i + 1] = 0;
+      d[i + 2] = 0;
+      d[i + 3] = 0;
+      continue;
+    }
+    // Recover fill color from AA edges composited against transparent black.
+    const af = a / 255;
+    d[i] = Math.min(255, ((d[i] / af) + 0.5) | 0);
+    d[i + 1] = Math.min(255, ((d[i + 1] / af) + 0.5) | 0);
+    d[i + 2] = Math.min(255, ((d[i + 2] / af) + 0.5) | 0);
+    d[i + 3] = 255;
+  }
+}
+
+function fillCrispCircle(ctx, cx, cy, r) {
+  if (r <= 0.5) {
+    ctx.fillRect(Math.round(cx - 0.5), Math.round(cy - 0.5), 1, 1);
+    return;
+  }
+  const pad = 2;
+  const size = Math.ceil(r * 2) + pad * 2;
+  const ox = Math.floor(cx - size / 2);
+  const oy = Math.floor(cy - size / 2);
+  const layer = document.createElement('canvas');
+  layer.width = size;
+  layer.height = size;
+  const lctx = layer.getContext('2d', { willReadFrequently: true });
+  lctx.fillStyle = ctx.fillStyle;
+  lctx.beginPath();
+  lctx.arc(cx - ox, cy - oy, r, 0, Math.PI * 2);
+  lctx.fill();
+  const img = lctx.getImageData(0, 0, size, size);
+  hardenCanvasImageAlpha(img, 128);
+  lctx.putImageData(img, 0, 0);
+  ctx.drawImage(layer, ox, oy);
+}
+
+function drawParticleToExportCanvas(ctx, p, px, py, alpha, opts) {
   const s = getParticleDrawScale(p, alpha);
   const animAlpha = clamp01(alpha);
   if (s < 0.02 || animAlpha < 0.02) return;
@@ -5324,9 +5369,13 @@ function drawParticleToExportCanvas(ctx, p, px, py, alpha) {
   }
 
   if (p.shape === 'circle') {
-    ctx.beginPath();
-    ctx.arc(cx, cy, Math.max(0.5, (p.sz / 2) * s), 0, Math.PI * 2);
-    ctx.fill();
+    const r = Math.max(0.5, (p.sz / 2) * s);
+    if (opts && opts.crispAlpha) fillCrispCircle(ctx, cx, cy, r);
+    else {
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
   } else {
     const side = p.sz * s;
     ctx.fillRect(cx - side / 2, cy - side / 2, Math.max(0.5, side), Math.max(0.5, side));
@@ -5334,7 +5383,8 @@ function drawParticleToExportCanvas(ctx, p, px, py, alpha) {
   ctx.globalAlpha = 1;
 }
 
-function drawParticlesToExportCanvas(ctx, dw, dh) {
+function drawParticlesToExportCanvas(ctx, dw, dh, opts) {
+  opts = opts || {};
   const sx = dw / W;
   const sy = dh / H;
   ctx.save();
@@ -5347,7 +5397,7 @@ function drawParticlesToExportCanvas(ctx, dw, dh) {
     if (occupied.has(node)) return;
     occupied.add(node);
     const alpha = p.drawScale != null ? p.drawScale : 1;
-    drawParticleToExportCanvas(ctx, p, px, py, alpha);
+    drawParticleToExportCanvas(ctx, p, px, py, alpha, opts);
   }
 
   forEachVisibleParticle(visit);
@@ -9091,7 +9141,7 @@ async function renderSvgToCanvas(ctx, svgEl, opts) {
   }
   if (hasColorPaletteMedia) {
     compositePaletteMediaOntoCanvas(ctx, dw, dh);
-    drawParticlesToExportCanvas(ctx, dw, dh);
+    drawParticlesToExportCanvas(ctx, dw, dh, { crispAlpha: !!opts.transparent });
   }
 
   const clone = svgEl.cloneNode(true);
@@ -9111,6 +9161,17 @@ async function renderSvgToCanvas(ctx, svgEl, opts) {
   if (hasColorPaletteMedia || hasBgMedia || opts.transparent) {
     const cloneBg = clone.querySelector('#svgBg');
     if (cloneBg) cloneBg.setAttribute('fill', 'none');
+  }
+
+  // Transparent GIF is 1-bit alpha — AA circle edges become dark fringe after keying.
+  // Force crispEdges (and drop soft glow) so particle circles export hard-edged.
+  if (opts.transparent) {
+    const cloneParticleRoot = clone.querySelector('#particleRoot');
+    if (cloneParticleRoot) cloneParticleRoot.removeAttribute('filter');
+    clone.querySelectorAll('circle').forEach(el => {
+      el.setAttribute('shape-rendering', 'crispEdges');
+    });
+    clone.setAttribute('shape-rendering', 'crispEdges');
   }
 
   const textNodes = [...clone.querySelectorAll('text')];
@@ -9269,7 +9330,7 @@ function findGifTransparentIndex(palette) {
 }
 
 // GIF only supports binary transparency. Anti-aliased edges are partial-alpha
-// pixels that get hard-thresholded unless we matte them into opaque RGB first.
+// pixels that get hard-thresholded unless we resolve them before indexing.
 function gifMatteForFillRgb(r, g, b) {
   const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
   // Match matte polarity to the fill itself so black/dark glyphs never get a
@@ -9318,7 +9379,7 @@ function clipGifAlphaMatte(rgba, clipBlack, clipWhite) {
   }
 }
 
-// matteRgb: fixed placement color, or null for per-pixel auto from each fill.
+// Fixed placement-color matte (manual mode): blend partial alpha into matteRgb.
 function mattePartialAlphaForGif(rgba, matteRgb) {
   for (let i = 0; i < rgba.length; i += 4) {
     const a = rgba[i + 3];
@@ -9333,6 +9394,20 @@ function mattePartialAlphaForGif(rgba, matteRgb) {
   }
 }
 
+// Auto mode: un-premultiply AA fringes (composited against transparent black)
+// so circle edges keep their true fill color instead of a dark/gray halo.
+function hardenPartialAlphaForGif(rgba) {
+  for (let i = 0; i < rgba.length; i += 4) {
+    const a = rgba[i + 3];
+    if (a === 0 || a === 255) continue;
+    const af = a / 255;
+    rgba[i] = Math.min(255, ((rgba[i] / af) + 0.5) | 0);
+    rgba[i + 1] = Math.min(255, ((rgba[i + 1] / af) + 0.5) | 0);
+    rgba[i + 2] = Math.min(255, ((rgba[i + 2] / af) + 0.5) | 0);
+    rgba[i + 3] = 255;
+  }
+}
+
 function readGifMatteClipOpts() {
   const autoEl = document.getElementById('gifMatteAuto');
   const matteEl = document.getElementById('gifMatteColor');
@@ -9341,8 +9416,8 @@ function readGifMatteClipOpts() {
   const auto = autoEl ? autoEl.checked : true;
   return {
     matteRgb: auto ? null : (matteEl ? matteEl.value : null),
-    clipBlack: blackEl ? parseInt(blackEl.value, 10) || 0 : 18,
-    clipWhite: whiteEl ? parseInt(whiteEl.value, 10) || 255 : 232,
+    clipBlack: blackEl ? parseInt(blackEl.value, 10) || 0 : 96,
+    clipWhite: whiteEl ? parseInt(whiteEl.value, 10) || 255 : 160,
   };
 }
 
@@ -9387,12 +9462,14 @@ function encodeGifFrameRgba(rgba, quantize, applyPalette, prequantize, transpare
     return { palette, index, transparentIndex: -1 };
   }
   matteOpts = matteOpts || {};
-  // null matte → per-pixel auto from each fill color (black/white/palette all correct).
+  // null matte → auto un-premultiply (no gray halo on circles).
+  // Fixed matteRgb → Keylight-style placement color for soft text/logo edges.
   const matte = parseGifMatteRgb(matteOpts.matteRgb);
-  const clipBlack = matteOpts.clipBlack != null ? matteOpts.clipBlack : 18;
-  const clipWhite = matteOpts.clipWhite != null ? matteOpts.clipWhite : 232;
+  const clipBlack = matteOpts.clipBlack != null ? matteOpts.clipBlack : 96;
+  const clipWhite = matteOpts.clipWhite != null ? matteOpts.clipWhite : 160;
   clipGifAlphaMatte(rgba, clipBlack, clipWhite);
-  mattePartialAlphaForGif(rgba, matte);
+  if (matte) mattePartialAlphaForGif(rgba, matte);
+  else hardenPartialAlphaForGif(rgba);
   // No prequantize pass: gifenc's prequantize writes Math.round(v/round)*round
   // into the Uint8Array, so saturated 255 channels wrap to 0 (#ADFF00 → #AE0001,
   // white → black). The matte above already made fringes opaque and the
