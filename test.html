@@ -95,6 +95,12 @@
       <span class="val" id="durationV">4s</span>
     </div>
     <div class="ctrl">
+      <label>End hold</label>
+      <input type="range" id="endHold" min="0" max="8" value="2" step="0.25">
+      <span class="val" id="endHoldV">2s</span>
+    </div>
+    <p class="hint">Hold is the packed rest pose — squares sit axis-aligned and look normal — before the loop restarts.</p>
+    <div class="ctrl">
       <label>Square size</label>
       <input type="range" id="pixSize" min="24" max="120" value="60" step="2">
       <span class="val" id="pixSizeV">60</span>
@@ -255,6 +261,7 @@ let cellShape = new Map();
 let lastMaskKey = '';
 
 const durationEl = document.getElementById('duration');
+const endHoldEl = document.getElementById('endHold');
 const pixSizeEl = document.getElementById('pixSize');
 const easeEl = document.getElementById('ease');
 const densityEl = document.getElementById('density');
@@ -283,6 +290,7 @@ function bindVal(el, label, fmt) {
   sync();
 }
 bindVal(durationEl, 'durationV', n => n.toFixed(n % 1 ? 2 : 0) + 's');
+bindVal(endHoldEl, 'endHoldV', n => n.toFixed(n % 1 ? 2 : 0) + 's');
 bindVal(pixSizeEl, 'pixSizeV', n => String(n));
 bindVal(densityEl, 'densityV', n => String(n));
 bindVal(cornerEl, 'cornerSpreadV', n => String(n));
@@ -340,9 +348,20 @@ function renderPaletteChips() {
 })();
 renderPaletteChips();
 
+function cycleTimes() {
+  const motion = Math.max(0.25, v(durationEl));
+  const hold = Math.max(0, v(endHoldEl));
+  return { motion, hold, total: motion + hold };
+}
+
+function restProgress() {
+  // Packed, axis-aligned squares. Raw ends at 45°, so rest is 0; other modes end looking packed.
+  return loopMode === 'raw' ? 0 : 1;
+}
+
 document.getElementById('playBtn').onclick = () => {
   playing = !playing;
-  if (playing) t0 = performance.now() - frozen * v(durationEl) * 1000;
+  if (playing) t0 = performance.now() - frozen * cycleTimes().total * 1000;
   document.getElementById('playBtn').textContent = playing ? 'Pause' : 'Play';
 };
 document.getElementById('resetBtn').onclick = () => {
@@ -576,13 +595,17 @@ function colorFor(kind, i, j) {
 }
 
 function cycleProgress(now) {
-  const dur = Math.max(0.25, v(durationEl));
+  const { motion, total } = cycleTimes();
   if (playing && !scrubbing) {
-    frozen = ((now - t0) / 1000 / dur) % 1;
+    const elapsed = ((now - t0) / 1000) % total;
+    frozen = elapsed / total;
     scrubEl.value = String(Math.round(frozen * 1000));
     document.getElementById('scrubV').textContent = Math.round(frozen * 100) + '%';
   }
-  return frozen;
+  const t = frozen * total;
+  const holding = t >= motion - 1e-6;
+  const progress = holding ? restProgress() : (motion > 0 ? t / motion : 1);
+  return { progress, holding };
 }
 
 function hingeAngle(progress) {
@@ -597,7 +620,7 @@ function camera(phi) {
 }
 
 function drawFrame(now) {
-  const progress = cycleProgress(now);
+  const { progress, holding } = cycleProgress(now);
   const { cols, rows, size } = rebuildSilhouette(progress);
   const phi = hingeAngle(progress);
   const cam = camera(phi);
@@ -664,7 +687,7 @@ function drawFrame(now) {
 
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   const deg = (phi * 180 / Math.PI).toFixed(1);
-  statusEl.textContent = `${occupied.size} nodes · hinge ${deg}° · ${loopMode} · ${colorMode} · ${pal.length} colours · ${W}×${H}`;
+  statusEl.textContent = `${occupied.size} nodes · ${holding ? 'hold · ' : ''}hinge ${deg}° · ${loopMode} · ${colorMode} · ${pal.length} colours · ${W}×${H}`;
   requestAnimationFrame(drawFrame);
 }
 
