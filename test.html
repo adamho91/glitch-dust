@@ -130,11 +130,16 @@
       <span class="val" id="durationV">4s</span>
     </div>
     <div class="ctrl">
+      <label>Mid hold</label>
+      <input type="range" id="midHold" min="0" max="8" value="2" step="0.25">
+      <span class="val" id="midHoldV">2s</span>
+    </div>
+    <div class="ctrl">
       <label>End hold</label>
       <input type="range" id="endHold" min="0" max="8" value="2" step="0.25">
       <span class="val" id="endHoldV">2s</span>
     </div>
-    <p class="hint">Hold is the packed rest pose — squares sit axis-aligned and look normal — before the loop restarts.</p>
+    <p class="hint">Mid hold freezes the 45° aligned tiling (rhombs become squares). End hold freezes the packed rest pose.</p>
     <div class="ctrl">
       <label>Square size</label>
       <input type="range" id="pixSize" min="24" max="120" value="60" step="2">
@@ -298,6 +303,7 @@ const LOOP_HINTS = {
 };
 
 const durationEl = document.getElementById('duration');
+const midHoldEl = document.getElementById('midHold');
 const endHoldEl = document.getElementById('endHold');
 const pixSizeEl = document.getElementById('pixSize');
 const easeEl = document.getElementById('ease');
@@ -327,6 +333,7 @@ function bindVal(el, label, fmt) {
   sync();
 }
 bindVal(durationEl, 'durationV', n => n.toFixed(n % 1 ? 2 : 0) + 's');
+bindVal(midHoldEl, 'midHoldV', n => n.toFixed(n % 1 ? 2 : 0) + 's');
 bindVal(endHoldEl, 'endHoldV', n => n.toFixed(n % 1 ? 2 : 0) + 's');
 bindVal(pixSizeEl, 'pixSizeV', n => String(n));
 bindVal(densityEl, 'densityV', n => String(n));
@@ -568,13 +575,18 @@ applyTonalPreset(FAL_2.find(p => p.id === '2-j') || FAL_2[0]);
 
 function cycleTimes() {
   const motion = Math.max(0.25, v(durationEl));
-  const hold = Math.max(0, v(endHoldEl));
-  return { motion, hold, total: motion + hold };
+  const mid = Math.max(0, v(midHoldEl));
+  const end = Math.max(0, v(endHoldEl));
+  return { motion, mid, end, half: motion / 2, total: motion + mid + end };
 }
 
 function restProgress() {
-  // Packed, axis-aligned squares. Raw ends at 45°, so rest is 0; other modes end looking packed.
   return loopMode === 'raw' ? 0 : 1;
+}
+
+function midAlignProgress() {
+  // 45° pose: rhombs are squares. That's halfway through open/close, or the end of a 0–45° hinge.
+  return loopMode === 'hinge' ? 0.5 : 1;
 }
 
 document.getElementById('playBtn').onclick = () => {
@@ -830,7 +842,7 @@ function colorFor(kind, i, j) {
 }
 
 function cycleProgress(now) {
-  const { motion, total } = cycleTimes();
+  const { motion, mid, half, total } = cycleTimes();
   if (playing && !scrubbing) {
     const elapsed = ((now - t0) / 1000) % total;
     frozen = elapsed / total;
@@ -838,9 +850,19 @@ function cycleProgress(now) {
     document.getElementById('scrubV').textContent = Math.round(frozen * 100) + '%';
   }
   const t = frozen * total;
-  const holding = t >= motion - 1e-6;
-  const progress = holding ? restProgress() : (motion > 0 ? t / motion : 1);
-  return { progress, holding };
+  const midP = midAlignProgress();
+  const endP = restProgress();
+  if (t < half) {
+    return { progress: half > 0 ? (t / half) * midP : midP, holding: false, holdKind: null };
+  }
+  if (t < half + mid) {
+    return { progress: midP, holding: true, holdKind: 'mid' };
+  }
+  if (t < half + mid + half) {
+    const u = half > 0 ? (t - half - mid) / half : 1;
+    return { progress: midP + u * (endP - midP), holding: false, holdKind: null };
+  }
+  return { progress: endP, holding: true, holdKind: 'end' };
 }
 
 function hingeAngle(progress) {
@@ -855,7 +877,7 @@ function camera(phi) {
 }
 
 function drawFrame(now) {
-  const { progress, holding } = cycleProgress(now);
+  const { progress, holding, holdKind } = cycleProgress(now);
   const { cols, rows, size } = rebuildSilhouette(progress);
   const phi = hingeAngle(progress);
   const cam = camera(phi);
@@ -936,7 +958,8 @@ function drawFrame(now) {
 
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   const deg = (phi * 180 / Math.PI).toFixed(1);
-  statusEl.textContent = `${occupied.size} nodes · ${holding ? 'hold · ' : ''}hinge ${deg}° · ${loopMode} · ${activePresetId || 'custom'} · ${pal.length} colours · ${W}×${H}`;
+  const holdLabel = holdKind === 'mid' ? 'mid hold · ' : holdKind === 'end' ? 'end hold · ' : '';
+  statusEl.textContent = `${occupied.size} nodes · ${holdLabel}hinge ${deg}° · ${loopMode} · ${activePresetId || 'custom'} · ${pal.length} colours · ${W}×${H}`;
   requestAnimationFrame(drawFrame);
 }
 
