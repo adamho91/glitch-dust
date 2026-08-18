@@ -272,13 +272,8 @@
 
 <script>
 const W = 1920, H = 1080;
-const SEAM = 5;
 const canvas = document.getElementById('view');
 const ctx = canvas.getContext('2d');
-const tileLayer = document.createElement('canvas');
-tileLayer.width = W;
-tileLayer.height = H;
-const tctx = tileLayer.getContext('2d', { alpha: true });
 const scrubLine = document.getElementById('scrubLine');
 const statusEl = document.getElementById('status');
 const captionEl = document.getElementById('caption');
@@ -810,20 +805,6 @@ function rhombInSilhouette(i, j) {
   return (a && b) || (a && c) || (b && d) || (c && d);
 }
 
-function paintPoly(poly, color) {
-  tctx.beginPath();
-  tctx.moveTo(poly[0][0], poly[0][1]);
-  for (let k = 1; k < poly.length; k++) tctx.lineTo(poly[k][0], poly[k][1]);
-  tctx.closePath();
-  tctx.fillStyle = color;
-  tctx.strokeStyle = color;
-  tctx.lineWidth = SEAM;
-  tctx.lineJoin = 'miter';
-  tctx.miterLimit = 8;
-  tctx.stroke();
-  tctx.fill();
-}
-
 function colorFor(kind, i, j) {
   const pal = activeTonalColors;
   if (!pal.length) return '#ADFF00';
@@ -889,11 +870,12 @@ function drawFrame(now) {
     ctx.fillRect(0, 0, W, H);
   }
 
-  tctx.setTransform(1, 0, 0, 1, 0, 0);
-  tctx.clearRect(0, 0, W, H);
-  tctx.translate(W / 2, H / 2);
-  tctx.rotate(cam.rot);
-  tctx.translate(-W / 2, -H / 2);
+  ctx.translate(W / 2, H / 2);
+  ctx.rotate(cam.rot);
+  ctx.translate(-W / 2, -H / 2);
+
+  ctx.lineJoin = 'miter';
+  ctx.miterLimit = 2;
 
   if (showRhombsEl.checked) {
     for (let j = 0; j < rows - 1; j++) {
@@ -901,7 +883,17 @@ function drawFrame(now) {
         if (!rhombInSilhouette(i, j)) continue;
         const poly = rhombPoly(i, j, size, phi, cols, rows);
         if (rhombArea(poly) < 0.6) continue;
-        paintPoly(poly, colorFor('rhomb', i, j));
+        ctx.beginPath();
+        ctx.moveTo(poly[0][0], poly[0][1]);
+        for (let k = 1; k < 4; k++) ctx.lineTo(poly[k][0], poly[k][1]);
+        ctx.closePath();
+        ctx.fillStyle = colorFor('rhomb', i, j);
+        ctx.fill();
+        if (showStrokeEl.checked) {
+          ctx.strokeStyle = bgMode === 'transparent' ? '#111' : bg;
+          ctx.lineWidth = 0.75;
+          ctx.stroke();
+        }
       }
     }
   }
@@ -912,65 +904,25 @@ function drawFrame(now) {
       const i = +is, j = +js;
       const p = squarePose(i, j, size, phi, cols, rows);
       const shape = cellShape.get(k) || 'rect';
-      const col = colorFor(shape, i, j);
-      tctx.save();
-      tctx.translate(p.cx, p.cy);
-      tctx.fillStyle = col;
-      tctx.strokeStyle = col;
-      tctx.lineWidth = SEAM;
-      tctx.lineJoin = 'miter';
-      tctx.miterLimit = 8;
+      ctx.save();
+      ctx.translate(p.cx, p.cy);
+      ctx.fillStyle = colorFor(shape, i, j);
       if (shape === 'circle') {
-        tctx.beginPath();
-        tctx.arc(0, 0, size / 2, 0, Math.PI * 2);
-        tctx.stroke();
-        tctx.fill();
+        ctx.beginPath();
+        ctx.arc(0, 0, size * 0.46, 0, Math.PI * 2);
+        ctx.fill();
       } else {
-        tctx.rotate(p.rot);
-        tctx.strokeRect(-size / 2, -size / 2, size, size);
-        tctx.fillRect(-size / 2, -size / 2, size, size);
-      }
-      tctx.restore();
-    });
-  }
-
-  ctx.drawImage(tileLayer, 0, 0);
-
-  if (showStrokeEl.checked) {
-    ctx.translate(W / 2, H / 2);
-    ctx.rotate(cam.rot);
-    ctx.translate(-W / 2, -H / 2);
-    ctx.strokeStyle = bgMode === 'transparent' ? '#111' : bg;
-    ctx.lineWidth = 0.5;
-    ctx.lineJoin = 'miter';
-    if (showRhombsEl.checked) {
-      for (let j = 0; j < rows - 1; j++) {
-        for (let i = 0; i < cols - 1; i++) {
-          if (!rhombInSilhouette(i, j)) continue;
-          const poly = rhombPoly(i, j, size, phi, cols, rows);
-          if (rhombArea(poly) < 0.6) continue;
-          ctx.beginPath();
-          ctx.moveTo(poly[0][0], poly[0][1]);
-          for (let k = 1; k < 4; k++) ctx.lineTo(poly[k][0], poly[k][1]);
-          ctx.closePath();
-          ctx.stroke();
+        ctx.rotate(p.rot);
+        const pad = 0.35;
+        ctx.fillRect(-size / 2 - pad, -size / 2 - pad, size + pad * 2, size + pad * 2);
+        if (showStrokeEl.checked) {
+          ctx.strokeStyle = bgMode === 'transparent' ? '#111' : bg;
+          ctx.lineWidth = 0.75;
+          ctx.strokeRect(-size / 2, -size / 2, size, size);
         }
       }
-    }
-    if (showSquaresEl.checked) {
-      occupied.forEach(k => {
-        const [is, js] = k.split(',');
-        const i = +is, j = +js;
-        const p = squarePose(i, j, size, phi, cols, rows);
-        const shape = cellShape.get(k) || 'rect';
-        if (shape === 'circle') return;
-        ctx.save();
-        ctx.translate(p.cx, p.cy);
-        ctx.rotate(p.rot);
-        ctx.strokeRect(-size / 2, -size / 2, size, size);
-        ctx.restore();
-      });
-    }
+      ctx.restore();
+    });
   }
 
   ctx.setTransform(1, 0, 0, 1, 0, 0);
