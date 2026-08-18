@@ -78,16 +78,16 @@
   </div>
   <div class="layout">
     <div class="sect">Hinged squares test</div>
-    <p class="hint">Sandbox for Craig Kaplan / Fathauer hinged squares — squares rotate on corner hinges, rhombs grow into a second square tiling. Not in the main generator yet.</p>
+    <p class="hint">Hinges run only on a glitch-dust silhouette — isoline bands, corner pull, mixed squares/circles — not a full tiling.</p>
     <p class="hint">Source: <a class="inline" href="https://isohedral.ca/hinged-squares" target="_blank" rel="noopener">isohedral.ca/hinged-squares</a></p>
 
     <div class="sect">Motion</div>
     <div class="mode-pills" id="loopMode">
-      <button type="button" data-mode="strange" class="active">Strange loop</button>
-      <button type="button" data-mode="hinge">Open / close</button>
+      <button type="button" data-mode="hinge" class="active">Open / close</button>
       <button type="button" data-mode="raw">Raw hinge</button>
+      <button type="button" data-mode="strange">Strange loop</button>
     </div>
-    <p class="hint" id="loopHint">Rotate the plane 45° as hinges open so the new squares land on the old grid. Center square stays put.</p>
+    <p class="hint" id="loopHint">Squares rotate ±90° inside the dust mask and pack again. Silhouette stays screen-registered.</p>
 
     <div class="ctrl">
       <label>Duration</label>
@@ -96,8 +96,8 @@
     </div>
     <div class="ctrl">
       <label>Square size</label>
-      <input type="range" id="pixSize" min="24" max="120" value="56" step="2">
-      <span class="val" id="pixSizeV">56</span>
+      <input type="range" id="pixSize" min="24" max="120" value="60" step="2">
+      <span class="val" id="pixSizeV">60</span>
     </div>
     <div class="ctrl">
       <label>Ease</label>
@@ -109,13 +109,70 @@
       </select>
     </div>
 
+    <div class="sect">Dust silhouette</div>
+    <p class="hint">Same occupancy grammar as voxel dust: bands + density + edge fade. Reshuffle for a new mask.</p>
+    <div class="ctrl">
+      <label>Density</label>
+      <input type="range" id="density" min="0" max="100" value="48" step="1">
+      <span class="val" id="densityV">48</span>
+    </div>
+    <div class="ctrl">
+      <label>Corner pull</label>
+      <input type="range" id="cornerSpread" min="0" max="100" value="72" step="1">
+      <span class="val" id="cornerSpreadV">72</span>
+    </div>
+    <div class="ctrl">
+      <label>Isolines</label>
+      <input type="range" id="isolines" min="1" max="8" value="4" step="1">
+      <span class="val" id="isolinesV">4</span>
+    </div>
+    <div class="ctrl">
+      <label>Band width</label>
+      <input type="range" id="isoBand" min="0" max="100" value="42" step="1">
+      <span class="val" id="isoBandV">42</span>
+    </div>
+    <div class="ctrl">
+      <label>Fill</label>
+      <input type="range" id="isoFill" min="0" max="100" value="18" step="1">
+      <span class="val" id="isoFillV">18</span>
+    </div>
+    <div class="ctrl">
+      <label>Circles</label>
+      <input type="range" id="circlePct" min="0" max="100" value="22" step="1">
+      <span class="val" id="circlePctV">22</span>
+    </div>
+    <div class="ctrl">
+      <label>Fade dir</label>
+      <select id="fadeDir">
+        <option value="off">off</option>
+        <option value="top" selected>top</option>
+        <option value="top-right">top-right</option>
+        <option value="top-left">top-left</option>
+        <option value="bottom">bottom</option>
+        <option value="left">left</option>
+        <option value="right">right</option>
+      </select>
+    </div>
+    <div class="ctrl">
+      <label>Fade</label>
+      <input type="range" id="fadeStrength" min="0" max="100" value="78" step="1">
+      <span class="val" id="fadeStrengthV">78</span>
+    </div>
+    <div class="ctrl-check">
+      <input type="checkbox" id="liveBands">
+      <label for="liveBands">Live isoline bands (silhouette breathes)</label>
+    </div>
+    <div class="btn-row">
+      <button type="button" id="reshuffleBtn" class="primary">Reshuffle mask</button>
+    </div>
+
     <div class="ctrl-check">
       <input type="checkbox" id="showSquares" checked>
       <label for="showSquares">Original squares</label>
     </div>
     <div class="ctrl-check">
       <input type="checkbox" id="showRhombs" checked>
-      <label for="showRhombs">Hinge rhombs</label>
+      <label for="showRhombs">Hinge rhombs in clusters</label>
     </div>
     <div class="ctrl-check">
       <input type="checkbox" id="showStroke">
@@ -124,11 +181,12 @@
 
     <div class="sect">Colour</div>
     <div class="mode-pills" id="colorMode">
-      <button type="button" data-mode="knight" class="active">5-colour map</button>
+      <button type="button" data-mode="dust" class="active">Dust</button>
+      <button type="button" data-mode="knight">5-colour map</button>
       <button type="button" data-mode="checker">Checker</button>
       <button type="button" data-mode="fal3">Fal 3</button>
     </div>
-    <p class="hint">Kaplan: looping map colourings need at least 5 colours. Knight-move lattice is the 2-unfold cycle.</p>
+    <p class="hint">Dust = lime / olive nodes on the yellow field, like the generator silhouette.</p>
     <div class="chips" id="paletteChips"></div>
 
     <div class="sect">Background</div>
@@ -148,7 +206,7 @@
   </div>
 </aside>
 <main class="preview-panel">
-  <div class="subtitle" id="caption">Hinged squares · strange loop</div>
+  <div class="subtitle" id="caption">Hinged squares · dust silhouette</div>
   <div class="preview-wrap" id="previewWrap">
     <div id="stage" class="stage">
       <div id="stageCanvas" class="stage-canvas">
@@ -171,35 +229,52 @@ const captionEl = document.getElementById('caption');
 const loopHintEl = document.getElementById('loopHint');
 
 const PALETTES = {
+  dust: ['#ADFF00', '#403700'],
   knight: ['#5718C0', '#AB77FF', '#D5BBFF', '#ADFF00', '#FFFFFF'],
   checker: ['#5718C0', '#ADFF00'],
   fal3: ['#5718C0', '#AB77FF', '#D5BBFF'],
 };
-const BG_OPTIONS = ['#000000', '#5718C0', '#FFFFFF', '#004012', '#115EF3'];
+const BG_OPTIONS = ['#FFFF00', '#000000', '#5718C0', '#FFFFFF', '#004012', '#115EF3'];
 
 const LOOP_HINTS = {
-  strange: 'Rotate the plane 45° as hinges open so the new squares land on the old grid. Center square stays put.',
-  hinge: 'Squares rotate ±90° and pack again. Rhombs open then close. No camera move.',
-  raw: 'Hinge opening only (0–45°), no strange-loop camera. The intermediate square tiling.',
+  strange: 'Rotate the plane 45° as hinges open. The dust mask rides with the tessellation.',
+  hinge: 'Squares rotate ±90° inside the dust mask and pack again. Silhouette stays screen-registered.',
+  raw: 'Hinge opening only (0–45°) inside the mask. No camera move.',
 };
 
-let loopMode = 'strange';
-let colorMode = 'knight';
-let bg = '#000000';
+let loopMode = 'hinge';
+let colorMode = 'dust';
+let bg = '#FFFF00';
 let playing = true;
 let t0 = performance.now();
 let frozen = 0;
 let scrubbing = false;
+let noiseSeed = 18.4;
+let occupied = new Set();
+let cellShape = new Map();
+let lastMaskKey = '';
 
 const durationEl = document.getElementById('duration');
 const pixSizeEl = document.getElementById('pixSize');
 const easeEl = document.getElementById('ease');
+const densityEl = document.getElementById('density');
+const cornerEl = document.getElementById('cornerSpread');
+const isolinesEl = document.getElementById('isolines');
+const isoBandEl = document.getElementById('isoBand');
+const isoFillEl = document.getElementById('isoFill');
+const circlePctEl = document.getElementById('circlePct');
+const fadeDirEl = document.getElementById('fadeDir');
+const fadeStrengthEl = document.getElementById('fadeStrength');
+const liveBandsEl = document.getElementById('liveBands');
 const showSquaresEl = document.getElementById('showSquares');
 const showRhombsEl = document.getElementById('showRhombs');
 const showStrokeEl = document.getElementById('showStroke');
 const scrubEl = document.getElementById('scrub');
 
 function v(el) { return +el.value; }
+function lerp(a, b, t) { return a + (b - a) * t; }
+function clamp01(t) { return Math.max(0, Math.min(1, t)); }
+function key(i, j) { return i + ',' + j; }
 
 function bindVal(el, label, fmt) {
   const out = document.getElementById(label);
@@ -209,13 +284,22 @@ function bindVal(el, label, fmt) {
 }
 bindVal(durationEl, 'durationV', n => n.toFixed(n % 1 ? 2 : 0) + 's');
 bindVal(pixSizeEl, 'pixSizeV', n => String(n));
+bindVal(densityEl, 'densityV', n => String(n));
+bindVal(cornerEl, 'cornerSpreadV', n => String(n));
+bindVal(isolinesEl, 'isolinesV', n => String(n));
+bindVal(isoBandEl, 'isoBandV', n => String(n));
+bindVal(isoFillEl, 'isoFillV', n => String(n));
+bindVal(circlePctEl, 'circlePctV', n => String(n));
+bindVal(fadeStrengthEl, 'fadeStrengthV', n => String(n));
 
 document.querySelectorAll('#loopMode button').forEach(btn => {
   btn.onclick = () => {
     loopMode = btn.dataset.mode;
     document.querySelectorAll('#loopMode button').forEach(b => b.classList.toggle('active', b === btn));
     loopHintEl.textContent = LOOP_HINTS[loopMode];
-    captionEl.textContent = 'Hinged squares · ' + (loopMode === 'strange' ? 'strange loop' : loopMode === 'hinge' ? 'open / close' : 'raw hinge');
+    captionEl.textContent = 'Hinged squares · dust silhouette · ' + (
+      loopMode === 'strange' ? 'strange loop' : loopMode === 'hinge' ? 'open / close' : 'raw hinge'
+    );
   };
 });
 
@@ -267,6 +351,10 @@ document.getElementById('resetBtn').onclick = () => {
   playing = true;
   document.getElementById('playBtn').textContent = 'Pause';
 };
+document.getElementById('reshuffleBtn').onclick = () => {
+  noiseSeed = Math.random() * 200;
+  lastMaskKey = '';
+};
 
 scrubEl.addEventListener('input', () => {
   playing = false;
@@ -279,8 +367,142 @@ function ease(u, name) {
   u = Math.min(1, Math.max(0, u));
   if (name === 'linear') return u;
   if (name === 'sine') return 0.5 - 0.5 * Math.cos(u * Math.PI);
-  if (name === 'easeInOut') return u * u * (3 - 2 * u);
   return u * u * (3 - 2 * u);
+}
+
+function hashNoise(n) {
+  n = Math.sin(n * 127.1 + noiseSeed * 17.3) * 43758.5453;
+  return n - Math.floor(n);
+}
+
+function smoothstep(t) {
+  t = clamp01(t);
+  return t * t * (3 - 2 * t);
+}
+
+function valueNoise(x, y) {
+  const x0 = Math.floor(x), y0 = Math.floor(y);
+  const x1 = x0 + 1, y1 = y0 + 1;
+  const sx = smoothstep(x - x0);
+  const sy = smoothstep(y - y0);
+  const n00 = hashNoise(x0 * 57.13 + y0 * 113.71);
+  const n10 = hashNoise(x1 * 57.13 + y0 * 113.71);
+  const n01 = hashNoise(x0 * 57.13 + y1 * 113.71);
+  const n11 = hashNoise(x1 * 57.13 + y1 * 113.71);
+  return lerp(lerp(n00, n10, sx), lerp(n01, n11, sx), sy);
+}
+
+function fbm(x, y, octaves) {
+  let val = 0, amp = 0.5, freq = 1;
+  for (let i = 0; i < octaves; i++) {
+    val += amp * valueNoise(x * freq, y * freq);
+    amp *= 0.52;
+    freq *= 2.05;
+  }
+  return val;
+}
+
+function fadeBiasKeepFactor(nx, ny, dir, strength) {
+  if (!dir || dir === 'off' || !(strength > 0)) return 1;
+  let t;
+  switch (dir) {
+    case 'left': t = nx; break;
+    case 'right': t = 1 - nx; break;
+    case 'top': t = ny; break;
+    case 'bottom': t = 1 - ny; break;
+    case 'top-left': t = (nx + ny) / 2; break;
+    case 'top-right': t = ((1 - nx) + ny) / 2; break;
+    case 'bottom-left': t = (nx + (1 - ny)) / 2; break;
+    case 'bottom-right': t = ((1 - nx) + (1 - ny)) / 2; break;
+    default: return 1;
+  }
+  const u = clamp01(1 - t);
+  const smooth = u * u * (3 - 2 * u);
+  return lerp(1, smooth, clamp01(strength));
+}
+
+function cellDensityMultiplier(gx, gy, cols, rows) {
+  const nx = gx / Math.max(1, cols - 1);
+  const ny = gy / Math.max(1, rows - 1);
+  const density = v(densityEl) / 100;
+  const spread = v(cornerEl) / 100;
+  let m = lerp(0.18, 1.05, density);
+  const edge = Math.min(nx, 1 - nx, ny, 1 - ny);
+  const cornerness = clamp01(1 - edge * 2.2);
+  m *= lerp(1, 0.28 + cornerness * 2.4, spread);
+  m *= fadeBiasKeepFactor(nx, ny, fadeDirEl.value, v(fadeStrengthEl) / 100);
+  return Math.max(0.04, m);
+}
+
+function cornerNoiseOffset(gx, gy, cols, rows, cornerSpread) {
+  const t = cornerSpread / 100;
+  if (t <= 0) return { ox: 0, oy: 0 };
+  const nx = gx / Math.max(1, cols - 1);
+  const ny = gy / Math.max(1, rows - 1);
+  const corners = [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }];
+  let best = corners[0], bestD = Infinity;
+  corners.forEach(c => {
+    const d = (nx - c.x) ** 2 + (ny - c.y) ** 2;
+    if (d < bestD) { bestD = d; best = c; }
+  });
+  return { ox: (best.x - 0.5) * 3.5 * t, oy: (best.y - 0.5) * 3.5 * t };
+}
+
+function bandScaleAt(gx, gy, cols, rows, progress) {
+  const levels = Math.round(v(isolinesEl));
+  const bandW = lerp(0.012, 0.075, v(isoBandEl) / 100);
+  const fillAmt = v(isoFillEl) / 100;
+  const waveScale = 0.055;
+  const phase = progress * Math.PI * 2;
+  const drift = Math.sin(phase * 1.1) * 0.05;
+  const warp = cornerNoiseOffset(gx, gy, cols, rows, v(cornerEl));
+  const n = fbm(gx * waveScale + warp.ox + phase * 0.2, gy * waveScale + warp.oy + phase * 0.15, 4);
+  let bandScale = 0;
+  for (let i = 1; i <= levels; i++) {
+    const level = i / (levels + 1) + drift;
+    const d = Math.abs(n - level);
+    if (d < bandW) { bandScale = 1 - d / bandW; break; }
+  }
+  if (bandScale < 0.03 && fillAmt > 0 && n > 0.52) {
+    const h = hashNoise(gx * 19.7 + gy * 23.1 + noiseSeed);
+    if (h < fillAmt * 0.38) bandScale = 0.5 + h * 0.5;
+  }
+  return { bandScale, n };
+}
+
+function cellOccupied(gx, gy, cols, rows, progress) {
+  const { bandScale, n } = bandScaleAt(gx, gy, cols, rows, progress);
+  const m = cellDensityMultiplier(gx, gy, cols, rows);
+  const keep = hashNoise(gx * 7.3 + gy * 11.1 + noiseSeed * 0.47) < m * (0.22 + n * 0.55);
+  return bandScale >= 0.18 || (keep && n > 0.42);
+}
+
+function rebuildSilhouette(progress) {
+  const size = v(pixSizeEl);
+  const cols = Math.max(1, Math.floor(W / size));
+  const rows = Math.max(1, Math.floor(H / size));
+  const live = liveBandsEl.checked;
+  const maskKey = [
+    size, cols, rows, noiseSeed.toFixed(4), live ? 'live' : 'static',
+    v(densityEl), v(cornerEl), v(isolinesEl), v(isoBandEl), v(isoFillEl),
+    v(circlePctEl), fadeDirEl.value, v(fadeStrengthEl),
+    live ? Math.round(progress * 40) : 0,
+  ].join('|');
+  if (maskKey === lastMaskKey) return { cols, rows, size };
+  lastMaskKey = maskKey;
+  occupied.clear();
+  cellShape.clear();
+  const cir = v(circlePctEl) / 100;
+  const t = live ? progress : 0.18;
+  for (let gy = 0; gy < rows; gy++) {
+    for (let gx = 0; gx < cols; gx++) {
+      if (!cellOccupied(gx, gy, cols, rows, t)) continue;
+      occupied.add(key(gx, gy));
+      const h = hashNoise(gx * 11.3 + gy * 19.7 + noiseSeed * 0.31);
+      cellShape.set(key(gx, gy), h < cir ? 'circle' : 'rect');
+    }
+  }
+  return { cols, rows, size };
 }
 
 function rot(x, y, a) {
@@ -288,27 +510,31 @@ function rot(x, y, a) {
   return [x * c - y * s, x * s + y * c];
 }
 
-function squarePose(i, j, size, phi) {
+function squarePose(i, j, size, phi, cols, rows) {
   const dir = ((i + j) & 1) ? -1 : 1;
   const sp = size * (Math.cos(phi) + Math.sin(phi));
-  return { cx: i * sp, cy: j * sp, rot: dir * phi, sp };
+  const i0 = (cols - 1) / 2;
+  const j0 = (rows - 1) / 2;
+  return {
+    cx: (i - i0) * sp + W / 2,
+    cy: (j - j0) * sp + H / 2,
+    rot: dir * phi,
+  };
 }
 
-function squareCorner(i, j, size, phi, dx, dy) {
-  const p = squarePose(i, j, size, phi);
+function squareCorner(i, j, size, phi, cols, rows, dx, dy) {
+  const p = squarePose(i, j, size, phi, cols, rows);
   const [rx, ry] = rot(dx, dy, p.rot);
   return [p.cx + rx, p.cy + ry];
 }
 
-function rhombPoly(i, j, size, phi) {
+function rhombPoly(i, j, size, phi, cols, rows) {
   const h = size / 2;
-  // Gap rhomb between (i,j), (i+1,j), (i,j+1), (i+1,j+1).
-  // At 45° this is a square of side `size` — the intermediate tiling.
   return [
-    squareCorner(i, j, size, phi, h, -h),       // SE of (i,j) — bottom hinge
-    squareCorner(i, j, size, phi, h, h),        // NE of (i,j) — left
-    squareCorner(i, j + 1, size, phi, h, h),    // NE of (i,j+1) — top hinge
-    squareCorner(i + 1, j, size, phi, -h, h),   // NW of (i+1,j) — right
+    squareCorner(i, j, size, phi, cols, rows, h, -h),
+    squareCorner(i, j, size, phi, cols, rows, h, h),
+    squareCorner(i, j + 1, size, phi, cols, rows, h, h),
+    squareCorner(i + 1, j, size, phi, cols, rows, -h, h),
   ];
 }
 
@@ -322,18 +548,30 @@ function rhombArea(poly) {
   return Math.abs(a) * 0.5;
 }
 
+function rhombInSilhouette(i, j) {
+  const a = occupied.has(key(i, j));
+  const b = occupied.has(key(i + 1, j));
+  const c = occupied.has(key(i, j + 1));
+  const d = occupied.has(key(i + 1, j + 1));
+  return (a && b) || (a && c) || (b && d) || (c && d);
+}
+
 function colorFor(kind, i, j) {
   const pal = PALETTES[colorMode];
+  if (colorMode === 'dust') {
+    if (kind === 'circle' || kind === 'rhomb') return pal[1];
+    return pal[(i + j) & 1];
+  }
   if (colorMode === 'checker') {
-    if (kind === 'square') return pal[(i + j) & 1];
+    if (kind === 'square' || kind === 'circle') return pal[(i + j) & 1];
     return pal[0];
   }
   if (colorMode === 'fal3') {
-    if (kind === 'square') return pal[((i + j) % 3 + 3) % 3];
+    if (kind === 'square' || kind === 'circle') return pal[((i + j) % 3 + 3) % 3];
     return pal[(i + 2 * j) % 3];
   }
   const a = ((i + 2 * j) % 5 + 5) % 5;
-  if (kind === 'square') return pal[a];
+  if (kind === 'square' || kind === 'circle') return pal[a];
   return pal[(a + 4) % 5];
 }
 
@@ -354,14 +592,13 @@ function hingeAngle(progress) {
 }
 
 function camera(phi) {
-  if (loopMode === 'strange') return { rot: -phi, zoom: 1 };
-  if (loopMode === 'hinge') return { rot: 0, zoom: 1 };
-  return { rot: 0, zoom: 1 };
+  if (loopMode === 'strange') return { rot: -phi };
+  return { rot: 0 };
 }
 
 function drawFrame(now) {
   const progress = cycleProgress(now);
-  const size = v(pixSizeEl);
+  const { cols, rows, size } = rebuildSilhouette(progress);
   const phi = hingeAngle(progress);
   const cam = camera(phi);
   const pal = PALETTES[colorMode];
@@ -372,19 +609,16 @@ function drawFrame(now) {
 
   ctx.translate(W / 2, H / 2);
   ctx.rotate(cam.rot);
-  ctx.scale(cam.zoom, cam.zoom);
-
-  const reach = Math.hypot(W, H) / cam.zoom;
-  const sp = size * (Math.cos(phi) + Math.sin(phi));
-  const n = Math.ceil(reach / Math.max(8, sp)) + 2;
+  ctx.translate(-W / 2, -H / 2);
 
   ctx.lineJoin = 'miter';
   ctx.miterLimit = 2;
 
   if (showRhombsEl.checked) {
-    for (let j = -n; j < n; j++) {
-      for (let i = -n; i < n; i++) {
-        const poly = rhombPoly(i, j, size, phi);
+    for (let j = 0; j < rows - 1; j++) {
+      for (let i = 0; i < cols - 1; i++) {
+        if (!rhombInSilhouette(i, j)) continue;
+        const poly = rhombPoly(i, j, size, phi, cols, rows);
         if (rhombArea(poly) < 0.6) continue;
         ctx.beginPath();
         ctx.moveTo(poly[0][0], poly[0][1]);
@@ -402,13 +636,20 @@ function drawFrame(now) {
   }
 
   if (showSquaresEl.checked) {
-    for (let j = -n; j <= n; j++) {
-      for (let i = -n; i <= n; i++) {
-        const p = squarePose(i, j, size, phi);
-        ctx.save();
-        ctx.translate(p.cx, p.cy);
+    occupied.forEach(k => {
+      const [is, js] = k.split(',');
+      const i = +is, j = +js;
+      const p = squarePose(i, j, size, phi, cols, rows);
+      const shape = cellShape.get(k) || 'rect';
+      ctx.save();
+      ctx.translate(p.cx, p.cy);
+      ctx.fillStyle = colorFor(shape, i, j);
+      if (shape === 'circle') {
+        ctx.beginPath();
+        ctx.arc(0, 0, size * 0.46, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
         ctx.rotate(p.rot);
-        ctx.fillStyle = colorFor('square', i, j);
         const pad = 0.35;
         ctx.fillRect(-size / 2 - pad, -size / 2 - pad, size + pad * 2, size + pad * 2);
         if (showStrokeEl.checked) {
@@ -416,14 +657,14 @@ function drawFrame(now) {
           ctx.lineWidth = 0.75;
           ctx.strokeRect(-size / 2, -size / 2, size, size);
         }
-        ctx.restore();
       }
-    }
+      ctx.restore();
+    });
   }
 
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   const deg = (phi * 180 / Math.PI).toFixed(1);
-  statusEl.textContent = `hinge ${deg}° · ${loopMode} · ${colorMode} · ${pal.length} colours · ${W}×${H}`;
+  statusEl.textContent = `${occupied.size} nodes · hinge ${deg}° · ${loopMode} · ${colorMode} · ${pal.length} colours · ${W}×${H}`;
   requestAnimationFrame(drawFrame);
 }
 
