@@ -53,11 +53,45 @@
   .hint { color: #444; margin: -4px 0 9px; }
   .mode-pills { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
   .mode-pills button { padding: 5px 10px; font-size: 11px; font-weight: 600; }
-  .chips { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 10px; }
-  .chip {
-    width: 22px; height: 22px; border-radius: 4px;
-    border: 1px solid rgba(255,255,255,0.12);
+  .tonal-count { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
+  .tonal-count button { padding: 5px 12px; min-width: 36px; font-size: 11px; font-weight: 600; }
+  .tonal-count button.active { border-color: var(--ui-accent); background: var(--ui-accent-a33); color: var(--ui-accent-pale); }
+  .tonal-presets { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; max-height: 240px; overflow-y: auto; }
+  .tonal-preset { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border: 1px solid #333; border-radius: 5px; background: #222; cursor: pointer; text-align: left; width: 100%; font-size: 11px; color: #bbb; }
+  .tonal-preset:hover { border-color: #444; background: #2a2a2a; }
+  .tonal-preset.active { border-color: var(--ui-accent); background: var(--ui-accent-a18); color: #eee; }
+  .tonal-preset .chips { display: flex; gap: 3px; margin-left: auto; flex-shrink: 0; }
+  .tonal-preset .chip { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(255,255,255,0.15); }
+  .tonal-preset-group {
+    font-size: 9px; font-weight: 600; color: #555; text-transform: uppercase;
+    letter-spacing: .08em; margin: 10px 0 4px; padding-top: 6px; border-top: 1px solid #2a2a2a;
   }
+  .tonal-preset-group:first-child { margin-top: 0; border-top: none; padding-top: 0; }
+  .tonal-preview { display: flex; gap: 4px; margin-bottom: 8px; min-height: 20px; align-items: center; flex-wrap: wrap; }
+  .tonal-preview .chip { width: 22px; height: 22px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.12); cursor: pointer; }
+  .tonal-preview .chip:hover { border-color: var(--ui-accent); box-shadow: 0 0 0 1px var(--ui-accent-a33); }
+  .fal-palette-picker {
+    position: fixed; z-index: 10000; background: #1a1a1a; border: 1px solid #444;
+    border-radius: 8px; padding: 8px 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); width: 268px;
+  }
+  .fal-palette-picker[hidden] { display: none !important; }
+  .fal-palette-picker-group { margin-bottom: 6px; }
+  .fal-palette-picker-group:last-child { margin-bottom: 0; }
+  .fal-palette-picker-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.04em; color: #666; margin-bottom: 4px; }
+  .fal-palette-picker-swatches { display: flex; flex-wrap: wrap; gap: 4px; }
+  .fal-palette-swatch {
+    width: 24px; height: 24px; border-radius: 4px; border: 2px solid rgba(255,255,255,0.1);
+    padding: 0; cursor: pointer; flex-shrink: 0;
+  }
+  .fal-palette-swatch:hover { border-color: #888; }
+  .fal-palette-swatch.active { border-color: var(--ui-accent); box-shadow: 0 0 0 1px var(--ui-accent-a33); }
+  .bg-swatch-transparent {
+    background:
+      linear-gradient(45deg, #555 25%, transparent 25%, transparent 75%, #555 75%, #555),
+      linear-gradient(45deg, #555 25%, transparent 25%, transparent 75%, #555 75%, #555);
+    background-size: 8px 8px; background-position: 0 0, 4px 4px; background-color: #333;
+  }
+  .bg-swatch-custom { display: flex; align-items: center; justify-content: center; }
   .bg-swatches { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
   .bg-swatch {
     width: 28px; height: 28px; border-radius: 4px;
@@ -68,6 +102,7 @@
   a.inline { color: #888; }
   a.inline:hover { color: var(--ui-accent-light); }
 </style>
+<script src="fal-palette.js"></script>
 <script src="app-nav.js" defer></script>
 </head>
 <body>
@@ -185,18 +220,23 @@
       <label for="showStroke">Hairline seams</label>
     </div>
 
-    <div class="sect">Colour</div>
-    <div class="mode-pills" id="colorMode">
-      <button type="button" data-mode="dust" class="active">Dust</button>
-      <button type="button" data-mode="knight">5-colour map</button>
-      <button type="button" data-mode="checker">Checker</button>
-      <button type="button" data-mode="fal3">Fal 3</button>
+    <div class="sect">Tonal Colors</div>
+    <p class="hint">Same fal combos as the main builder (⇧1). Click a preview chip to pick from the brand palette.</p>
+    <div class="tonal-count" id="tonalCount">
+      <button type="button" data-count="2" class="active">2</button>
+      <button type="button" data-count="3">3</button>
+      <button type="button" data-count="4">4</button>
+      <button type="button" data-count="5">5</button>
     </div>
-    <p class="hint">Dust = lime / olive nodes on the yellow field, like the generator silhouette.</p>
-    <div class="chips" id="paletteChips"></div>
+    <div class="tonal-preview" id="tonalPreview"></div>
+    <div class="tonal-presets" id="tonalPresets"></div>
 
     <div class="sect">Background</div>
     <div class="bg-swatches" id="bgSwatches"></div>
+    <div class="ctrl" id="bgCustomRow" style="display:none">
+      <label>Custom</label>
+      <input type="color" id="bgCustom" value="#004012">
+    </div>
 
     <div class="sect">Transport</div>
     <div class="btn-row">
@@ -234,23 +274,9 @@ const statusEl = document.getElementById('status');
 const captionEl = document.getElementById('caption');
 const loopHintEl = document.getElementById('loopHint');
 
-const PALETTES = {
-  dust: ['#ADFF00', '#403700'],
-  knight: ['#5718C0', '#AB77FF', '#D5BBFF', '#ADFF00', '#FFFFFF'],
-  checker: ['#5718C0', '#ADFF00'],
-  fal3: ['#5718C0', '#AB77FF', '#D5BBFF'],
-};
-const BG_OPTIONS = ['#FFFF00', '#000000', '#5718C0', '#FFFFFF', '#004012', '#115EF3'];
-
-const LOOP_HINTS = {
-  strange: 'Rotate the plane 45° as hinges open. The dust mask rides with the tessellation.',
-  hinge: 'Squares rotate ±90° inside the dust mask and pack again. Silhouette stays screen-registered.',
-  raw: 'Hinge opening only (0–45°) inside the mask. No camera move.',
-};
-
 let loopMode = 'hinge';
-let colorMode = 'dust';
-let bg = '#FFFF00';
+let bg = '#403700';
+let bgMode = '#403700';
 let playing = true;
 let t0 = performance.now();
 let frozen = 0;
@@ -259,6 +285,17 @@ let noiseSeed = 18.4;
 let occupied = new Set();
 let cellShape = new Map();
 let lastMaskKey = '';
+let tonalCount = 2;
+let activePresetId = '2-j';
+let activeTonalColors = [...(FAL_2.find(p => p.id === '2-j') || FAL_2[0]).colors];
+let falPalettePickerEl = null;
+let falPalettePickerIndex = -1;
+
+const LOOP_HINTS = {
+  strange: 'Rotate the plane 45° as hinges open. The dust mask rides with the tessellation.',
+  hinge: 'Squares rotate ±90° inside the dust mask and pack again. Silhouette stays screen-registered.',
+  raw: 'Hinge opening only (0–45°) inside the mask. No camera move.',
+};
 
 const durationEl = document.getElementById('duration');
 const endHoldEl = document.getElementById('endHold');
@@ -311,42 +348,223 @@ document.querySelectorAll('#loopMode button').forEach(btn => {
   };
 });
 
-document.querySelectorAll('#colorMode button').forEach(btn => {
-  btn.onclick = () => {
-    colorMode = btn.dataset.mode;
-    document.querySelectorAll('#colorMode button').forEach(b => b.classList.toggle('active', b === btn));
-    renderPaletteChips();
-  };
+function findMatchingTonalPreset() {
+  const presets = TONAL_BY_COUNT[tonalCount] || [];
+  const current = activeTonalColors.map(normalizePaletteColorKey);
+  return presets.find(p => {
+    const presetColors = (p.colors || []).map(normalizePaletteColorKey);
+    if (presetColors.length !== current.length) return false;
+    return presetColors.every((c, i) => c === current[i]);
+  }) || null;
+}
+
+function applyTonalPreset(preset) {
+  activePresetId = preset.id;
+  activeTonalColors = preset.colors.map(normalizePaletteColorKey);
+  if (preset.bg) setBg(preset.bg, { silent: true });
+  renderTonalPresets();
+  renderTonalPreview();
+}
+
+function resizeActiveTonalColors(targetCount) {
+  const colors = (activeTonalColors || []).map(normalizePaletteColorKey);
+  if (colors.length === targetCount) return colors.slice();
+  if (colors.length > targetCount) return colors.slice(0, targetCount);
+  const next = colors.slice();
+  const related = (TONAL_BY_COUNT[targetCount] || []).find(p => {
+    const set = new Set((p.colors || []).map(normalizePaletteColorKey));
+    return next.every(c => set.has(c));
+  }) || (TONAL_BY_COUNT[targetCount] || [])[0];
+  if (related) {
+    for (const hex of related.colors.map(normalizePaletteColorKey)) {
+      if (next.length >= targetCount) break;
+      if (!next.includes(hex)) next.push(hex);
+    }
+  }
+  const fallbacks = ['#ADFF00', '#FFFFFF', '#115EF3', '#FFFF00', '#EC0648'];
+  for (const hex of fallbacks) {
+    if (next.length >= targetCount) break;
+    if (!next.includes(hex)) next.push(hex);
+  }
+  return next;
+}
+
+function setTonalCount(count) {
+  const prev = tonalCount;
+  tonalCount = count;
+  document.querySelectorAll('#tonalCount button').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.count === String(count));
+  });
+  if (prev && activeTonalColors.length) {
+    activeTonalColors = resizeActiveTonalColors(count);
+    const match = findMatchingTonalPreset();
+    activePresetId = match ? match.id : null;
+    renderTonalPresets();
+    renderTonalPreview();
+    return;
+  }
+  const presets = TONAL_BY_COUNT[count] || [];
+  applyTonalPreset(presets[0]);
+}
+
+document.querySelectorAll('#tonalCount button').forEach(btn => {
+  btn.onclick = () => setTonalCount(parseInt(btn.dataset.count, 10));
 });
 
-function renderPaletteChips() {
-  const host = document.getElementById('paletteChips');
-  host.replaceChildren();
-  PALETTES[colorMode].forEach(hex => {
+function renderTonalPreview() {
+  const el = document.getElementById('tonalPreview');
+  el.replaceChildren();
+  activeTonalColors.forEach((hex, i) => {
     const chip = document.createElement('div');
     chip.className = 'chip';
     chip.style.background = hex;
-    chip.title = hex;
-    host.appendChild(chip);
+    chip.title = hex + ' · click to pick from fal palette';
+    chip.addEventListener('click', e => {
+      e.stopPropagation();
+      openFalPalettePicker(chip, i);
+    });
+    el.appendChild(chip);
+  });
+}
+
+function renderTonalPresets() {
+  const container = document.getElementById('tonalPresets');
+  container.replaceChildren();
+  getGroupedTonalPresets(tonalCount).forEach(section => {
+    const heading = document.createElement('div');
+    heading.className = 'tonal-preset-group';
+    heading.textContent = section.label;
+    container.appendChild(heading);
+    section.presets.forEach(preset => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'tonal-preset' + (preset.id === activePresetId ? ' active' : '');
+      btn.innerHTML = `<span>${preset.label}</span><span class="chips"></span>`;
+      btn.title = preset.colors.join(' / ') + (preset.bg ? ` · bg ${preset.bg}` : '');
+      const chips = btn.querySelector('.chips');
+      preset.colors.forEach(hex => {
+        const chip = document.createElement('span');
+        chip.className = 'chip';
+        chip.style.background = hex;
+        chips.appendChild(chip);
+      });
+      btn.onclick = () => applyTonalPreset(preset);
+      container.appendChild(btn);
+    });
+  });
+}
+
+function initFalPalettePicker() {
+  falPalettePickerEl = document.createElement('div');
+  falPalettePickerEl.id = 'falPalettePicker';
+  falPalettePickerEl.className = 'fal-palette-picker';
+  falPalettePickerEl.hidden = true;
+  FAL_BRAND_PALETTE.forEach(group => {
+    const groupEl = document.createElement('div');
+    groupEl.className = 'fal-palette-picker-group';
+    const label = document.createElement('div');
+    label.className = 'fal-palette-picker-label';
+    label.textContent = group.label;
+    const swatches = document.createElement('div');
+    swatches.className = 'fal-palette-picker-swatches';
+    group.colors.forEach(colorHex => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'fal-palette-swatch';
+      btn.style.backgroundColor = colorHex;
+      btn.title = colorHex;
+      btn.dataset.hex = colorHex;
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        if (falPalettePickerIndex >= 0) {
+          activeTonalColors[falPalettePickerIndex] = normalizePaletteColorKey(colorHex);
+          const match = findMatchingTonalPreset();
+          activePresetId = match ? match.id : null;
+          renderTonalPresets();
+          renderTonalPreview();
+        }
+        closeFalPalettePicker();
+      };
+      swatches.appendChild(btn);
+    });
+    groupEl.appendChild(label);
+    groupEl.appendChild(swatches);
+    falPalettePickerEl.appendChild(groupEl);
+  });
+  document.body.appendChild(falPalettePickerEl);
+  document.addEventListener('click', (e) => {
+    if (!falPalettePickerEl || falPalettePickerEl.hidden) return;
+    if (falPalettePickerEl.contains(e.target)) return;
+    if (e.target.closest('.tonal-preview .chip')) return;
+    closeFalPalettePicker();
+  });
+}
+
+function openFalPalettePicker(chip, colorIndex) {
+  if (!falPalettePickerEl) return;
+  falPalettePickerIndex = colorIndex;
+  const current = activeTonalColors[colorIndex];
+  falPalettePickerEl.querySelectorAll('.fal-palette-swatch').forEach(btn => {
+    btn.classList.toggle('active', normalizePaletteColorKey(btn.dataset.hex) === normalizePaletteColorKey(current));
+  });
+  falPalettePickerEl.hidden = false;
+  falPalettePickerEl.style.visibility = 'hidden';
+  falPalettePickerEl.style.left = '0';
+  falPalettePickerEl.style.top = '0';
+  const pw = falPalettePickerEl.offsetWidth;
+  const ph = falPalettePickerEl.offsetHeight;
+  const rect = chip.getBoundingClientRect();
+  let left = rect.left;
+  let top = rect.bottom + 6;
+  if (left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
+  if (top + ph > window.innerHeight - 8) top = Math.max(8, rect.top - ph - 6);
+  falPalettePickerEl.style.left = Math.max(8, left) + 'px';
+  falPalettePickerEl.style.top = top + 'px';
+  falPalettePickerEl.style.visibility = '';
+}
+
+function closeFalPalettePicker() {
+  if (!falPalettePickerEl) return;
+  falPalettePickerEl.hidden = true;
+  falPalettePickerIndex = -1;
+}
+
+function setBg(value, opts) {
+  opts = opts || {};
+  bgMode = value;
+  if (value === 'custom') bg = document.getElementById('bgCustom').value;
+  else bg = value;
+  document.getElementById('bgCustomRow').style.display = value === 'custom' ? '' : 'none';
+  document.querySelectorAll('#bgSwatches .bg-swatch').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.value === value);
   });
 }
 
 (function renderBg() {
   const host = document.getElementById('bgSwatches');
-  BG_OPTIONS.forEach(hex => {
+  BG_COLOR_OPTIONS.forEach(opt => {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'bg-swatch' + (hex === bg ? ' active' : '');
-    btn.style.background = hex;
-    btn.title = hex;
-    btn.onclick = () => {
-      bg = hex;
-      host.querySelectorAll('.bg-swatch').forEach(b => b.classList.toggle('active', b === btn));
-    };
+    btn.className = 'bg-swatch';
+    btn.dataset.value = opt.value;
+    btn.title = opt.label;
+    if (opt.value === 'transparent') btn.classList.add('bg-swatch-transparent');
+    else if (opt.value === 'custom') {
+      btn.classList.add('bg-swatch-custom');
+      btn.textContent = '+';
+    } else {
+      btn.style.background = opt.value;
+    }
+    btn.onclick = () => setBg(opt.value);
     host.appendChild(btn);
   });
+  document.getElementById('bgCustom').oninput = () => {
+    if (bgMode === 'custom') bg = document.getElementById('bgCustom').value;
+  };
 })();
-renderPaletteChips();
+
+initFalPalettePicker();
+applyTonalPreset(FAL_2.find(p => p.id === '2-j') || FAL_2[0]);
 
 function cycleTimes() {
   const motion = Math.max(0.25, v(durationEl));
@@ -576,22 +794,12 @@ function rhombInSilhouette(i, j) {
 }
 
 function colorFor(kind, i, j) {
-  const pal = PALETTES[colorMode];
-  if (colorMode === 'dust') {
-    if (kind === 'circle' || kind === 'rhomb') return pal[1];
-    return pal[(i + j) & 1];
-  }
-  if (colorMode === 'checker') {
-    if (kind === 'square' || kind === 'circle') return pal[(i + j) & 1];
-    return pal[0];
-  }
-  if (colorMode === 'fal3') {
-    if (kind === 'square' || kind === 'circle') return pal[((i + j) % 3 + 3) % 3];
-    return pal[(i + 2 * j) % 3];
-  }
-  const a = ((i + 2 * j) % 5 + 5) % 5;
-  if (kind === 'square' || kind === 'circle') return pal[a];
-  return pal[(a + 4) % 5];
+  const pal = activeTonalColors;
+  if (!pal.length) return '#ADFF00';
+  const n = pal.length;
+  if (kind === 'rhomb') return pal[((i + 2 * j + 1) % n + n) % n];
+  if (kind === 'circle') return pal[Math.min(1, n - 1)];
+  return pal[((i + j) % n + n) % n];
 }
 
 function cycleProgress(now) {
@@ -624,11 +832,21 @@ function drawFrame(now) {
   const { cols, rows, size } = rebuildSilhouette(progress);
   const phi = hingeAngle(progress);
   const cam = camera(phi);
-  const pal = PALETTES[colorMode];
+  const pal = activeTonalColors;
 
   ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, W, H);
+  if (bgMode === 'transparent') {
+    const cell = 24;
+    for (let y = 0; y < H; y += cell) {
+      for (let x = 0; x < W; x += cell) {
+        ctx.fillStyle = ((x / cell + y / cell) & 1) ? '#3a3a3a' : '#2a2a2a';
+        ctx.fillRect(x, y, cell, cell);
+      }
+    }
+  } else {
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+  }
 
   ctx.translate(W / 2, H / 2);
   ctx.rotate(cam.rot);
@@ -687,7 +905,7 @@ function drawFrame(now) {
 
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   const deg = (phi * 180 / Math.PI).toFixed(1);
-  statusEl.textContent = `${occupied.size} nodes · ${holding ? 'hold · ' : ''}hinge ${deg}° · ${loopMode} · ${colorMode} · ${pal.length} colours · ${W}×${H}`;
+  statusEl.textContent = `${occupied.size} nodes · ${holding ? 'hold · ' : ''}hinge ${deg}° · ${loopMode} · ${activePresetId || 'custom'} · ${pal.length} colours · ${W}×${H}`;
   requestAnimationFrame(drawFrame);
 }
 
