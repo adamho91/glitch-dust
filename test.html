@@ -805,31 +805,58 @@ function rhombInSilhouette(i, j) {
   return (a && b) || (a && c) || (b && d) || (c && d);
 }
 
-function expandPoly(poly, px) {
-  let cx = 0, cy = 0;
-  for (const [x, y] of poly) { cx += x; cy += y; }
-  cx /= poly.length;
-  cy /= poly.length;
-  return poly.map(([x, y]) => {
-    const dx = x - cx, dy = y - cy;
-    const len = Math.hypot(dx, dy) || 1;
-    return [x + (dx / len) * px, y + (dy / len) * px];
-  });
+function offsetPoly(poly, dist) {
+  const n = poly.length;
+  if (n < 3 || dist === 0) return poly;
+  let area = 0;
+  for (let i = 0; i < n; i++) {
+    const [x1, y1] = poly[i];
+    const [x2, y2] = poly[(i + 1) % n];
+    area += x1 * y2 - x2 * y1;
+  }
+  const sign = area >= 0 ? 1 : -1;
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const [x0, y0] = poly[(i + n - 1) % n];
+    const [x1, y1] = poly[i];
+    const [x2, y2] = poly[(i + 1) % n];
+    let e1x = x1 - x0, e1y = y1 - y0;
+    let e2x = x2 - x1, e2y = y2 - y1;
+    const l1 = Math.hypot(e1x, e1y);
+    const l2 = Math.hypot(e2x, e2y);
+    if (l1 < 1e-6 || l2 < 1e-6) {
+      out.push([x1, y1]);
+      continue;
+    }
+    e1x /= l1; e1y /= l1;
+    e2x /= l2; e2y /= l2;
+    const n1x = sign * e1y, n1y = sign * -e1x;
+    const n2x = sign * e2y, n2y = sign * -e2x;
+    const dot = n1x * n2x + n1y * n2y;
+    const mx = n1x + n2x, my = n1y + n2y;
+    const denom = 1 + dot;
+    if (Math.abs(denom) < 0.05) {
+      const bl = Math.hypot(mx, my) || 1;
+      out.push([x1 + (mx / bl) * dist, y1 + (my / bl) * dist]);
+      continue;
+    }
+    const scale = dist / denom;
+    const mlen = Math.hypot(mx * scale, my * scale);
+    const maxMiter = Math.abs(dist) * 3;
+    const s = mlen > maxMiter ? maxMiter / mlen : 1;
+    out.push([x1 + mx * scale * s, y1 + my * scale * s]);
+  }
+  return out;
 }
 
 function fillSeamless(poly, color) {
-  const grown = expandPoly(poly, 1.1);
+  const grown = offsetPoly(poly, 2.25);
   ctx.beginPath();
   ctx.moveTo(grown[0][0], grown[0][1]);
   for (let k = 1; k < grown.length; k++) ctx.lineTo(grown[k][0], grown[k][1]);
   ctx.closePath();
   ctx.fillStyle = color;
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 1.4;
-  ctx.lineJoin = 'miter';
-  ctx.miterLimit = 8;
   ctx.fill();
-  ctx.stroke();
 }
 
 function colorFor(kind, i, j) {
@@ -901,9 +928,6 @@ function drawFrame(now) {
   ctx.rotate(cam.rot);
   ctx.translate(-W / 2, -H / 2);
 
-  ctx.lineJoin = 'miter';
-  ctx.miterLimit = 8;
-
   if (showRhombsEl.checked) {
     for (let j = 0; j < rows - 1; j++) {
       for (let i = 0; i < cols - 1; i++) {
@@ -934,18 +958,14 @@ function drawFrame(now) {
       ctx.save();
       ctx.translate(p.cx, p.cy);
       ctx.fillStyle = col;
-      ctx.strokeStyle = col;
-      ctx.lineWidth = 1.4;
       if (shape === 'circle') {
         ctx.beginPath();
         ctx.arc(0, 0, size * 0.47, 0, Math.PI * 2);
         ctx.fill();
-        ctx.stroke();
       } else {
         ctx.rotate(p.rot);
-        const pad = 1.15;
+        const pad = 2.25;
         ctx.fillRect(-size / 2 - pad, -size / 2 - pad, size + pad * 2, size + pad * 2);
-        ctx.strokeRect(-size / 2 - pad, -size / 2 - pad, size + pad * 2, size + pad * 2);
         if (showStrokeEl.checked) {
           ctx.strokeStyle = bgMode === 'transparent' ? '#111' : bg;
           ctx.lineWidth = 0.5;
