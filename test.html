@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>fal glitch dust — hinged squares test</title>
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+<link rel="stylesheet" href="ui-theme.css">
+<link rel="stylesheet" href="app-nav.css">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body { background: #1a1a1a; color: #ccc; font-size: 13px; min-height: 100vh; overflow: hidden; }
+  .app { display: grid; grid-template-columns: minmax(300px, 380px) 1fr; height: 100vh; }
+  @media (max-width: 900px) {
+    body { overflow: auto; }
+    .app { grid-template-columns: 1fr; height: auto; min-height: 100vh; }
+  }
+  .sidebar { overflow-y: auto; padding: 16px 16px 32px; border-right: 1px solid #2a2a2a; background: #161616; }
+  .preview-panel { display: flex; flex-direction: column; padding: 16px 20px; min-width: 0; min-height: 0; overflow: hidden; }
+  .subtitle { font-size: 11px; color: #666; margin-bottom: 12px; }
+  .preview-wrap {
+    flex: 1; min-height: 0;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid #333; border-radius: 6px; overflow: hidden;
+    background: #000; line-height: 0; position: relative;
+  }
+  .stage { display: flex; align-items: center; justify-content: center; width: 100%; max-width: 960px; cursor: ew-resize; position: relative; }
+  .stage-canvas { position: relative; display: block; width: 100%; line-height: 0; overflow: hidden; }
+  .stage-canvas canvas { display: block; width: 100%; height: auto; }
+  .scrub-line {
+    position: absolute; top: 0; bottom: 0; width: 1px; margin-left: -0.5px;
+    background: #888; opacity: 0.9; pointer-events: none; z-index: 4; display: none;
+  }
+  #status { font-size: 11px; color: #666; margin-top: 10px; min-height: 14px; flex-shrink: 0; }
+  .layout { display: flex; flex-direction: column; }
+  .sect { font-size: 10px; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: .08em; margin: 16px 0 8px; }
+  .sect:first-child { margin-top: 0; }
+  .ctrl { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+  .ctrl label { width: 120px; flex-shrink: 0; color: #999; }
+  .ctrl input[type=range] { flex: 1; accent-color: #ADFF00; }
+  .ctrl span.val { min-width: 36px; font-size: 12px; font-weight: 500; color: #eee; text-align: right; }
+  .ctrl select { flex: 1; background: #2a2a2a; border: 1px solid #3a3a3a; color: #eee; border-radius: 4px; padding: 3px 6px; font-size: 12px; }
+  button { background: #2a2a2a; border: 1px solid #3a3a3a; color: #ccc; border-radius: 5px; padding: 7px 14px; font-size: 12px; cursor: pointer; }
+  button:hover { background: #3a3a3a; color: #eee; }
+  button.primary { border-color: var(--ui-accent); color: var(--ui-accent-light); }
+  button.primary:hover { background: var(--ui-accent-a22); }
+  button.active { border-color: var(--ui-accent); background: var(--ui-accent-a33); color: var(--ui-accent-pale); }
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 8px; }
+  .ctrl-check { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; padding-left: 2px; }
+  .ctrl-check label { color: #999; cursor: pointer; user-select: none; }
+  .ctrl-check input { width: 16px; height: 16px; accent-color: #ADFF00; cursor: pointer; flex-shrink: 0; }
+  .hint { color: #444; margin: -4px 0 9px; }
+  .mode-pills { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
+  .mode-pills button { padding: 5px 10px; font-size: 11px; font-weight: 600; }
+  .chips { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 10px; }
+  .chip {
+    width: 22px; height: 22px; border-radius: 4px;
+    border: 1px solid rgba(255,255,255,0.12);
+  }
+  .bg-swatches { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
+  .bg-swatch {
+    width: 28px; height: 28px; border-radius: 4px;
+    border: 2px solid rgba(255,255,255,0.12);
+    padding: 0; cursor: pointer;
+  }
+  .bg-swatch.active { border-color: var(--ui-accent); box-shadow: 0 0 0 1px var(--ui-accent-a33); }
+  a.inline { color: #888; }
+  a.inline:hover { color: var(--ui-accent-light); }
+</style>
+<script src="app-nav.js" defer></script>
+</head>
+<body>
+<div class="app">
+<aside class="sidebar">
+  <div class="app-brand-wrap">
+    <img class="app-brand" src="assets/app-brand.svg" alt="fal Glitch Dust" width="562" height="175">
+  </div>
+  <div class="layout">
+    <div class="sect">Hinged squares test</div>
+    <p class="hint">Sandbox for Craig Kaplan / Fathauer hinged squares — squares rotate on corner hinges, rhombs grow into a second square tiling. Not in the main generator yet.</p>
+    <p class="hint">Source: <a class="inline" href="https://isohedral.ca/hinged-squares" target="_blank" rel="noopener">isohedral.ca/hinged-squares</a></p>
+
+    <div class="sect">Motion</div>
+    <div class="mode-pills" id="loopMode">
+      <button type="button" data-mode="strange" class="active">Strange loop</button>
+      <button type="button" data-mode="hinge">Open / close</button>
+      <button type="button" data-mode="raw">Raw hinge</button>
+    </div>
+    <p class="hint" id="loopHint">Rotate the plane 45° as hinges open so the new squares land on the old grid. Center square stays put.</p>
+
+    <div class="ctrl">
+      <label>Duration</label>
+      <input type="range" id="duration" min="2" max="12" value="4" step="0.25">
+      <span class="val" id="durationV">4s</span>
+    </div>
+    <div class="ctrl">
+      <label>Square size</label>
+      <input type="range" id="pixSize" min="24" max="120" value="56" step="2">
+      <span class="val" id="pixSizeV">56</span>
+    </div>
+    <div class="ctrl">
+      <label>Ease</label>
+      <select id="ease">
+        <option value="smooth" selected>Smoothstep</option>
+        <option value="linear">Linear</option>
+        <option value="easeInOut">Ease in-out</option>
+        <option value="sine">Sine</option>
+      </select>
+    </div>
+
+    <div class="ctrl-check">
+      <input type="checkbox" id="showSquares" checked>
+      <label for="showSquares">Original squares</label>
+    </div>
+    <div class="ctrl-check">
+      <input type="checkbox" id="showRhombs" checked>
+      <label for="showRhombs">Hinge rhombs</label>
+    </div>
+    <div class="ctrl-check">
+      <input type="checkbox" id="showStroke">
+      <label for="showStroke">Hairline seams</label>
+    </div>
+
+    <div class="sect">Colour</div>
+    <div class="mode-pills" id="colorMode">
+      <button type="button" data-mode="knight" class="active">5-colour map</button>
+      <button type="button" data-mode="checker">Checker</button>
+      <button type="button" data-mode="fal3">Fal 3</button>
+    </div>
+    <p class="hint">Kaplan: looping map colourings need at least 5 colours. Knight-move lattice is the 2-unfold cycle.</p>
+    <div class="chips" id="paletteChips"></div>
+
+    <div class="sect">Background</div>
+    <div class="bg-swatches" id="bgSwatches"></div>
+
+    <div class="sect">Transport</div>
+    <div class="btn-row">
+      <button type="button" id="playBtn" class="primary">Pause</button>
+      <button type="button" id="resetBtn">Restart</button>
+    </div>
+    <div class="ctrl">
+      <label>Scrub</label>
+      <input type="range" id="scrub" min="0" max="1000" value="0" step="1">
+      <span class="val" id="scrubV">0%</span>
+    </div>
+    <p class="hint">Drag the preview horizontally to scrub, same as the main generator.</p>
+  </div>
+</aside>
+<main class="preview-panel">
+  <div class="subtitle" id="caption">Hinged squares · strange loop</div>
+  <div class="preview-wrap" id="previewWrap">
+    <div id="stage" class="stage">
+      <div id="stageCanvas" class="stage-canvas">
+        <div id="scrubLine" class="scrub-line"></div>
+        <canvas id="view" width="1920" height="1080"></canvas>
+      </div>
+    </div>
+  </div>
+  <div id="status"></div>
+</main>
+</div>
+
+<script>
+const W = 1920, H = 1080;
+const canvas = document.getElementById('view');
+const ctx = canvas.getContext('2d');
+const scrubLine = document.getElementById('scrubLine');
+const statusEl = document.getElementById('status');
+const captionEl = document.getElementById('caption');
+const loopHintEl = document.getElementById('loopHint');
+
+const PALETTES = {
+  knight: ['#5718C0', '#AB77FF', '#D5BBFF', '#ADFF00', '#FFFFFF'],
+  checker: ['#5718C0', '#ADFF00'],
+  fal3: ['#5718C0', '#AB77FF', '#D5BBFF'],
+};
+const BG_OPTIONS = ['#000000', '#5718C0', '#FFFFFF', '#004012', '#115EF3'];
+
+const LOOP_HINTS = {
+  strange: 'Rotate the plane 45° as hinges open so the new squares land on the old grid. Center square stays put.',
+  hinge: 'Squares rotate ±90° and pack again. Rhombs open then close. No camera move.',
+  raw: 'Hinge opening only (0–45°), no strange-loop camera. The intermediate square tiling.',
+};
+
+let loopMode = 'strange';
+let colorMode = 'knight';
+let bg = '#000000';
+let playing = true;
+let t0 = performance.now();
+let frozen = 0;
+let scrubbing = false;
+
+const durationEl = document.getElementById('duration');
+const pixSizeEl = document.getElementById('pixSize');
+const easeEl = document.getElementById('ease');
+const showSquaresEl = document.getElementById('showSquares');
+const showRhombsEl = document.getElementById('showRhombs');
+const showStrokeEl = document.getElementById('showStroke');
+const scrubEl = document.getElementById('scrub');
+
+function v(el) { return +el.value; }
+
+function bindVal(el, label, fmt) {
+  const out = document.getElementById(label);
+  const sync = () => { out.textContent = fmt(v(el)); };
+  el.addEventListener('input', sync);
+  sync();
+}
+bindVal(durationEl, 'durationV', n => n.toFixed(n % 1 ? 2 : 0) + 's');
+bindVal(pixSizeEl, 'pixSizeV', n => String(n));
+
+document.querySelectorAll('#loopMode button').forEach(btn => {
+  btn.onclick = () => {
+    loopMode = btn.dataset.mode;
+    document.querySelectorAll('#loopMode button').forEach(b => b.classList.toggle('active', b === btn));
+    loopHintEl.textContent = LOOP_HINTS[loopMode];
+    captionEl.textContent = 'Hinged squares · ' + (loopMode === 'strange' ? 'strange loop' : loopMode === 'hinge' ? 'open / close' : 'raw hinge');
+  };
+});
+
+document.querySelectorAll('#colorMode button').forEach(btn => {
+  btn.onclick = () => {
+    colorMode = btn.dataset.mode;
+    document.querySelectorAll('#colorMode button').forEach(b => b.classList.toggle('active', b === btn));
+    renderPaletteChips();
+  };
+});
+
+function renderPaletteChips() {
+  const host = document.getElementById('paletteChips');
+  host.replaceChildren();
+  PALETTES[colorMode].forEach(hex => {
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.style.background = hex;
+    chip.title = hex;
+    host.appendChild(chip);
+  });
+}
+
+(function renderBg() {
+  const host = document.getElementById('bgSwatches');
+  BG_OPTIONS.forEach(hex => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'bg-swatch' + (hex === bg ? ' active' : '');
+    btn.style.background = hex;
+    btn.title = hex;
+    btn.onclick = () => {
+      bg = hex;
+      host.querySelectorAll('.bg-swatch').forEach(b => b.classList.toggle('active', b === btn));
+    };
+    host.appendChild(btn);
+  });
+})();
+renderPaletteChips();
+
+document.getElementById('playBtn').onclick = () => {
+  playing = !playing;
+  if (playing) t0 = performance.now() - frozen * v(durationEl) * 1000;
+  document.getElementById('playBtn').textContent = playing ? 'Pause' : 'Play';
+};
+document.getElementById('resetBtn').onclick = () => {
+  t0 = performance.now();
+  frozen = 0;
+  playing = true;
+  document.getElementById('playBtn').textContent = 'Pause';
+};
+
+scrubEl.addEventListener('input', () => {
+  playing = false;
+  document.getElementById('playBtn').textContent = 'Play';
+  frozen = v(scrubEl) / 1000;
+  document.getElementById('scrubV').textContent = Math.round(frozen * 100) + '%';
+});
+
+function ease(u, name) {
+  u = Math.min(1, Math.max(0, u));
+  if (name === 'linear') return u;
+  if (name === 'sine') return 0.5 - 0.5 * Math.cos(u * Math.PI);
+  if (name === 'easeInOut') return u * u * (3 - 2 * u);
+  return u * u * (3 - 2 * u);
+}
+
+function rot(x, y, a) {
+  const c = Math.cos(a), s = Math.sin(a);
+  return [x * c - y * s, x * s + y * c];
+}
+
+function squarePose(i, j, size, phi) {
+  const dir = ((i + j) & 1) ? -1 : 1;
+  const sp = size * (Math.cos(phi) + Math.sin(phi));
+  return { cx: i * sp, cy: j * sp, rot: dir * phi, sp };
+}
+
+function squareCorner(i, j, size, phi, dx, dy) {
+  const p = squarePose(i, j, size, phi);
+  const [rx, ry] = rot(dx, dy, p.rot);
+  return [p.cx + rx, p.cy + ry];
+}
+
+function rhombPoly(i, j, size, phi) {
+  const h = size / 2;
+  // Gap rhomb between (i,j), (i+1,j), (i,j+1), (i+1,j+1).
+  // At 45° this is a square of side `size` — the intermediate tiling.
+  return [
+    squareCorner(i, j, size, phi, h, -h),       // SE of (i,j) — bottom hinge
+    squareCorner(i, j, size, phi, h, h),        // NE of (i,j) — left
+    squareCorner(i, j + 1, size, phi, h, h),    // NE of (i,j+1) — top hinge
+    squareCorner(i + 1, j, size, phi, -h, h),   // NW of (i+1,j) — right
+  ];
+}
+
+function rhombArea(poly) {
+  let a = 0;
+  for (let k = 0; k < 4; k++) {
+    const [x1, y1] = poly[k];
+    const [x2, y2] = poly[(k + 1) % 4];
+    a += x1 * y2 - x2 * y1;
+  }
+  return Math.abs(a) * 0.5;
+}
+
+function colorFor(kind, i, j) {
+  const pal = PALETTES[colorMode];
+  if (colorMode === 'checker') {
+    if (kind === 'square') return pal[(i + j) & 1];
+    return pal[0];
+  }
+  if (colorMode === 'fal3') {
+    if (kind === 'square') return pal[((i + j) % 3 + 3) % 3];
+    return pal[(i + 2 * j) % 3];
+  }
+  const a = ((i + 2 * j) % 5 + 5) % 5;
+  if (kind === 'square') return pal[a];
+  return pal[(a + 4) % 5];
+}
+
+function cycleProgress(now) {
+  const dur = Math.max(0.25, v(durationEl));
+  if (playing && !scrubbing) {
+    frozen = ((now - t0) / 1000 / dur) % 1;
+    scrubEl.value = String(Math.round(frozen * 1000));
+    document.getElementById('scrubV').textContent = Math.round(frozen * 100) + '%';
+  }
+  return frozen;
+}
+
+function hingeAngle(progress) {
+  const u = ease(progress, easeEl.value);
+  if (loopMode === 'hinge') return u * Math.PI * 0.5;
+  return u * Math.PI * 0.25;
+}
+
+function camera(phi) {
+  if (loopMode === 'strange') return { rot: -phi, zoom: 1 };
+  if (loopMode === 'hinge') return { rot: 0, zoom: 1 };
+  return { rot: 0, zoom: 1 };
+}
+
+function drawFrame(now) {
+  const progress = cycleProgress(now);
+  const size = v(pixSizeEl);
+  const phi = hingeAngle(progress);
+  const cam = camera(phi);
+  const pal = PALETTES[colorMode];
+
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.translate(W / 2, H / 2);
+  ctx.rotate(cam.rot);
+  ctx.scale(cam.zoom, cam.zoom);
+
+  const reach = Math.hypot(W, H) / cam.zoom;
+  const sp = size * (Math.cos(phi) + Math.sin(phi));
+  const n = Math.ceil(reach / Math.max(8, sp)) + 2;
+
+  ctx.lineJoin = 'miter';
+  ctx.miterLimit = 2;
+
+  if (showRhombsEl.checked) {
+    for (let j = -n; j < n; j++) {
+      for (let i = -n; i < n; i++) {
+        const poly = rhombPoly(i, j, size, phi);
+        if (rhombArea(poly) < 0.6) continue;
+        ctx.beginPath();
+        ctx.moveTo(poly[0][0], poly[0][1]);
+        for (let k = 1; k < 4; k++) ctx.lineTo(poly[k][0], poly[k][1]);
+        ctx.closePath();
+        ctx.fillStyle = colorFor('rhomb', i, j);
+        ctx.fill();
+        if (showStrokeEl.checked) {
+          ctx.strokeStyle = bg;
+          ctx.lineWidth = 0.75;
+          ctx.stroke();
+        }
+      }
+    }
+  }
+
+  if (showSquaresEl.checked) {
+    for (let j = -n; j <= n; j++) {
+      for (let i = -n; i <= n; i++) {
+        const p = squarePose(i, j, size, phi);
+        ctx.save();
+        ctx.translate(p.cx, p.cy);
+        ctx.rotate(p.rot);
+        ctx.fillStyle = colorFor('square', i, j);
+        const pad = 0.35;
+        ctx.fillRect(-size / 2 - pad, -size / 2 - pad, size + pad * 2, size + pad * 2);
+        if (showStrokeEl.checked) {
+          ctx.strokeStyle = bg;
+          ctx.lineWidth = 0.75;
+          ctx.strokeRect(-size / 2, -size / 2, size, size);
+        }
+        ctx.restore();
+      }
+    }
+  }
+
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  const deg = (phi * 180 / Math.PI).toFixed(1);
+  statusEl.textContent = `hinge ${deg}° · ${loopMode} · ${colorMode} · ${pal.length} colours · ${W}×${H}`;
+  requestAnimationFrame(drawFrame);
+}
+
+(function bindScrub() {
+  const stage = document.getElementById('stage');
+  const wrap = document.getElementById('previewWrap');
+  function posToT(clientX) {
+    const r = stage.getBoundingClientRect();
+    return Math.min(1, Math.max(0, (clientX - r.left) / r.width));
+  }
+  function start(e) {
+    scrubbing = true;
+    playing = false;
+    document.getElementById('playBtn').textContent = 'Play';
+    wrap.classList.add('scrub-active');
+    scrubLine.style.display = 'block';
+    move(e);
+  }
+  function move(e) {
+    if (!scrubbing) return;
+    const x = e.touches ? e.touches[0].clientX : e.clientX;
+    frozen = posToT(x);
+    const r = stage.getBoundingClientRect();
+    scrubLine.style.left = (frozen * r.width) + 'px';
+    scrubEl.value = String(Math.round(frozen * 1000));
+    document.getElementById('scrubV').textContent = Math.round(frozen * 100) + '%';
+  }
+  function end() {
+    scrubbing = false;
+    wrap.classList.remove('scrub-active');
+    scrubLine.style.display = 'none';
+  }
+  stage.addEventListener('pointerdown', start);
+  window.addEventListener('pointermove', move);
+  window.addEventListener('pointerup', end);
+})();
+
+requestAnimationFrame(drawFrame);
+</script>
+</body>
+</html>
