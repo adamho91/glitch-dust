@@ -4,7 +4,6 @@
     { id: 'lite', key: '2', label: 'Lite', href: 'lite.html' },
     { id: 'lower-thirds', key: '3', label: 'Lower Thirds', href: 'lower-thirds.html' },
     { id: 'typer', key: '4', label: 'Typer', href: 'typer.html' },
-    { id: 'test', key: '5', label: 'Test', href: 'test.html' },
   ];
 
   function currentPageId() {
@@ -12,7 +11,6 @@
     if (file === 'lite.html') return 'lite';
     if (file === 'lower-thirds.html') return 'lower-thirds';
     if (file === 'typer.html') return 'typer';
-    if (file === 'test.html') return 'test';
     return 'editor';
   }
 
@@ -61,7 +59,6 @@
     Digit2: PAGES[1],
     Digit3: PAGES[2],
     Digit4: PAGES[3],
-    Digit5: PAGES[4],
   };
 
   document.addEventListener('keydown', e => {
