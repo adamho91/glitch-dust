@@ -272,8 +272,13 @@
 
 <script>
 const W = 1920, H = 1080;
+const SEAM = 5;
 const canvas = document.getElementById('view');
 const ctx = canvas.getContext('2d');
+const tileLayer = document.createElement('canvas');
+tileLayer.width = W;
+tileLayer.height = H;
+const tctx = tileLayer.getContext('2d', { alpha: true });
 const scrubLine = document.getElementById('scrubLine');
 const statusEl = document.getElementById('status');
 const captionEl = document.getElementById('caption');
@@ -805,58 +810,18 @@ function rhombInSilhouette(i, j) {
   return (a && b) || (a && c) || (b && d) || (c && d);
 }
 
-function offsetPoly(poly, dist) {
-  const n = poly.length;
-  if (n < 3 || dist === 0) return poly;
-  let area = 0;
-  for (let i = 0; i < n; i++) {
-    const [x1, y1] = poly[i];
-    const [x2, y2] = poly[(i + 1) % n];
-    area += x1 * y2 - x2 * y1;
-  }
-  const sign = area >= 0 ? 1 : -1;
-  const out = [];
-  for (let i = 0; i < n; i++) {
-    const [x0, y0] = poly[(i + n - 1) % n];
-    const [x1, y1] = poly[i];
-    const [x2, y2] = poly[(i + 1) % n];
-    let e1x = x1 - x0, e1y = y1 - y0;
-    let e2x = x2 - x1, e2y = y2 - y1;
-    const l1 = Math.hypot(e1x, e1y);
-    const l2 = Math.hypot(e2x, e2y);
-    if (l1 < 1e-6 || l2 < 1e-6) {
-      out.push([x1, y1]);
-      continue;
-    }
-    e1x /= l1; e1y /= l1;
-    e2x /= l2; e2y /= l2;
-    const n1x = sign * e1y, n1y = sign * -e1x;
-    const n2x = sign * e2y, n2y = sign * -e2x;
-    const dot = n1x * n2x + n1y * n2y;
-    const mx = n1x + n2x, my = n1y + n2y;
-    const denom = 1 + dot;
-    if (Math.abs(denom) < 0.05) {
-      const bl = Math.hypot(mx, my) || 1;
-      out.push([x1 + (mx / bl) * dist, y1 + (my / bl) * dist]);
-      continue;
-    }
-    const scale = dist / denom;
-    const mlen = Math.hypot(mx * scale, my * scale);
-    const maxMiter = Math.abs(dist) * 3;
-    const s = mlen > maxMiter ? maxMiter / mlen : 1;
-    out.push([x1 + mx * scale * s, y1 + my * scale * s]);
-  }
-  return out;
-}
-
-function fillSeamless(poly, color) {
-  const grown = offsetPoly(poly, 2.25);
-  ctx.beginPath();
-  ctx.moveTo(grown[0][0], grown[0][1]);
-  for (let k = 1; k < grown.length; k++) ctx.lineTo(grown[k][0], grown[k][1]);
-  ctx.closePath();
-  ctx.fillStyle = color;
-  ctx.fill();
+function paintPoly(poly, color) {
+  tctx.beginPath();
+  tctx.moveTo(poly[0][0], poly[0][1]);
+  for (let k = 1; k < poly.length; k++) tctx.lineTo(poly[k][0], poly[k][1]);
+  tctx.closePath();
+  tctx.fillStyle = color;
+  tctx.strokeStyle = color;
+  tctx.lineWidth = SEAM;
+  tctx.lineJoin = 'miter';
+  tctx.miterLimit = 8;
+  tctx.stroke();
+  tctx.fill();
 }
 
 function colorFor(kind, i, j) {
@@ -924,9 +889,11 @@ function drawFrame(now) {
     ctx.fillRect(0, 0, W, H);
   }
 
-  ctx.translate(W / 2, H / 2);
-  ctx.rotate(cam.rot);
-  ctx.translate(-W / 2, -H / 2);
+  tctx.setTransform(1, 0, 0, 1, 0, 0);
+  tctx.clearRect(0, 0, W, H);
+  tctx.translate(W / 2, H / 2);
+  tctx.rotate(cam.rot);
+  tctx.translate(-W / 2, -H / 2);
 
   if (showRhombsEl.checked) {
     for (let j = 0; j < rows - 1; j++) {
@@ -934,16 +901,7 @@ function drawFrame(now) {
         if (!rhombInSilhouette(i, j)) continue;
         const poly = rhombPoly(i, j, size, phi, cols, rows);
         if (rhombArea(poly) < 0.6) continue;
-        fillSeamless(poly, colorFor('rhomb', i, j));
-        if (showStrokeEl.checked) {
-          ctx.beginPath();
-          ctx.moveTo(poly[0][0], poly[0][1]);
-          for (let k = 1; k < 4; k++) ctx.lineTo(poly[k][0], poly[k][1]);
-          ctx.closePath();
-          ctx.strokeStyle = bgMode === 'transparent' ? '#111' : bg;
-          ctx.lineWidth = 0.5;
-          ctx.stroke();
-        }
+        paintPoly(poly, colorFor('rhomb', i, j));
       }
     }
   }
@@ -955,25 +913,64 @@ function drawFrame(now) {
       const p = squarePose(i, j, size, phi, cols, rows);
       const shape = cellShape.get(k) || 'rect';
       const col = colorFor(shape, i, j);
-      ctx.save();
-      ctx.translate(p.cx, p.cy);
-      ctx.fillStyle = col;
+      tctx.save();
+      tctx.translate(p.cx, p.cy);
+      tctx.fillStyle = col;
+      tctx.strokeStyle = col;
+      tctx.lineWidth = SEAM;
+      tctx.lineJoin = 'miter';
+      tctx.miterLimit = 8;
       if (shape === 'circle') {
-        ctx.beginPath();
-        ctx.arc(0, 0, size * 0.47, 0, Math.PI * 2);
-        ctx.fill();
+        tctx.beginPath();
+        tctx.arc(0, 0, size / 2, 0, Math.PI * 2);
+        tctx.stroke();
+        tctx.fill();
       } else {
-        ctx.rotate(p.rot);
-        const pad = 2.25;
-        ctx.fillRect(-size / 2 - pad, -size / 2 - pad, size + pad * 2, size + pad * 2);
-        if (showStrokeEl.checked) {
-          ctx.strokeStyle = bgMode === 'transparent' ? '#111' : bg;
-          ctx.lineWidth = 0.5;
-          ctx.strokeRect(-size / 2, -size / 2, size, size);
+        tctx.rotate(p.rot);
+        tctx.strokeRect(-size / 2, -size / 2, size, size);
+        tctx.fillRect(-size / 2, -size / 2, size, size);
+      }
+      tctx.restore();
+    });
+  }
+
+  ctx.drawImage(tileLayer, 0, 0);
+
+  if (showStrokeEl.checked) {
+    ctx.translate(W / 2, H / 2);
+    ctx.rotate(cam.rot);
+    ctx.translate(-W / 2, -H / 2);
+    ctx.strokeStyle = bgMode === 'transparent' ? '#111' : bg;
+    ctx.lineWidth = 0.5;
+    ctx.lineJoin = 'miter';
+    if (showRhombsEl.checked) {
+      for (let j = 0; j < rows - 1; j++) {
+        for (let i = 0; i < cols - 1; i++) {
+          if (!rhombInSilhouette(i, j)) continue;
+          const poly = rhombPoly(i, j, size, phi, cols, rows);
+          if (rhombArea(poly) < 0.6) continue;
+          ctx.beginPath();
+          ctx.moveTo(poly[0][0], poly[0][1]);
+          for (let k = 1; k < 4; k++) ctx.lineTo(poly[k][0], poly[k][1]);
+          ctx.closePath();
+          ctx.stroke();
         }
       }
-      ctx.restore();
-    });
+    }
+    if (showSquaresEl.checked) {
+      occupied.forEach(k => {
+        const [is, js] = k.split(',');
+        const i = +is, j = +js;
+        const p = squarePose(i, j, size, phi, cols, rows);
+        const shape = cellShape.get(k) || 'rect';
+        if (shape === 'circle') return;
+        ctx.save();
+        ctx.translate(p.cx, p.cy);
+        ctx.rotate(p.rot);
+        ctx.strokeRect(-size / 2, -size / 2, size, size);
+        ctx.restore();
+      });
+    }
   }
 
   ctx.setTransform(1, 0, 0, 1, 0, 0);
