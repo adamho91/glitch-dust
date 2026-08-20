@@ -266,14 +266,35 @@
       <span class="val" id="pixSizeV">40</span>
     </div>
     <div class="ctrl">
+      <label>Min shape %</label>
+      <input type="range" id="shapeMin" min="0" max="100" value="35" step="1">
+      <span class="val" id="shapeMinV">35</span>
+    </div>
+    <div class="ctrl">
+      <label>Max shape %</label>
+      <input type="range" id="shapeMax" min="0" max="100" value="100" step="1">
+      <span class="val" id="shapeMaxV">100</span>
+    </div>
+    <p class="hint">Clamp square/circle size within each grid cell</p>
+    <div class="ctrl">
+      <label>Oversize rarity</label>
+      <input type="range" id="megaRarity" min="0" max="100" value="12" step="1">
+      <span class="val" id="megaRarityV">12</span>
+    </div>
+    <div class="tonal-count" id="megaTiers">
+      <button type="button" data-tier="2" class="active">2×</button>
+      <button type="button" data-tier="3" class="active">3×</button>
+      <button type="button" data-tier="4" class="active">4×</button>
+      <button type="button" data-tier="5">5×</button>
+      <button type="button" data-tier="6">6×</button>
+      <button type="button" data-tier="7">7×</button>
+      <button type="button" data-tier="8">8×</button>
+    </div>
+    <p class="hint">Rarity slider + enable which oversize tiers can spawn · bigger = rarer</p>
+    <div class="ctrl">
       <label>Circles %</label>
       <input type="range" id="circlePct" min="0" max="100" value="35" step="1">
       <span class="val" id="circlePctV">35</span>
-    </div>
-    <div class="ctrl">
-      <label>Shape scale</label>
-      <input type="range" id="shapeScale" min="40" max="110" value="92" step="1">
-      <span class="val" id="shapeScaleV">92</span>
     </div>
     <div class="ctrl">
       <label>Fade</label>
@@ -379,8 +400,10 @@ const contrastEl = document.getElementById('contrast');
 const densityEl = document.getElementById('density');
 const invertEl = document.getElementById('invert');
 const pixSizeEl = document.getElementById('pixSize');
+const shapeMinEl = document.getElementById('shapeMin');
+const shapeMaxEl = document.getElementById('shapeMax');
+const megaRarityEl = document.getElementById('megaRarity');
 const circlePctEl = document.getElementById('circlePct');
-const shapeScaleEl = document.getElementById('shapeScale');
 const fadeDirEl = document.getElementById('fadeDir');
 const fadeStrengthEl = document.getElementById('fadeStrength');
 const colorMapEl = document.getElementById('colorMap');
@@ -404,6 +427,44 @@ function hashNoise(n) {
   const x = Math.sin(n * 127.1 + 311.7) * 43758.5453;
   return x - Math.floor(x);
 }
+
+function getEnabledMegaTiers() {
+  const tiers = [];
+  document.querySelectorAll('#megaTiers button').forEach(btn => {
+    if (btn.classList.contains('active')) tiers.push(parseInt(btn.dataset.tier, 10));
+  });
+  return tiers.sort((a, b) => a - b);
+}
+
+function pickSizeMultiplier(gx, gy, salt) {
+  const enabled = getEnabledMegaTiers();
+  if (!enabled.length) return 1;
+  const rarity = v(megaRarityEl) / 100;
+  if (rarity <= 0) return 1;
+  const chance = lerp(0, 0.4, rarity);
+  const h = hashNoise(gx * 23.1 + gy * 31.7 + (salt || 0) + noiseSeed * 0.47);
+  if (h >= chance) return 1;
+  const tierRoll = hashNoise(gx * 7.9 + gy * 13.3 + (salt || 0) * 2.1 + 99);
+  const weights = enabled.map(t => Math.max(1, 9 - t));
+  const totalW = weights.reduce((a, b) => a + b, 0);
+  let roll = tierRoll * totalW;
+  for (let i = 0; i < enabled.length; i++) {
+    roll -= weights[i];
+    if (roll <= 0) return enabled[i];
+  }
+  return enabled[enabled.length - 1];
+}
+
+function getShapeDrawScale(raw) {
+  const lo = Math.min(v(shapeMinEl), v(shapeMaxEl)) / 100;
+  const hi = Math.max(v(shapeMinEl), v(shapeMaxEl)) / 100;
+  if (raw < 0.02) return 0;
+  return lo + clamp01(raw) * (hi - lo);
+}
+
+document.querySelectorAll('#megaTiers button').forEach(btn => {
+  btn.onclick = () => btn.classList.toggle('active');
+});
 
 document.querySelectorAll('#sampleMode button').forEach(btn => {
   btn.onclick = () => {
@@ -1131,7 +1192,6 @@ function drawFrame(now) {
   const thresh = v(thresholdEl) / 100;
   const dens = v(densityEl) / 100;
   const cir = v(circlePctEl) / 100;
-  const scale = v(shapeScaleEl) / 100;
   const pad = 0.35;
 
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -1178,10 +1238,13 @@ function drawFrame(now) {
         if (hashNoise(i * 12.9898 + j * 78.233 + noiseSeed) > keepChance) continue;
         lit++;
         const isCircle = hashNoise(i * 7.1 + j * 19.3 + noiseSeed * 0.41) < cir;
+        const sizeMul = pickSizeMultiplier(i, j, 1);
+        const shapeScale = getShapeDrawScale(score) * sizeMul;
+        if (shapeScale < 0.02) continue;
         const col = colorFor(i, j, score);
         const cx = ox + i * size + size / 2;
         const cy = oy + j * size + size / 2;
-        const s = size * scale * (0.72 + score * 0.28);
+        const s = size * shapeScale;
         ctx.fillStyle = col;
         if (isCircle) {
           ctx.beginPath();
