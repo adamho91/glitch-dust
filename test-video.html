@@ -54,6 +54,8 @@
   button.primary { border-color: var(--ui-accent); color: var(--ui-accent-light); }
   button.primary:hover { background: var(--ui-accent-a22); }
   button.active { border-color: var(--ui-accent); background: var(--ui-accent-a33); color: var(--ui-accent-pale); }
+  button.recording { border-color: #EC0648; background: rgba(236, 6, 72, 0.22); color: #FFC4D8; }
+  button.recording:hover { background: rgba(236, 6, 72, 0.32); color: #fff; }
   .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 8px; }
   .ctrl-check { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; padding-left: 2px; }
   .ctrl-check label { color: #999; cursor: pointer; user-select: none; }
@@ -213,7 +215,22 @@
       <input type="checkbox" id="showSource" checked>
       <label for="showSource">Show source thumb</label>
     </div>
+    <div class="ctrl-check">
+      <input type="checkbox" id="showOnCanvas">
+      <label for="showOnCanvas">Show source on canvas</label>
+    </div>
+    <div class="ctrl">
+      <label>Source opacity</label>
+      <input type="range" id="sourceOpacity" min="0" max="100" value="55" step="1">
+      <span class="val" id="sourceOpacityV">55</span>
+    </div>
     <p class="hint">Same square/circle dust nodes as ⇧1, driven by media luminance — like ASCII for the silhouette.</p>
+
+    <div class="sect">Capture</div>
+    <div class="btn-row">
+      <button type="button" id="recordBtn" class="primary">Record</button>
+    </div>
+    <p class="hint" id="recordHint">Records the canvas (source + dust) to WebM / MP4.</p>
 
     <div class="sect">Sampling</div>
     <div class="mode-pills" id="sampleMode">
@@ -369,6 +386,15 @@ const fadeStrengthEl = document.getElementById('fadeStrength');
 const colorMapEl = document.getElementById('colorMap');
 const mirrorEl = document.getElementById('mirror');
 const showSourceEl = document.getElementById('showSource');
+const showOnCanvasEl = document.getElementById('showOnCanvas');
+const sourceOpacityEl = document.getElementById('sourceOpacity');
+const recordBtn = document.getElementById('recordBtn');
+const recordHintEl = document.getElementById('recordHint');
+
+let mediaRecorder = null;
+let recordChunks = [];
+let recording = false;
+let recordStartedAt = 0;
 
 function v(el) { return +el.value; }
 function clamp01(t) { return Math.max(0, Math.min(1, t)); }
@@ -757,6 +783,82 @@ fileInputEl.addEventListener('change', e => {
 document.getElementById('stopBtn').onclick = () => stopMedia();
 showSourceEl.onchange = syncThumbVisibility;
 
+function pickRecordMime() {
+  const candidates = [
+    'video/webm;codecs=vp9',
+    'video/webm;codecs=vp8',
+    'video/webm',
+    'video/mp4',
+  ];
+  if (typeof MediaRecorder === 'undefined') return '';
+  return candidates.find(m => MediaRecorder.isTypeSupported(m)) || '';
+}
+
+function stopRecording(save) {
+  if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+    recording = false;
+    recordBtn.textContent = 'Record';
+    recordBtn.classList.remove('recording');
+    return;
+  }
+  const shouldSave = save !== false;
+  mediaRecorder.onstop = () => {
+    recording = false;
+    recordBtn.textContent = 'Record';
+    recordBtn.classList.remove('recording');
+    if (!shouldSave || !recordChunks.length) {
+      recordHintEl.textContent = 'Records the canvas (source + dust) to WebM / MP4.';
+      return;
+    }
+    const mime = mediaRecorder.mimeType || pickRecordMime() || 'video/webm';
+    const blob = new Blob(recordChunks, { type: mime });
+    const ext = mime.includes('mp4') ? 'mp4' : 'webm';
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const secs = Math.max(1, Math.round((performance.now() - recordStartedAt) / 1000));
+    a.href = url;
+    a.download = `video-dust-${secs}s-${Date.now()}.${ext}`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    recordHintEl.textContent = `Saved ${a.download}`;
+  };
+  try { mediaRecorder.stop(); } catch (_) {}
+}
+
+function startRecording() {
+  if (typeof MediaRecorder === 'undefined' || typeof canvas.captureStream !== 'function') {
+    recordHintEl.textContent = 'Recording not supported in this browser.';
+    return;
+  }
+  const mime = pickRecordMime();
+  const stream = canvas.captureStream(30);
+  recordChunks = [];
+  try {
+    mediaRecorder = mime
+      ? new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 12_000_000 })
+      : new MediaRecorder(stream, { videoBitsPerSecond: 12_000_000 });
+  } catch (err) {
+    recordHintEl.textContent = 'Could not start recorder.';
+    return;
+  }
+  mediaRecorder.ondataavailable = e => {
+    if (e.data && e.data.size) recordChunks.push(e.data);
+  };
+  mediaRecorder.start(250);
+  recording = true;
+  recordStartedAt = performance.now();
+  recordBtn.textContent = 'Stop record';
+  recordBtn.classList.add('recording');
+  recordHintEl.textContent = 'Recording… click Stop record to download.';
+}
+
+recordBtn.onclick = () => {
+  if (recording) stopRecording(true);
+  else startRecording();
+};
+
 function fadeKeep(nx, ny) {
   const amt = v(fadeStrengthEl) / 100;
   if (amt <= 0 || fadeDirEl.value === 'none') return 1;
@@ -1053,6 +1155,16 @@ function drawFrame(now) {
     return;
   }
 
+  // Optional live source under the dust nodes.
+  if (showOnCanvasEl.checked && sourceReady()) {
+    const mirror = mirrorEl.checked && sourceKind === 'webcam';
+    const opac = clamp01(v(sourceOpacityEl) / 100);
+    ctx.save();
+    ctx.globalAlpha = opac;
+    drawCoverSource(ctx, W, H, mirror);
+    ctx.restore();
+  }
+
   const { scores, ok, autoInk } = sampleField(cols, rows, now);
   let lit = 0;
   if (ok) {
@@ -1084,8 +1196,9 @@ function drawFrame(now) {
 
   const inkNote = autoInk ? ' · auto-ink' : '';
   const readyNote = ok ? '' : ' · sample failed';
+  const recNote = recording ? ` · rec ${Math.round((now - recordStartedAt) / 1000)}s` : '';
   statusEl.textContent =
-    `${lit} nodes · ${sourceKind} · ${sampleMode}${inkNote}${readyNote} · ${cols}×${rows} @ ${size}px · ${activePresetId || 'custom'} · ${activeTonalColors.length} colours · ${W}×${H}`;
+    `${lit} nodes · ${sourceKind} · ${sampleMode}${inkNote}${readyNote}${recNote} · ${cols}×${rows} @ ${size}px · ${activePresetId || 'custom'} · ${activeTonalColors.length} colours · ${W}×${H}`;
   requestAnimationFrame(drawFrame);
 }
 
