@@ -203,7 +203,7 @@
       <button type="button" id="fileBtn">Choose media</button>
       <button type="button" id="stopBtn">Stop</button>
     </div>
-    <input type="file" id="fileInput" accept="video/*,image/*" hidden>
+    <input type="file" id="fileInput" accept="image/*,video/*,.png,.jpg,.jpeg,.webp,.gif,.bmp,.avif,.mp4,.webm,.mov" hidden>
     <div class="media-name" id="sourceHint">No source yet — webcam, video, or image.</div>
     <div class="ctrl-check">
       <input type="checkbox" id="mirror" checked>
@@ -328,9 +328,9 @@ video.muted = true;
 video.playsInline = true;
 video.loop = true;
 const stillImage = new Image();
-stillImage.decoding = 'async';
 const thumbVideo = document.getElementById('sourceThumbVideo');
 const thumbImage = document.getElementById('sourceThumbImage');
+const fileInputEl = document.getElementById('fileInput');
 const statusEl = document.getElementById('status');
 const captionEl = document.getElementById('caption');
 const sourceHintEl = document.getElementById('sourceHint');
@@ -341,6 +341,7 @@ let sampleMode = 'luma';
 let mediaStream = null;
 let objectUrl = null;
 let sourceKind = 'none'; // none | webcam | video | image
+let sourceBitmap = null; // ImageBitmap for stills when available
 let hasFrame = false;
 let tonalCount = 2;
 let activePresetId = '2-j';
@@ -606,6 +607,13 @@ initFalPalettePicker();
 applyTonalPreset(FAL_2.find(p => p.id === '2-j') || FAL_2[0]);
 initDialSliders(document.getElementById('controls'));
 
+function releaseBitmap() {
+  if (sourceBitmap && typeof sourceBitmap.close === 'function') {
+    try { sourceBitmap.close(); } catch (_) {}
+  }
+  sourceBitmap = null;
+}
+
 function stopMedia() {
   if (mediaStream) {
     mediaStream.getTracks().forEach(t => t.stop());
@@ -614,7 +622,11 @@ function stopMedia() {
   video.pause();
   video.removeAttribute('src');
   video.srcObject = null;
+  video.load();
+  stillImage.onload = null;
+  stillImage.onerror = null;
   stillImage.removeAttribute('src');
+  releaseBitmap();
   if (objectUrl) {
     URL.revokeObjectURL(objectUrl);
     objectUrl = null;
@@ -622,6 +634,7 @@ function stopMedia() {
   thumbVideo.pause();
   thumbVideo.removeAttribute('src');
   thumbVideo.srcObject = null;
+  thumbVideo.load();
   thumbImage.removeAttribute('src');
   thumbVideo.classList.remove('visible');
   thumbImage.classList.remove('visible');
@@ -650,32 +663,57 @@ async function useWebcam() {
   }
 }
 
-function loadImageFile(file) {
+function loadImageElement(url) {
   return new Promise((resolve, reject) => {
-    stillImage.onload = () => resolve();
+    const done = () => {
+      if (stillImage.naturalWidth > 0) resolve();
+      else reject(new Error('image has no dimensions'));
+    };
+    stillImage.onload = done;
     stillImage.onerror = () => reject(new Error('image load failed'));
-    stillImage.src = objectUrl;
+    stillImage.src = url;
+    if (stillImage.complete && stillImage.naturalWidth > 0) done();
   });
 }
 
-async function useFile(file) {
-  if (!file) return;
+function isVideoFile(file) {
+  const type = (file.type || '').toLowerCase();
+  const name = file.name || '';
+  return type.startsWith('video/') || /\.(mp4|webm|mov|m4v|ogv|mkv)$/i.test(name);
+}
+
+function isImageFile(file) {
+  const type = (file.type || '').toLowerCase();
+  const name = file.name || '';
+  return type.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|avif|heic|heif|tif{1,2})$/i.test(name);
+}
+
+async function useImageFile(file) {
   stopMedia();
   objectUrl = URL.createObjectURL(file);
-  const isImage = (file.type || '').startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|avif)$/i.test(file.name || '');
-  if (isImage) {
-    try {
-      await loadImageFile(file);
-      thumbImage.src = objectUrl;
-      sourceKind = 'image';
-      hasFrame = true;
-      syncThumbVisibility();
-      sourceHintEl.textContent = file.name;
-    } catch (err) {
-      sourceHintEl.textContent = 'Could not load that image.';
+  try {
+    if (typeof createImageBitmap === 'function') {
+      try {
+        sourceBitmap = await createImageBitmap(file);
+      } catch (_) {
+        sourceBitmap = null;
+      }
     }
-    return;
+    await loadImageElement(objectUrl);
+    thumbImage.src = objectUrl;
+    sourceKind = 'image';
+    hasFrame = true;
+    syncThumbVisibility();
+    sourceHintEl.textContent = file.name || 'Image loaded';
+  } catch (err) {
+    stopMedia();
+    sourceHintEl.textContent = 'Could not load that image (try PNG / JPG / WebP).';
   }
+}
+
+async function useVideoFile(file) {
+  stopMedia();
+  objectUrl = URL.createObjectURL(file);
   video.src = objectUrl;
   thumbVideo.src = objectUrl;
   try {
@@ -684,10 +722,22 @@ async function useFile(file) {
     sourceKind = 'video';
     hasFrame = true;
     syncThumbVisibility();
-    sourceHintEl.textContent = file.name;
+    sourceHintEl.textContent = file.name || 'Video loaded';
   } catch (err) {
+    stopMedia();
     sourceHintEl.textContent = 'Could not play that file.';
   }
+}
+
+async function useFile(file) {
+  if (!file) return;
+  // Allow re-selecting the same file.
+  fileInputEl.value = '';
+  if (isImageFile(file) || (!isVideoFile(file) && !(file.type || '').startsWith('video/'))) {
+    await useImageFile(file);
+    return;
+  }
+  await useVideoFile(file);
 }
 
 function syncThumbVisibility() {
@@ -697,8 +747,11 @@ function syncThumbVisibility() {
 }
 
 document.getElementById('webcamBtn').onclick = () => useWebcam();
-document.getElementById('fileBtn').onclick = () => document.getElementById('fileInput').click();
-document.getElementById('fileInput').onchange = e => useFile(e.target.files && e.target.files[0]);
+document.getElementById('fileBtn').onclick = () => fileInputEl.click();
+fileInputEl.addEventListener('change', e => {
+  const file = e.target.files && e.target.files[0];
+  if (file) useFile(file);
+});
 document.getElementById('stopBtn').onclick = () => stopMedia();
 showSourceEl.onchange = syncThumbVisibility;
 
@@ -729,20 +782,34 @@ function colorFor(i, j, score) {
 }
 
 function sourceDrawable() {
-  if (sourceKind === 'image') return stillImage;
+  if (sourceKind === 'image') return sourceBitmap || stillImage;
   return video;
+}
+
+function sourceSize(src) {
+  if (sourceKind === 'image') {
+    return {
+      w: src.naturalWidth || src.width || 0,
+      h: src.naturalHeight || src.height || 0,
+    };
+  }
+  return { w: src.videoWidth || 0, h: src.videoHeight || 0 };
 }
 
 function sourceReady() {
   if (!hasFrame) return false;
-  if (sourceKind === 'image') return stillImage.complete && stillImage.naturalWidth > 0;
-  return video.readyState >= 2;
+  if (sourceKind === 'image') {
+    const src = sourceDrawable();
+    const { w, h } = sourceSize(src);
+    return w > 0 && h > 0;
+  }
+  return video.readyState >= 2 && video.videoWidth > 0;
 }
 
 function drawCoverSource(targetCtx, cols, rows, mirror) {
   const src = sourceDrawable();
-  const vw = (sourceKind === 'image' ? src.naturalWidth : src.videoWidth) || 1;
-  const vh = (sourceKind === 'image' ? src.naturalHeight : src.videoHeight) || 1;
+  const { w: vw, h: vh } = sourceSize(src);
+  if (vw < 1 || vh < 1) return;
   const scale = Math.max(cols / vw, rows / vh);
   const dw = vw * scale;
   const dh = vh * scale;
