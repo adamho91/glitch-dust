@@ -7,6 +7,13 @@
 <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
 <link rel="stylesheet" href="ui-theme.css">
 <style>
+  @font-face {
+    font-family: 'Focal Upright';
+    src: url('Focal-Upright-VF_wght.ttf') format('truetype');
+    font-weight: 100 900;
+    font-style: normal;
+    font-display: swap;
+  }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; }
   body { background: #1a1a1a; color: #ccc; font-size: 13px; min-height: 100vh; overflow: hidden; }
@@ -17,16 +24,16 @@
   }
   .sidebar { overflow-y: auto; padding: 16px 16px 32px; border-right: 1px solid #2a2a2a; background: #161616; }
   .preview-panel { display: flex; flex-direction: column; padding: 16px 20px; min-width: 0; min-height: 0; overflow: hidden; }
-  .subtitle { font-size: 11px; color: #666; margin-bottom: 12px; }
+  .subtitle { font-size: 11px; color: #666; margin-bottom: 12px; flex-shrink: 0; }
   .preview-wrap {
     flex: 1; min-height: 0;
     display: flex; align-items: center; justify-content: center;
     border: 1px solid #333; border-radius: 6px; overflow: hidden;
-    background: #000; line-height: 0; position: relative;
+    background: #ffffff; line-height: 0; position: relative; isolation: isolate;
   }
   .stage { display: flex; align-items: center; justify-content: center; width: 100%; max-width: 960px; position: relative; }
-  .stage-canvas { position: relative; display: block; width: 100%; line-height: 0; overflow: hidden; }
-  .stage-canvas canvas { display: block; width: 100%; height: auto; }
+  .stage-canvas { position: relative; display: block; width: 100%; max-width: 960px; line-height: 0; overflow: hidden; }
+  .stage-canvas canvas { display: block; width: 100%; height: auto; vertical-align: top; }
   #status { font-size: 11px; color: #666; margin-top: 10px; min-height: 14px; flex-shrink: 0; }
   .layout { display: flex; flex-direction: column; }
   .sect { font-size: 10px; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: .08em; margin: 16px 0 8px; }
@@ -34,9 +41,13 @@
   .ctrl { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
   .ctrl label { width: 120px; flex-shrink: 0; color: #999; }
   .ctrl input[type=range] { flex: 1; accent-color: #ADFF00; }
-  .ctrl span.val { min-width: 36px; font-size: 12px; font-weight: 500; color: #eee; text-align: right; }
+  .ctrl span.val { min-width: 32px; font-size: 12px; font-weight: 500; color: #eee; text-align: right; }
   .ctrl select { flex: 1; background: #2a2a2a; border: 1px solid #3a3a3a; color: #eee; border-radius: 4px; padding: 3px 6px; font-size: 12px; }
-  button { background: #2a2a2a; border: 1px solid #3a3a3a; color: #ccc; border-radius: 5px; padding: 7px 14px; font-size: 12px; cursor: pointer; }
+  .ctrl input[type=color] { width: 34px; height: 28px; border-radius: 4px; border: 1px solid #3a3a3a; padding: 2px; background: transparent; cursor: pointer; }
+  button {
+    background: #2a2a2a; border: 1px solid #3a3a3a; color: #ccc; border-radius: 5px;
+    padding: 7px 14px; font-size: 12px; cursor: pointer; transition: background 0.15s, color 0.15s;
+  }
   button:hover { background: #3a3a3a; color: #eee; }
   button.primary { border-color: var(--ui-accent); color: var(--ui-accent-light); }
   button.primary:hover { background: var(--ui-accent-a22); }
@@ -45,13 +56,12 @@
   .ctrl-check { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; padding-left: 2px; }
   .ctrl-check label { color: #999; cursor: pointer; user-select: none; }
   .ctrl-check input { width: 16px; height: 16px; accent-color: #ADFF00; cursor: pointer; flex-shrink: 0; }
-  .hint { color: #444; margin: -4px 0 9px; }
   .mode-pills { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
   .mode-pills button { padding: 5px 10px; font-size: 11px; font-weight: 600; }
   .tonal-count { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
   .tonal-count button { padding: 5px 12px; min-width: 36px; font-size: 11px; font-weight: 600; }
   .tonal-count button.active { border-color: var(--ui-accent); background: var(--ui-accent-a33); color: var(--ui-accent-pale); }
-  .tonal-presets { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; max-height: 240px; overflow-y: auto; }
+  .tonal-presets { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; max-height: 280px; overflow-y: auto; }
   .tonal-preset { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border: 1px solid #333; border-radius: 5px; background: #222; cursor: pointer; text-align: left; width: 100%; font-size: 11px; color: #bbb; }
   .tonal-preset:hover { border-color: #444; background: #2a2a2a; }
   .tonal-preset.active { border-color: var(--ui-accent); background: var(--ui-accent-a18); color: #eee; }
@@ -80,6 +90,14 @@
   }
   .fal-palette-swatch:hover { border-color: #888; }
   .fal-palette-swatch.active { border-color: var(--ui-accent); box-shadow: 0 0 0 1px var(--ui-accent-a33); }
+  .bg-swatches { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
+  .bg-swatch {
+    width: 28px; height: 28px; border-radius: 4px;
+    border: 2px solid rgba(255,255,255,0.12);
+    padding: 0; cursor: pointer;
+  }
+  .bg-swatch:hover { border-color: #666; }
+  .bg-swatch.active { border-color: var(--ui-accent); box-shadow: 0 0 0 1px var(--ui-accent-a33); }
   .bg-swatch-transparent {
     background:
       linear-gradient(45deg, #555 25%, transparent 25%, transparent 75%, #555 75%, #555),
@@ -87,22 +105,15 @@
     background-size: 8px 8px; background-position: 0 0, 4px 4px; background-color: #333;
   }
   .bg-swatch-custom { display: flex; align-items: center; justify-content: center; }
-  .bg-swatches { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
-  .bg-swatch {
-    width: 28px; height: 28px; border-radius: 4px;
-    border: 2px solid rgba(255,255,255,0.12);
-    padding: 0; cursor: pointer;
-  }
-  .bg-swatch.active { border-color: var(--ui-accent); box-shadow: 0 0 0 1px var(--ui-accent-a33); }
   a.inline { color: #888; }
   a.inline:hover { color: var(--ui-accent-light); }
   .test-badge {
     display: inline-flex; align-items: center; gap: 8px;
     margin: 0 0 10px; padding: 6px 10px;
     border: 1px dashed #555; border-radius: 5px;
-    font-size: 11px; color: #aaa; letter-spacing: .04em; text-transform: uppercase;
+    font-family: var(--ui-mono); font-size: 10px; color: #888; letter-spacing: .04em; text-transform: uppercase;
   }
-  .test-badge strong { color: #ADFF00; font-weight: 700; }
+  .test-badge strong { color: #ADFF00; font-weight: 700; font-family: var(--ui-font); }
   .test-tools { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
   .test-tools a {
     display: inline-flex; align-items: center; gap: 6px;
@@ -116,6 +127,7 @@
     border: 1px solid #333; background: #111; margin-bottom: 8px; display: none;
   }
   .source-thumb.visible { display: block; }
+  .media-name { font-size: 10px; color: #666; margin: -2px 0 8px 0; word-break: break-all; }
   .dialkit-controls .dial-source {
     position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none;
   }
@@ -179,16 +191,18 @@
   </div>
   <div class="layout" id="controls">
     <div class="sect">Video dust test</div>
-    <p class="hint">Same square/circle dust nodes as ⇧1, but occupancy comes from video luminance — like ASCII, for the glitch-dust silhouette.</p>
+    <p class="hint">Occupancy from webcam, video, or still image. Dialkit + fal palette match the main builder.</p>
 
     <div class="sect">Source</div>
-    <video id="sourceThumb" class="source-thumb" muted playsinline></video>
+    <video id="sourceThumbVideo" class="source-thumb" muted playsinline></video>
+    <img id="sourceThumbImage" class="source-thumb" alt="">
     <div class="btn-row">
       <button type="button" id="webcamBtn" class="primary">Use webcam</button>
-      <button type="button" id="fileBtn">Choose video</button>
+      <button type="button" id="fileBtn">Choose media</button>
       <button type="button" id="stopBtn">Stop</button>
     </div>
-    <input type="file" id="fileInput" accept="video/*" hidden>
+    <input type="file" id="fileInput" accept="video/*,image/*" hidden>
+    <div class="media-name" id="sourceHint">No source yet — webcam, video, or image.</div>
     <div class="ctrl-check">
       <input type="checkbox" id="mirror" checked>
       <label for="mirror">Mirror (webcam)</label>
@@ -197,7 +211,7 @@
       <input type="checkbox" id="showSource" checked>
       <label for="showSource">Show source thumb</label>
     </div>
-    <p class="hint" id="sourceHint">No source yet — webcam or drop a clip.</p>
+    <p class="hint">Same square/circle dust nodes as ⇧1, driven by media luminance — like ASCII for the silhouette.</p>
 
     <div class="sect">Sampling</div>
     <div class="mode-pills" id="sampleMode">
@@ -287,7 +301,7 @@
   </div>
 </aside>
 <main class="preview-panel">
-  <div class="subtitle" id="caption">Video dust · luminance → square / circle nodes</div>
+  <div class="subtitle" id="caption">Media dust · luminance → square / circle nodes</div>
   <div class="preview-wrap" id="previewWrap">
     <div id="stage" class="stage">
       <div id="stageCanvas" class="stage-canvas">
@@ -311,7 +325,10 @@ const video = document.createElement('video');
 video.muted = true;
 video.playsInline = true;
 video.loop = true;
-const thumb = document.getElementById('sourceThumb');
+const stillImage = new Image();
+stillImage.decoding = 'async';
+const thumbVideo = document.getElementById('sourceThumbVideo');
+const thumbImage = document.getElementById('sourceThumbImage');
 const statusEl = document.getElementById('status');
 const captionEl = document.getElementById('caption');
 const sourceHintEl = document.getElementById('sourceHint');
@@ -321,6 +338,7 @@ let bgMode = '#403700';
 let sampleMode = 'luma';
 let mediaStream = null;
 let objectUrl = null;
+let sourceKind = 'none'; // none | webcam | video | image
 let hasFrame = false;
 let tonalCount = 2;
 let activePresetId = '2-j';
@@ -362,7 +380,7 @@ document.querySelectorAll('#sampleMode button').forEach(btn => {
     sampleMode = btn.dataset.mode;
     document.querySelectorAll('#sampleMode button').forEach(b => b.classList.toggle('active', b === btn));
     document.getElementById('sampleHint').textContent = SAMPLE_HINTS[sampleMode];
-    captionEl.textContent = 'Video dust · ' + (
+    captionEl.textContent = 'Media dust · ' + (
       sampleMode === 'edge' ? 'edges' : sampleMode === 'motion' ? 'motion' : 'luminance'
     ) + ' → square / circle nodes';
   };
@@ -594,16 +612,20 @@ function stopMedia() {
   video.pause();
   video.removeAttribute('src');
   video.srcObject = null;
+  stillImage.removeAttribute('src');
   if (objectUrl) {
     URL.revokeObjectURL(objectUrl);
     objectUrl = null;
   }
-  thumb.pause();
-  thumb.removeAttribute('src');
-  thumb.srcObject = null;
-  thumb.classList.remove('visible');
+  thumbVideo.pause();
+  thumbVideo.removeAttribute('src');
+  thumbVideo.srcObject = null;
+  thumbImage.removeAttribute('src');
+  thumbVideo.classList.remove('visible');
+  thumbImage.classList.remove('visible');
+  sourceKind = 'none';
   hasFrame = false;
-  sourceHintEl.textContent = 'No source yet — webcam or drop a clip.';
+  sourceHintEl.textContent = 'No source yet — webcam, video, or image.';
 }
 
 async function useWebcam() {
@@ -614,28 +636,52 @@ async function useWebcam() {
       audio: false,
     });
     video.srcObject = mediaStream;
-    thumb.srcObject = mediaStream;
+    thumbVideo.srcObject = mediaStream;
     await video.play();
-    thumb.play().catch(() => {});
-    syncThumbVisibility();
+    thumbVideo.play().catch(() => {});
+    sourceKind = 'webcam';
     hasFrame = true;
+    syncThumbVisibility();
     sourceHintEl.textContent = 'Webcam live.';
   } catch (err) {
     sourceHintEl.textContent = 'Webcam blocked — allow camera access or choose a file.';
   }
 }
 
+function loadImageFile(file) {
+  return new Promise((resolve, reject) => {
+    stillImage.onload = () => resolve();
+    stillImage.onerror = () => reject(new Error('image load failed'));
+    stillImage.src = objectUrl;
+  });
+}
+
 async function useFile(file) {
   if (!file) return;
   stopMedia();
   objectUrl = URL.createObjectURL(file);
+  const isImage = (file.type || '').startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|avif)$/i.test(file.name || '');
+  if (isImage) {
+    try {
+      await loadImageFile(file);
+      thumbImage.src = objectUrl;
+      sourceKind = 'image';
+      hasFrame = true;
+      syncThumbVisibility();
+      sourceHintEl.textContent = file.name;
+    } catch (err) {
+      sourceHintEl.textContent = 'Could not load that image.';
+    }
+    return;
+  }
   video.src = objectUrl;
-  thumb.src = objectUrl;
+  thumbVideo.src = objectUrl;
   try {
     await video.play();
-    thumb.play().catch(() => {});
-    syncThumbVisibility();
+    thumbVideo.play().catch(() => {});
+    sourceKind = 'video';
     hasFrame = true;
+    syncThumbVisibility();
     sourceHintEl.textContent = file.name;
   } catch (err) {
     sourceHintEl.textContent = 'Could not play that file.';
@@ -643,7 +689,9 @@ async function useFile(file) {
 }
 
 function syncThumbVisibility() {
-  thumb.classList.toggle('visible', showSourceEl.checked && hasFrame);
+  const show = showSourceEl.checked && hasFrame;
+  thumbVideo.classList.toggle('visible', show && (sourceKind === 'webcam' || sourceKind === 'video'));
+  thumbImage.classList.toggle('visible', show && sourceKind === 'image');
 }
 
 document.getElementById('webcamBtn').onclick = () => useWebcam();
@@ -678,9 +726,21 @@ function colorFor(i, j, score) {
   return pal[((i + j) % n + n) % n];
 }
 
-function drawCoverVideo(targetCtx, cols, rows, mirror) {
-  const vw = video.videoWidth || 1;
-  const vh = video.videoHeight || 1;
+function sourceDrawable() {
+  if (sourceKind === 'image') return stillImage;
+  return video;
+}
+
+function sourceReady() {
+  if (!hasFrame) return false;
+  if (sourceKind === 'image') return stillImage.complete && stillImage.naturalWidth > 0;
+  return video.readyState >= 2;
+}
+
+function drawCoverSource(targetCtx, cols, rows, mirror) {
+  const src = sourceDrawable();
+  const vw = (sourceKind === 'image' ? src.naturalWidth : src.videoWidth) || 1;
+  const vh = (sourceKind === 'image' ? src.naturalHeight : src.videoHeight) || 1;
   const scale = Math.max(cols / vw, rows / vh);
   const dw = vw * scale;
   const dh = vh * scale;
@@ -691,7 +751,7 @@ function drawCoverVideo(targetCtx, cols, rows, mirror) {
     targetCtx.translate(cols, 0);
     targetCtx.scale(-1, 1);
   }
-  targetCtx.drawImage(video, ox, oy, dw, dh);
+  targetCtx.drawImage(src, ox, oy, dw, dh);
   targetCtx.restore();
 }
 
@@ -700,11 +760,11 @@ function sampleField(cols, rows) {
   sampleCanvas.height = rows;
   sampleCtx.fillStyle = '#000';
   sampleCtx.fillRect(0, 0, cols, rows);
-  if (!hasFrame || video.readyState < 2) {
+  if (!sourceReady()) {
     return { luma: new Float32Array(cols * rows), scores: new Float32Array(cols * rows) };
   }
-  const mirror = mirrorEl.checked;
-  drawCoverVideo(sampleCtx, cols, rows, mirror);
+  const mirror = mirrorEl.checked && sourceKind === 'webcam';
+  drawCoverSource(sampleCtx, cols, rows, mirror);
   const img = sampleCtx.getImageData(0, 0, cols, rows);
   const data = img.data;
   const luma = new Float32Array(cols * rows);
@@ -731,18 +791,22 @@ function sampleField(cols, rows) {
       }
     }
   } else if (sampleMode === 'motion') {
-    if (prevSample.width !== cols || prevSample.height !== rows) {
-      prevSample.width = cols;
-      prevSample.height = rows;
-      prevCtx.fillStyle = '#000';
-      prevCtx.fillRect(0, 0, cols, rows);
+    if (sourceKind === 'image') {
+      scores.set(luma);
+    } else {
+      if (prevSample.width !== cols || prevSample.height !== rows) {
+        prevSample.width = cols;
+        prevSample.height = rows;
+        prevCtx.fillStyle = '#000';
+        prevCtx.fillRect(0, 0, cols, rows);
+      }
+      const prev = prevCtx.getImageData(0, 0, cols, rows).data;
+      for (let i = 0, p = 0; i < data.length; i += 4, p++) {
+        const py = (0.2126 * prev[i] + 0.7152 * prev[i + 1] + 0.0722 * prev[i + 2]) / 255;
+        scores[p] = clamp01(Math.abs(luma[p] - py) * 3.2);
+      }
+      prevCtx.putImageData(img, 0, 0);
     }
-    const prev = prevCtx.getImageData(0, 0, cols, rows).data;
-    for (let i = 0, p = 0; i < data.length; i += 4, p++) {
-      const py = (0.2126 * prev[i] + 0.7152 * prev[i + 1] + 0.0722 * prev[i + 2]) / 255;
-      scores[p] = clamp01(Math.abs(luma[p] - py) * 3.2);
-    }
-    prevCtx.putImageData(img, 0, 0);
   } else {
     scores.set(luma);
   }
@@ -759,7 +823,7 @@ function drawPlaceholder() {
   ctx.fillStyle = '#666';
   ctx.font = '500 28px sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('Start webcam or choose a video', W / 2, H / 2);
+  ctx.fillText('Start webcam or choose video / image', W / 2, H / 2);
 }
 
 function drawFrame() {
@@ -823,7 +887,7 @@ function drawFrame() {
   }
 
   statusEl.textContent =
-    `${lit} nodes · ${sampleMode} · ${cols}×${rows} @ ${size}px · ${activePresetId || 'custom'} · ${activeTonalColors.length} colours · ${W}×${H}`;
+    `${lit} nodes · ${sourceKind} · ${sampleMode} · ${cols}×${rows} @ ${size}px · ${activePresetId || 'custom'} · ${activeTonalColors.length} colours · ${W}×${H}`;
   requestAnimationFrame(drawFrame);
 }
 
