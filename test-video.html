@@ -128,9 +128,16 @@
   .test-tools a.active { border-color: var(--ui-accent); background: var(--ui-accent-a18); color: #eee; }
   .source-thumb {
     width: 100%; max-height: 120px; object-fit: cover; border-radius: 5px;
-    border: 1px solid #333; background: #111; margin-bottom: 8px; display: none;
+    border: 1px solid #333; background: #111; margin-bottom: 8px;
+    /* Keep in render tree so animated GIFs keep ticking even when "hidden". */
+    position: absolute; width: 2px; height: 2px; opacity: 0.01; pointer-events: none;
+    overflow: hidden; clip: rect(0, 0, 0, 0);
   }
-  .source-thumb.visible { display: block; }
+  .source-thumb.visible {
+    position: static; width: 100%; height: auto; max-height: 120px; opacity: 1;
+    pointer-events: auto; clip: auto; overflow: hidden;
+  }
+  .source-thumb-slot { position: relative; min-height: 0; margin-bottom: 8px; }
   .media-name { font-size: 10px; color: #666; margin: -2px 0 8px 0; word-break: break-all; }
   .dialkit-controls .dial-source {
     position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none;
@@ -198,8 +205,10 @@
     <p class="hint">Occupancy from webcam, video, or still image. Dialkit + fal palette match the main builder.</p>
 
     <div class="sect">Source</div>
-    <video id="sourceThumbVideo" class="source-thumb" muted playsinline></video>
-    <img id="sourceThumbImage" class="source-thumb" alt="">
+    <div class="source-thumb-slot">
+      <video id="sourceThumbVideo" class="source-thumb" muted playsinline></video>
+      <img id="sourceThumbImage" class="source-thumb" alt="">
+    </div>
     <div class="btn-row">
       <button type="button" id="webcamBtn" class="primary">Use webcam</button>
       <button type="button" id="fileBtn">Choose media</button>
@@ -379,6 +388,7 @@ let sampleMode = 'luma';
 let mediaStream = null;
 let objectUrl = null;
 let sourceKind = 'none'; // none | webcam | video | image
+let sourceAnimated = false; // gif / animated image — resample every frame
 let sourceBitmap = null; // ImageBitmap for stills when available
 let hasFrame = false;
 let tonalCount = 2;
@@ -728,6 +738,7 @@ function stopMedia() {
   thumbVideo.classList.remove('visible');
   thumbImage.classList.remove('visible');
   sourceKind = 'none';
+  sourceAnimated = false;
   hasFrame = false;
   sourceHintEl.textContent = 'No source yet — webcam, video, or image.';
 }
@@ -777,11 +788,23 @@ function isImageFile(file) {
   return type.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|avif|heic|heif|tif{1,2})$/i.test(name);
 }
 
+function isAnimatedImageFile(file) {
+  const type = (file.type || '').toLowerCase();
+  const name = file.name || '';
+  if (type === 'image/gif' || /\.gif$/i.test(name)) return true;
+  if (type === 'image/apng' || /\.apng$/i.test(name)) return true;
+  // Animated WebP is common; still WebP still works via <img>.
+  if (type === 'image/webp' || /\.webp$/i.test(name)) return true;
+  return false;
+}
+
 async function useImageFile(file) {
   stopMedia();
   objectUrl = URL.createObjectURL(file);
+  const animated = isAnimatedImageFile(file);
   try {
-    if (typeof createImageBitmap === 'function') {
+    // createImageBitmap freezes GIFs to frame 0 — skip it for animated sources.
+    if (!animated && typeof createImageBitmap === 'function') {
       try {
         sourceBitmap = await createImageBitmap(file);
       } catch (_) {
@@ -791,12 +814,13 @@ async function useImageFile(file) {
     await loadImageElement(objectUrl);
     thumbImage.src = objectUrl;
     sourceKind = 'image';
+    sourceAnimated = animated;
     hasFrame = true;
     syncThumbVisibility();
-    sourceHintEl.textContent = file.name || 'Image loaded';
+    sourceHintEl.textContent = (file.name || 'Image loaded') + (animated ? ' · animated' : '');
   } catch (err) {
     stopMedia();
-    sourceHintEl.textContent = 'Could not load that image (try PNG / JPG / WebP).';
+    sourceHintEl.textContent = 'Could not load that image (try PNG / JPG / GIF / WebP).';
   }
 }
 
@@ -958,9 +982,9 @@ function colorFor(i, j, score) {
 
 function sourceDrawable() {
   if (sourceKind === 'image') {
-    // Prefer the DOM thumb — it's already proven visible after load.
+    // Always prefer the live <img> so GIF/WebP frames advance.
     if (thumbImage && thumbImage.naturalWidth > 0) return thumbImage;
-    if (sourceBitmap && sourceBitmap.width > 0) return sourceBitmap;
+    if (!sourceAnimated && sourceBitmap && sourceBitmap.width > 0) return sourceBitmap;
     if (stillImage.naturalWidth > 0) return stillImage;
     return null;
   }
@@ -1112,8 +1136,8 @@ function sampleField(cols, rows, now) {
   const invert = invertEl.checked;
   const mode = sampleMode;
 
-  // Still images: cache the base silhouette and animate in motion mode.
-  if (sourceKind === 'image') {
+  // Static stills: cache silhouette. Animated GIF/WebP: fall through and resample every frame.
+  if (sourceKind === 'image' && !sourceAnimated) {
     const cacheKey = [
       cols, rows, mode === 'edge' ? 'edge' : 'luma',
       v(contrastEl), invert ? 1 : 0, objectUrl || 'img',
@@ -1124,7 +1148,6 @@ function sampleField(cols, rows, now) {
         return { luma: new Float32Array(cols * rows), scores: new Float32Array(cols * rows), mean: 0, ok: false };
       }
       let base = mode === 'edge' ? edgeFromLuma(luma, cols, rows) : Float32Array.from(luma);
-      // Light paper drawings: auto-flip so ink becomes the silhouette unless user inverted.
       const autoInk = !invert && mean > 0.58;
       if (invert || autoInk) {
         for (let i = 0; i < base.length; i++) base[i] = 1 - base[i];
@@ -1138,23 +1161,17 @@ function sampleField(cols, rows, now) {
     return { luma: base, scores, mean: stillMaskCache.mean, ok: true, autoInk: stillMaskCache.autoInk };
   }
 
-  // Live video / webcam
+  // Live video / webcam / animated GIF
   const { luma, mean, ok } = readLumaField(cols, rows, mirror);
   if (!ok) {
     return { luma: new Float32Array(cols * rows), scores: new Float32Array(cols * rows), mean: 0, ok: false };
   }
   let scores;
+  let autoInk = false;
   if (mode === 'edge') {
     scores = edgeFromLuma(luma, cols, rows);
   } else if (mode === 'motion') {
     scores = new Float32Array(cols * rows);
-    if (prevSample.width !== cols || prevSample.height !== rows) {
-      prevSample.width = cols;
-      prevSample.height = rows;
-      prevCtx.fillStyle = '#000';
-      prevCtx.fillRect(0, 0, cols, rows);
-    }
-    // Rebuild a cols×rows buffer for frame diff from current luma.
     let prevLuma = prevSample._luma;
     if (!prevLuma || prevLuma.length !== luma.length) {
       prevLuma = Float32Array.from(luma);
@@ -1164,13 +1181,22 @@ function sampleField(cols, rows, now) {
       scores[p] = clamp01(Math.abs(luma[p] - prevLuma[p]) * 3.2);
       prevLuma[p] = luma[p];
     }
+    if (sourceAnimated) {
+      for (let p = 0; p < scores.length; p++) {
+        scores[p] = Math.max(scores[p], luma[p] * 0.35);
+      }
+    }
   } else {
     scores = Float32Array.from(luma);
+    if (sourceAnimated && !invert && mean > 0.58) {
+      autoInk = true;
+      for (let i = 0; i < scores.length; i++) scores[i] = 1 - scores[i];
+    }
   }
   if (invert) {
     for (let i = 0; i < scores.length; i++) scores[i] = 1 - scores[i];
   }
-  return { luma, scores, mean, ok: true, autoInk: false };
+  return { luma, scores, mean, ok: true, autoInk };
 }
 
 function drawPlaceholder() {
@@ -1258,10 +1284,11 @@ function drawFrame(now) {
   }
 
   const inkNote = autoInk ? ' · auto-ink' : '';
+  const animNote = sourceAnimated ? ' · gif' : '';
   const readyNote = ok ? '' : ' · sample failed';
   const recNote = recording ? ` · rec ${Math.round((now - recordStartedAt) / 1000)}s` : '';
   statusEl.textContent =
-    `${lit} nodes · ${sourceKind} · ${sampleMode}${inkNote}${readyNote}${recNote} · ${cols}×${rows} @ ${size}px · ${activePresetId || 'custom'} · ${activeTonalColors.length} colours · ${W}×${H}`;
+    `${lit} nodes · ${sourceKind}${animNote} · ${sampleMode}${inkNote}${readyNote}${recNote} · ${cols}×${rows} @ ${size}px · ${activePresetId || 'custom'} · ${activeTonalColors.length} colours · ${W}×${H}`;
   requestAnimationFrame(drawFrame);
 }
 
