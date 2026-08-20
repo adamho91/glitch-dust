@@ -349,11 +349,12 @@ let activeTonalColors = [...(FAL_2.find(p => p.id === '2-j') || FAL_2[0]).colors
 let falPalettePickerEl = null;
 let falPalettePickerIndex = -1;
 let noiseSeed = 17.3;
+let stillMaskCache = null; // { key, cols, rows, base, meanLuma }
 
 const SAMPLE_HINTS = {
-  luma: 'Bright regions keep nodes. Threshold acts like an ASCII cutoff.',
-  edge: 'Sobel edges keep the silhouette outline of motion / subject.',
-  motion: 'Frame-to-frame difference lights nodes where the picture moves.',
+  luma: 'Bright regions keep nodes. Threshold acts like an ASCII cutoff. For line drawings, turn on Invert.',
+  edge: 'Sobel edges keep the silhouette outline of the subject.',
+  motion: 'Video: frame-to-frame difference. Still image: the silhouette breathes and travels like voxel dust.',
 };
 
 const thresholdEl = document.getElementById('threshold');
@@ -612,6 +613,7 @@ function releaseBitmap() {
     try { sourceBitmap.close(); } catch (_) {}
   }
   sourceBitmap = null;
+  stillMaskCache = null;
 }
 
 function stopMedia() {
@@ -773,20 +775,37 @@ function colorFor(i, j, score) {
   if (!pal.length) return '#ADFF00';
   const n = pal.length;
   const map = colorMapEl.value;
+  let idx;
   if (map === 'luma') {
-    const idx = Math.min(n - 1, Math.floor(clamp01(score) * n));
-    return pal[idx];
+    idx = Math.min(n - 1, Math.floor(clamp01(score) * n));
+  } else if (map === 'row') {
+    idx = ((j % n) + n) % n;
+  } else {
+    idx = ((i + j) % n + n) % n;
   }
-  if (map === 'row') return pal[((j % n) + n) % n];
-  return pal[((i + j) % n + n) % n];
+  // Don't paint nodes the same as the field — they vanish.
+  if (bgMode !== 'transparent' && n > 1) {
+    const bgKey = normalizePaletteColorKey(bg);
+    if (normalizePaletteColorKey(pal[idx]) === bgKey) {
+      idx = (idx + 1) % n;
+    }
+  }
+  return pal[idx];
 }
 
 function sourceDrawable() {
-  if (sourceKind === 'image') return sourceBitmap || stillImage;
+  if (sourceKind === 'image') {
+    // Prefer the DOM thumb — it's already proven visible after load.
+    if (thumbImage && thumbImage.naturalWidth > 0) return thumbImage;
+    if (sourceBitmap && sourceBitmap.width > 0) return sourceBitmap;
+    if (stillImage.naturalWidth > 0) return stillImage;
+    return null;
+  }
   return video;
 }
 
 function sourceSize(src) {
+  if (!src) return { w: 0, h: 0 };
   if (sourceKind === 'image') {
     return {
       w: src.naturalWidth || src.width || 0,
@@ -801,7 +820,7 @@ function sourceReady() {
   if (sourceKind === 'image') {
     const src = sourceDrawable();
     const { w, h } = sourceSize(src);
-    return w > 0 && h > 0;
+    return !!src && w > 0 && h > 0;
   }
   return video.readyState >= 2 && video.videoWidth > 0;
 }
@@ -809,7 +828,7 @@ function sourceReady() {
 function drawCoverSource(targetCtx, cols, rows, mirror) {
   const src = sourceDrawable();
   const { w: vw, h: vh } = sourceSize(src);
-  if (vw < 1 || vh < 1) return;
+  if (!src || vw < 1 || vh < 1) return false;
   const scale = Math.max(cols / vw, rows / vh);
   const dw = vw * scale;
   const dh = vh * scale;
@@ -820,70 +839,175 @@ function drawCoverSource(targetCtx, cols, rows, mirror) {
     targetCtx.translate(cols, 0);
     targetCtx.scale(-1, 1);
   }
-  targetCtx.drawImage(src, ox, oy, dw, dh);
+  try {
+    targetCtx.drawImage(src, ox, oy, dw, dh);
+  } catch (_) {
+    targetCtx.restore();
+    return false;
+  }
   targetCtx.restore();
+  return true;
 }
 
-function sampleField(cols, rows) {
-  sampleCanvas.width = cols;
-  sampleCanvas.height = rows;
+function readLumaField(cols, rows, mirror) {
+  const empty = () => ({
+    luma: new Float32Array(cols * rows),
+    mean: 0,
+    ok: false,
+  });
+  if (!sourceReady()) return empty();
+
+  // Sample at a slightly higher res for cleaner edges, then box-downsample.
+  const sx = Math.min(320, Math.max(cols, cols * 2));
+  const sy = Math.max(1, Math.round(sx * (rows / cols)));
+  sampleCanvas.width = sx;
+  sampleCanvas.height = sy;
   sampleCtx.fillStyle = '#000';
-  sampleCtx.fillRect(0, 0, cols, rows);
-  if (!sourceReady()) {
-    return { luma: new Float32Array(cols * rows), scores: new Float32Array(cols * rows) };
+  sampleCtx.fillRect(0, 0, sx, sy);
+  if (!drawCoverSource(sampleCtx, sx, sy, mirror)) return empty();
+
+  let data;
+  try {
+    data = sampleCtx.getImageData(0, 0, sx, sy).data;
+  } catch (_) {
+    return empty();
   }
-  const mirror = mirrorEl.checked && sourceKind === 'webcam';
-  drawCoverSource(sampleCtx, cols, rows, mirror);
-  const img = sampleCtx.getImageData(0, 0, cols, rows);
-  const data = img.data;
-  const luma = new Float32Array(cols * rows);
+
   const contrast = lerp(0.55, 2.4, v(contrastEl) / 100);
+  const hi = new Float32Array(sx * sy);
+  let sum = 0;
   for (let i = 0, p = 0; i < data.length; i += 4, p++) {
     let y = (0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]) / 255;
     y = clamp01((y - 0.5) * contrast + 0.5);
-    luma[p] = y;
+    hi[p] = y;
+    sum += y;
+  }
+  const mean = sum / Math.max(1, hi.length);
+
+  const luma = new Float32Array(cols * rows);
+  for (let j = 0; j < rows; j++) {
+    for (let i = 0; i < cols; i++) {
+      const x0 = Math.floor((i / cols) * sx);
+      const y0 = Math.floor((j / rows) * sy);
+      const x1 = Math.max(x0 + 1, Math.floor(((i + 1) / cols) * sx));
+      const y1 = Math.max(y0 + 1, Math.floor(((j + 1) / rows) * sy));
+      let acc = 0, n = 0;
+      for (let yy = y0; yy < y1 && yy < sy; yy++) {
+        for (let xx = x0; xx < x1 && xx < sx; xx++) {
+          acc += hi[yy * sx + xx];
+          n++;
+        }
+      }
+      luma[j * cols + i] = n ? acc / n : 0;
+    }
+  }
+  return { luma, mean, ok: true };
+}
+
+function edgeFromLuma(luma, cols, rows) {
+  const scores = new Float32Array(cols * rows);
+  for (let j = 1; j < rows - 1; j++) {
+    for (let i = 1; i < cols - 1; i++) {
+      const ix = j * cols + i;
+      const gx =
+        -luma[ix - cols - 1] + luma[ix - cols + 1]
+        - 2 * luma[ix - 1] + 2 * luma[ix + 1]
+        - luma[ix + cols - 1] + luma[ix + cols + 1];
+      const gy =
+        -luma[ix - cols - 1] - 2 * luma[ix - cols] - luma[ix - cols + 1]
+        + luma[ix + cols - 1] + 2 * luma[ix + cols] + luma[ix + cols + 1];
+      scores[ix] = clamp01(Math.hypot(gx, gy) * 1.35);
+    }
+  }
+  return scores;
+}
+
+function animateStillMotion(base, cols, rows, now) {
+  const scores = new Float32Array(base.length);
+  const t = now * 0.001;
+  const phase = t * 1.55;
+  for (let j = 0; j < rows; j++) {
+    for (let i = 0; i < cols; i++) {
+      const idx = j * cols + i;
+      const m = base[idx];
+      if (m < 0.04) {
+        scores[idx] = 0;
+        continue;
+      }
+      // Traveling isoline-style bands inside the image silhouette.
+      const band = 0.5 + 0.5 * Math.sin(i * 0.42 + j * 0.28 + phase);
+      const drift = 0.5 + 0.5 * Math.sin(phase * 0.65 + (i + j) * 0.08 + m * 5);
+      const shimmer = 0.75 + 0.25 * Math.sin(hashNoise(i * 3.1 + j * 7.7 + noiseSeed) * Math.PI * 2 + phase * 2.1);
+      scores[idx] = clamp01(m * lerp(0.25, 1.05, band * drift) * shimmer);
+    }
+  }
+  return scores;
+}
+
+function sampleField(cols, rows, now) {
+  const mirror = mirrorEl.checked && sourceKind === 'webcam';
+  const invert = invertEl.checked;
+  const mode = sampleMode;
+
+  // Still images: cache the base silhouette and animate in motion mode.
+  if (sourceKind === 'image') {
+    const cacheKey = [
+      cols, rows, mode === 'edge' ? 'edge' : 'luma',
+      v(contrastEl), invert ? 1 : 0, objectUrl || 'img',
+    ].join('|');
+    if (!stillMaskCache || stillMaskCache.key !== cacheKey) {
+      const { luma, mean, ok } = readLumaField(cols, rows, false);
+      if (!ok) {
+        return { luma: new Float32Array(cols * rows), scores: new Float32Array(cols * rows), mean: 0, ok: false };
+      }
+      let base = mode === 'edge' ? edgeFromLuma(luma, cols, rows) : Float32Array.from(luma);
+      // Light paper drawings: auto-flip so ink becomes the silhouette unless user inverted.
+      const autoInk = !invert && mean > 0.58;
+      if (invert || autoInk) {
+        for (let i = 0; i < base.length; i++) base[i] = 1 - base[i];
+      }
+      stillMaskCache = { key: cacheKey, cols, rows, base, mean, autoInk };
+    }
+    const base = stillMaskCache.base;
+    const scores = mode === 'motion'
+      ? animateStillMotion(base, cols, rows, now)
+      : Float32Array.from(base);
+    return { luma: base, scores, mean: stillMaskCache.mean, ok: true, autoInk: stillMaskCache.autoInk };
   }
 
-  const scores = new Float32Array(cols * rows);
-  if (sampleMode === 'edge') {
-    for (let j = 1; j < rows - 1; j++) {
-      for (let i = 1; i < cols - 1; i++) {
-        const ix = j * cols + i;
-        const gx =
-          -luma[ix - cols - 1] + luma[ix - cols + 1]
-          - 2 * luma[ix - 1] + 2 * luma[ix + 1]
-          - luma[ix + cols - 1] + luma[ix + cols + 1];
-        const gy =
-          -luma[ix - cols - 1] - 2 * luma[ix - cols] - luma[ix - cols + 1]
-          + luma[ix + cols - 1] + 2 * luma[ix + cols] + luma[ix + cols + 1];
-        scores[ix] = clamp01(Math.hypot(gx, gy) * 1.35);
-      }
+  // Live video / webcam
+  const { luma, mean, ok } = readLumaField(cols, rows, mirror);
+  if (!ok) {
+    return { luma: new Float32Array(cols * rows), scores: new Float32Array(cols * rows), mean: 0, ok: false };
+  }
+  let scores;
+  if (mode === 'edge') {
+    scores = edgeFromLuma(luma, cols, rows);
+  } else if (mode === 'motion') {
+    scores = new Float32Array(cols * rows);
+    if (prevSample.width !== cols || prevSample.height !== rows) {
+      prevSample.width = cols;
+      prevSample.height = rows;
+      prevCtx.fillStyle = '#000';
+      prevCtx.fillRect(0, 0, cols, rows);
     }
-  } else if (sampleMode === 'motion') {
-    if (sourceKind === 'image') {
-      scores.set(luma);
-    } else {
-      if (prevSample.width !== cols || prevSample.height !== rows) {
-        prevSample.width = cols;
-        prevSample.height = rows;
-        prevCtx.fillStyle = '#000';
-        prevCtx.fillRect(0, 0, cols, rows);
-      }
-      const prev = prevCtx.getImageData(0, 0, cols, rows).data;
-      for (let i = 0, p = 0; i < data.length; i += 4, p++) {
-        const py = (0.2126 * prev[i] + 0.7152 * prev[i + 1] + 0.0722 * prev[i + 2]) / 255;
-        scores[p] = clamp01(Math.abs(luma[p] - py) * 3.2);
-      }
-      prevCtx.putImageData(img, 0, 0);
+    // Rebuild a cols×rows buffer for frame diff from current luma.
+    let prevLuma = prevSample._luma;
+    if (!prevLuma || prevLuma.length !== luma.length) {
+      prevLuma = Float32Array.from(luma);
+      prevSample._luma = prevLuma;
+    }
+    for (let p = 0; p < luma.length; p++) {
+      scores[p] = clamp01(Math.abs(luma[p] - prevLuma[p]) * 3.2);
+      prevLuma[p] = luma[p];
     }
   } else {
-    scores.set(luma);
+    scores = Float32Array.from(luma);
   }
-
-  if (invertEl.checked) {
+  if (invert) {
     for (let i = 0; i < scores.length; i++) scores[i] = 1 - scores[i];
   }
-  return { luma, scores };
+  return { luma, scores, mean, ok: true, autoInk: false };
 }
 
 function drawPlaceholder() {
@@ -895,7 +1019,8 @@ function drawPlaceholder() {
   ctx.fillText('Start webcam or choose video / image', W / 2, H / 2);
 }
 
-function drawFrame() {
+function drawFrame(now) {
+  now = now || performance.now();
   const size = Math.max(8, Math.round(v(pixSizeEl)));
   const cols = Math.max(1, Math.floor(W / size));
   const rows = Math.max(1, Math.floor(H / size));
@@ -928,35 +1053,39 @@ function drawFrame() {
     return;
   }
 
-  const { luma, scores } = sampleField(cols, rows);
+  const { scores, ok, autoInk } = sampleField(cols, rows, now);
   let lit = 0;
-  for (let j = 0; j < rows; j++) {
-    for (let i = 0; i < cols; i++) {
-      const idx = j * cols + i;
-      let score = scores[idx];
-      score *= fadeKeep(i / Math.max(1, cols - 1), j / Math.max(1, rows - 1));
-      if (score < thresh) continue;
-      const keepChance = dens * (0.35 + score * 0.65);
-      if (hashNoise(i * 12.9898 + j * 78.233 + shapeSeed) > keepChance) continue;
-      lit++;
-      const isCircle = hashNoise(i * 7.1 + j * 19.3 + shapeSeed * 0.41) < cir;
-      const col = colorFor(i, j, colorMapEl.value === 'luma' ? luma[idx] : score);
-      const cx = ox + i * size + size / 2;
-      const cy = oy + j * size + size / 2;
-      const s = size * scale * (0.72 + score * 0.28);
-      ctx.fillStyle = col;
-      if (isCircle) {
-        ctx.beginPath();
-        ctx.arc(cx, cy, s * 0.46, 0, Math.PI * 2);
-        ctx.fill();
-      } else {
-        ctx.fillRect(cx - s / 2 - pad, cy - s / 2 - pad, s + pad * 2, s + pad * 2);
+  if (ok) {
+    for (let j = 0; j < rows; j++) {
+      for (let i = 0; i < cols; i++) {
+        const idx = j * cols + i;
+        let score = scores[idx];
+        score *= fadeKeep(i / Math.max(1, cols - 1), j / Math.max(1, rows - 1));
+        if (score < thresh) continue;
+        const keepChance = dens * (0.35 + score * 0.65);
+        if (hashNoise(i * 12.9898 + j * 78.233 + noiseSeed) > keepChance) continue;
+        lit++;
+        const isCircle = hashNoise(i * 7.1 + j * 19.3 + noiseSeed * 0.41) < cir;
+        const col = colorFor(i, j, score);
+        const cx = ox + i * size + size / 2;
+        const cy = oy + j * size + size / 2;
+        const s = size * scale * (0.72 + score * 0.28);
+        ctx.fillStyle = col;
+        if (isCircle) {
+          ctx.beginPath();
+          ctx.arc(cx, cy, s * 0.46, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          ctx.fillRect(cx - s / 2 - pad, cy - s / 2 - pad, s + pad * 2, s + pad * 2);
+        }
       }
     }
   }
 
+  const inkNote = autoInk ? ' · auto-ink' : '';
+  const readyNote = ok ? '' : ' · sample failed';
   statusEl.textContent =
-    `${lit} nodes · ${sourceKind} · ${sampleMode} · ${cols}×${rows} @ ${size}px · ${activePresetId || 'custom'} · ${activeTonalColors.length} colours · ${W}×${H}`;
+    `${lit} nodes · ${sourceKind} · ${sampleMode}${inkNote}${readyNote} · ${cols}×${rows} @ ${size}px · ${activePresetId || 'custom'} · ${activeTonalColors.length} colours · ${W}×${H}`;
   requestAnimationFrame(drawFrame);
 }
 
