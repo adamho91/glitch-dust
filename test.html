@@ -6,7 +6,6 @@
 <title>fal glitch dust — hinged squares test</title>
 <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
 <link rel="stylesheet" href="ui-theme.css">
-<link rel="stylesheet" href="app-nav.css">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; }
@@ -101,15 +100,34 @@
   .bg-swatch.active { border-color: var(--ui-accent); box-shadow: 0 0 0 1px var(--ui-accent-a33); }
   a.inline { color: #888; }
   a.inline:hover { color: var(--ui-accent-light); }
+  .test-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    margin: 0 0 10px; padding: 6px 10px;
+    border: 1px dashed #555; border-radius: 5px;
+    font-size: 11px; color: #aaa; letter-spacing: .04em; text-transform: uppercase;
+  }
+  .test-badge strong { color: #ADFF00; font-weight: 700; }
+  .test-tools { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+  .test-tools a {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 10px; border: 1px solid #333; border-radius: 5px;
+    background: #222; color: #bbb; font-size: 11px; text-decoration: none;
+  }
+  .test-tools a:hover { border-color: #444; color: #eee; background: #2a2a2a; }
+  .test-tools a.active { border-color: var(--ui-accent); background: var(--ui-accent-a18); color: #eee; }
 </style>
 <script src="fal-palette.js"></script>
-<script src="app-nav.js" defer></script>
 </head>
 <body>
 <div class="app">
 <aside class="sidebar">
   <div class="app-brand-wrap">
     <img class="app-brand" src="assets/app-brand.svg" alt="fal Glitch Dust" width="562" height="175">
+  </div>
+  <div class="test-badge"><strong>Test</strong> sandbox · not in main nav</div>
+  <div class="test-tools">
+    <a class="active" href="test.html">Hinged squares</a>
+    <a href="test-video.html">Video dust</a>
   </div>
   <div class="layout">
     <div class="sect">Hinged squares test</div>

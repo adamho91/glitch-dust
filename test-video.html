@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>fal glitch dust — video dust test</title>
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+<link rel="stylesheet" href="ui-theme.css">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body { background: #1a1a1a; color: #ccc; font-size: 13px; min-height: 100vh; overflow: hidden; }
+  .app { display: grid; grid-template-columns: minmax(300px, 380px) 1fr; height: 100vh; }
+  @media (max-width: 900px) {
+    body { overflow: auto; }
+    .app { grid-template-columns: 1fr; height: auto; min-height: 100vh; }
+  }
+  .sidebar { overflow-y: auto; padding: 16px 16px 32px; border-right: 1px solid #2a2a2a; background: #161616; }
+  .preview-panel { display: flex; flex-direction: column; padding: 16px 20px; min-width: 0; min-height: 0; overflow: hidden; }
+  .subtitle { font-size: 11px; color: #666; margin-bottom: 12px; }
+  .preview-wrap {
+    flex: 1; min-height: 0;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid #333; border-radius: 6px; overflow: hidden;
+    background: #000; line-height: 0; position: relative;
+  }
+  .stage { display: flex; align-items: center; justify-content: center; width: 100%; max-width: 960px; position: relative; }
+  .stage-canvas { position: relative; display: block; width: 100%; line-height: 0; overflow: hidden; }
+  .stage-canvas canvas { display: block; width: 100%; height: auto; }
+  #status { font-size: 11px; color: #666; margin-top: 10px; min-height: 14px; flex-shrink: 0; }
+  .layout { display: flex; flex-direction: column; }
+  .sect { font-size: 10px; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: .08em; margin: 16px 0 8px; }
+  .sect:first-child { margin-top: 0; }
+  .ctrl { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+  .ctrl label { width: 120px; flex-shrink: 0; color: #999; }
+  .ctrl input[type=range] { flex: 1; accent-color: #ADFF00; }
+  .ctrl span.val { min-width: 36px; font-size: 12px; font-weight: 500; color: #eee; text-align: right; }
+  .ctrl select { flex: 1; background: #2a2a2a; border: 1px solid #3a3a3a; color: #eee; border-radius: 4px; padding: 3px 6px; font-size: 12px; }
+  button { background: #2a2a2a; border: 1px solid #3a3a3a; color: #ccc; border-radius: 5px; padding: 7px 14px; font-size: 12px; cursor: pointer; }
+  button:hover { background: #3a3a3a; color: #eee; }
+  button.primary { border-color: var(--ui-accent); color: var(--ui-accent-light); }
+  button.primary:hover { background: var(--ui-accent-a22); }
+  button.active { border-color: var(--ui-accent); background: var(--ui-accent-a33); color: var(--ui-accent-pale); }
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 8px; }
+  .ctrl-check { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; padding-left: 2px; }
+  .ctrl-check label { color: #999; cursor: pointer; user-select: none; }
+  .ctrl-check input { width: 16px; height: 16px; accent-color: #ADFF00; cursor: pointer; flex-shrink: 0; }
+  .hint { color: #444; margin: -4px 0 9px; }
+  .mode-pills { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
+  .mode-pills button { padding: 5px 10px; font-size: 11px; font-weight: 600; }
+  .tonal-count { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
+  .tonal-count button { padding: 5px 12px; min-width: 36px; font-size: 11px; font-weight: 600; }
+  .tonal-count button.active { border-color: var(--ui-accent); background: var(--ui-accent-a33); color: var(--ui-accent-pale); }
+  .tonal-presets { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; max-height: 240px; overflow-y: auto; }
+  .tonal-preset { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border: 1px solid #333; border-radius: 5px; background: #222; cursor: pointer; text-align: left; width: 100%; font-size: 11px; color: #bbb; }
+  .tonal-preset:hover { border-color: #444; background: #2a2a2a; }
+  .tonal-preset.active { border-color: var(--ui-accent); background: var(--ui-accent-a18); color: #eee; }
+  .tonal-preset .chips { display: flex; gap: 3px; margin-left: auto; flex-shrink: 0; }
+  .tonal-preset .chip { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(255,255,255,0.15); }
+  .tonal-preset-group {
+    font-size: 9px; font-weight: 600; color: #555; text-transform: uppercase;
+    letter-spacing: .08em; margin: 10px 0 4px; padding-top: 6px; border-top: 1px solid #2a2a2a;
+  }
+  .tonal-preset-group:first-child { margin-top: 0; border-top: none; padding-top: 0; }
+  .tonal-preview { display: flex; gap: 4px; margin-bottom: 8px; min-height: 20px; align-items: center; flex-wrap: wrap; }
+  .tonal-preview .chip { width: 22px; height: 22px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.12); cursor: pointer; }
+  .tonal-preview .chip:hover { border-color: var(--ui-accent); box-shadow: 0 0 0 1px var(--ui-accent-a33); }
+  .fal-palette-picker {
+    position: fixed; z-index: 10000; background: #1a1a1a; border: 1px solid #444;
+    border-radius: 8px; padding: 8px 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); width: 268px;
+  }
+  .fal-palette-picker[hidden] { display: none !important; }
+  .fal-palette-picker-group { margin-bottom: 6px; }
+  .fal-palette-picker-group:last-child { margin-bottom: 0; }
+  .fal-palette-picker-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.04em; color: #666; margin-bottom: 4px; }
+  .fal-palette-picker-swatches { display: flex; flex-wrap: wrap; gap: 4px; }
+  .fal-palette-swatch {
+    width: 24px; height: 24px; border-radius: 4px; border: 2px solid rgba(255,255,255,0.1);
+    padding: 0; cursor: pointer; flex-shrink: 0;
+  }
+  .fal-palette-swatch:hover { border-color: #888; }
+  .fal-palette-swatch.active { border-color: var(--ui-accent); box-shadow: 0 0 0 1px var(--ui-accent-a33); }
+  .bg-swatch-transparent {
+    background:
+      linear-gradient(45deg, #555 25%, transparent 25%, transparent 75%, #555 75%, #555),
+      linear-gradient(45deg, #555 25%, transparent 25%, transparent 75%, #555 75%, #555);
+    background-size: 8px 8px; background-position: 0 0, 4px 4px; background-color: #333;
+  }
+  .bg-swatch-custom { display: flex; align-items: center; justify-content: center; }
+  .bg-swatches { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
+  .bg-swatch {
+    width: 28px; height: 28px; border-radius: 4px;
+    border: 2px solid rgba(255,255,255,0.12);
+    padding: 0; cursor: pointer;
+  }
+  .bg-swatch.active { border-color: var(--ui-accent); box-shadow: 0 0 0 1px var(--ui-accent-a33); }
+  a.inline { color: #888; }
+  a.inline:hover { color: var(--ui-accent-light); }
+  .test-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    margin: 0 0 10px; padding: 6px 10px;
+    border: 1px dashed #555; border-radius: 5px;
+    font-size: 11px; color: #aaa; letter-spacing: .04em; text-transform: uppercase;
+  }
+  .test-badge strong { color: #ADFF00; font-weight: 700; }
+  .test-tools { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+  .test-tools a {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 10px; border: 1px solid #333; border-radius: 5px;
+    background: #222; color: #bbb; font-size: 11px; text-decoration: none;
+  }
+  .test-tools a:hover { border-color: #444; color: #eee; background: #2a2a2a; }
+  .test-tools a.active { border-color: var(--ui-accent); background: var(--ui-accent-a18); color: #eee; }
+  .source-thumb {
+    width: 100%; max-height: 120px; object-fit: cover; border-radius: 5px;
+    border: 1px solid #333; background: #111; margin-bottom: 8px; display: none;
+  }
+  .source-thumb.visible { display: block; }
+  .dialkit-controls .dial-source {
+    position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none;
+  }
+  .dialkit-controls .dial-slider-wrap { position: relative; height: 32px; flex: 1; }
+  .dialkit-controls .dial-slider {
+    position: absolute; inset: 0; overflow: hidden; cursor: pointer; user-select: none;
+    touch-action: none; border-radius: 8px; background: rgba(173, 255, 0, 0.14);
+    transition: background 0.15s;
+  }
+  .dialkit-controls .dial-slider-active { background: rgba(173, 255, 0, 0.2); }
+  .dialkit-controls .dial-hashmarks { position: absolute; inset: 0; pointer-events: none; }
+  .dialkit-controls .dial-hashmark {
+    position: absolute; top: 50%; width: 1px; height: 7px; border-radius: 999px;
+    transform: translate(-50%, -50%); background: transparent; transition: background 0.15s;
+  }
+  .dialkit-controls .dial-slider-active .dial-hashmark { background: rgba(255, 255, 255, 0.14); }
+  .dialkit-controls .dial-fill {
+    position: absolute; top: 0; bottom: 0; left: 0;
+    background: rgba(173, 255, 0, 0.52); pointer-events: none;
+    transition: width 0.12s ease-out, background 0.15s;
+  }
+  .dialkit-controls .dial-dragging .dial-fill,
+  .dialkit-controls .dial-dragging .dial-handle { transition: none; }
+  .dialkit-controls .dial-slider-active .dial-fill { background: rgba(173, 255, 0, 0.68); }
+  .dialkit-controls .dial-handle {
+    position: absolute; top: 50%; width: 3px; height: 18px; border-radius: 999px;
+    background: rgba(200, 255, 102, 0.95); pointer-events: none;
+    transform: translateY(-50%) scaleX(0.35); opacity: 0;
+    transition: opacity 0.15s, transform 0.15s;
+  }
+  .dialkit-controls .dial-slider-active .dial-handle {
+    opacity: 0.75; transform: translateY(-50%) scaleX(1);
+  }
+  .dialkit-controls .dial-label {
+    position: absolute; left: 9px; top: 50%; transform: translateY(-50%);
+    font-size: 10px; font-weight: 500; letter-spacing: 0.02em; text-transform: lowercase;
+    color: rgba(255, 255, 255, 0.68); pointer-events: none;
+  }
+  .dialkit-controls .dial-value {
+    position: absolute; right: 9px; top: 50%; transform: translateY(-50%);
+    font-size: 10px; font-weight: 500; color: rgba(255, 255, 255, 0.68); pointer-events: none;
+    font-variant-numeric: tabular-nums;
+  }
+  .dialkit-controls .dial-slider-active .dial-value { color: rgba(255, 255, 255, 0.95); }
+  .dialkit-controls .ctrl.dial-row > label,
+  .dialkit-controls .ctrl.dial-row > .val { display: none; }
+</style>
+<script src="fal-palette.js"></script>
+<script src="dial-sliders.js"></script>
+</head>
+<body>
+<div class="app">
+<aside class="sidebar">
+  <div class="app-brand-wrap">
+    <img class="app-brand" src="assets/app-brand.svg" alt="fal Glitch Dust" width="562" height="175">
+  </div>
+  <div class="test-badge"><strong>Test</strong> sandbox · not in main nav</div>
+  <div class="test-tools">
+    <a href="test.html">Hinged squares</a>
+    <a class="active" href="test-video.html">Video dust</a>
+  </div>
+  <div class="layout" id="controls">
+    <div class="sect">Video dust test</div>
+    <p class="hint">Same square/circle dust nodes as ⇧1, but occupancy comes from video luminance — like ASCII, for the glitch-dust silhouette.</p>
+
+    <div class="sect">Source</div>
+    <video id="sourceThumb" class="source-thumb" muted playsinline></video>
+    <div class="btn-row">
+      <button type="button" id="webcamBtn" class="primary">Use webcam</button>
+      <button type="button" id="fileBtn">Choose video</button>
+      <button type="button" id="stopBtn">Stop</button>
+    </div>
+    <input type="file" id="fileInput" accept="video/*" hidden>
+    <div class="ctrl-check">
+      <input type="checkbox" id="mirror" checked>
+      <label for="mirror">Mirror (webcam)</label>
+    </div>
+    <div class="ctrl-check">
+      <input type="checkbox" id="showSource" checked>
+      <label for="showSource">Show source thumb</label>
+    </div>
+    <p class="hint" id="sourceHint">No source yet — webcam or drop a clip.</p>
+
+    <div class="sect">Sampling</div>
+    <div class="mode-pills" id="sampleMode">
+      <button type="button" data-mode="luma" class="active">Luma</button>
+      <button type="button" data-mode="edge">Edges</button>
+      <button type="button" data-mode="motion">Motion</button>
+    </div>
+    <p class="hint" id="sampleHint">Bright regions keep nodes. Threshold acts like an ASCII cutoff.</p>
+    <div class="ctrl">
+      <label>Threshold</label>
+      <input type="range" id="threshold" min="0" max="100" value="42" step="1">
+      <span class="val" id="thresholdV">42</span>
+    </div>
+    <div class="ctrl">
+      <label>Contrast</label>
+      <input type="range" id="contrast" min="0" max="100" value="55" step="1">
+      <span class="val" id="contrastV">55</span>
+    </div>
+    <div class="ctrl">
+      <label>Density</label>
+      <input type="range" id="density" min="0" max="100" value="70" step="1">
+      <span class="val" id="densityV">70</span>
+    </div>
+    <div class="ctrl-check">
+      <input type="checkbox" id="invert">
+      <label for="invert">Invert (dark → nodes)</label>
+    </div>
+
+    <div class="sect">Grid</div>
+    <div class="ctrl">
+      <label>Node size</label>
+      <input type="range" id="pixSize" min="16" max="80" value="40" step="1">
+      <span class="val" id="pixSizeV">40</span>
+    </div>
+    <div class="ctrl">
+      <label>Circles %</label>
+      <input type="range" id="circlePct" min="0" max="100" value="35" step="1">
+      <span class="val" id="circlePctV">35</span>
+    </div>
+    <div class="ctrl">
+      <label>Shape scale</label>
+      <input type="range" id="shapeScale" min="40" max="110" value="92" step="1">
+      <span class="val" id="shapeScaleV">92</span>
+    </div>
+    <div class="ctrl">
+      <label>Fade</label>
+      <select id="fadeDir">
+        <option value="none">None</option>
+        <option value="top" selected>Top</option>
+        <option value="bottom">Bottom</option>
+        <option value="left">Left</option>
+        <option value="right">Right</option>
+        <option value="edges">Edges</option>
+      </select>
+    </div>
+    <div class="ctrl">
+      <label>Fade amount</label>
+      <input type="range" id="fadeStrength" min="0" max="100" value="0" step="1">
+      <span class="val" id="fadeStrengthV">0</span>
+    </div>
+    <div class="ctrl">
+      <label>Color map</label>
+      <select id="colorMap">
+        <option value="luma" selected>By luminance</option>
+        <option value="checker">Checker</option>
+        <option value="row">By row</option>
+      </select>
+    </div>
+
+    <div class="sect">Tonal Colors</div>
+    <p class="hint">Same fal combos as the main builder (⇧1). Click a preview chip to pick from the brand palette.</p>
+    <div class="tonal-count" id="tonalCount">
+      <button type="button" data-count="2" class="active">2</button>
+      <button type="button" data-count="3">3</button>
+      <button type="button" data-count="4">4</button>
+      <button type="button" data-count="5">5</button>
+    </div>
+    <div class="tonal-preview" id="tonalPreview"></div>
+    <div class="tonal-presets" id="tonalPresets"></div>
+
+    <div class="sect">Background</div>
+    <div class="bg-swatches" id="bgSwatches"></div>
+    <div class="ctrl" id="bgCustomRow" style="display:none">
+      <label>Custom</label>
+      <input type="color" id="bgCustom" value="#403700">
+    </div>
+  </div>
+</aside>
+<main class="preview-panel">
+  <div class="subtitle" id="caption">Video dust · luminance → square / circle nodes</div>
+  <div class="preview-wrap" id="previewWrap">
+    <div id="stage" class="stage">
+      <div id="stageCanvas" class="stage-canvas">
+        <canvas id="view" width="1920" height="1080"></canvas>
+      </div>
+    </div>
+  </div>
+  <div id="status"></div>
+</main>
+</div>
+
+<script>
+const W = 1920, H = 1080;
+const canvas = document.getElementById('view');
+const ctx = canvas.getContext('2d');
+const sampleCanvas = document.createElement('canvas');
+const sampleCtx = sampleCanvas.getContext('2d', { willReadFrequently: true });
+const prevSample = document.createElement('canvas');
+const prevCtx = prevSample.getContext('2d', { willReadFrequently: true });
+const video = document.createElement('video');
+video.muted = true;
+video.playsInline = true;
+video.loop = true;
+const thumb = document.getElementById('sourceThumb');
+const statusEl = document.getElementById('status');
+const captionEl = document.getElementById('caption');
+const sourceHintEl = document.getElementById('sourceHint');
+
+let bg = '#403700';
+let bgMode = '#403700';
+let sampleMode = 'luma';
+let mediaStream = null;
+let objectUrl = null;
+let hasFrame = false;
+let tonalCount = 2;
+let activePresetId = '2-j';
+let activeTonalColors = [...(FAL_2.find(p => p.id === '2-j') || FAL_2[0]).colors];
+let falPalettePickerEl = null;
+let falPalettePickerIndex = -1;
+let noiseSeed = 17.3;
+
+const SAMPLE_HINTS = {
+  luma: 'Bright regions keep nodes. Threshold acts like an ASCII cutoff.',
+  edge: 'Sobel edges keep the silhouette outline of motion / subject.',
+  motion: 'Frame-to-frame difference lights nodes where the picture moves.',
+};
+
+const thresholdEl = document.getElementById('threshold');
+const contrastEl = document.getElementById('contrast');
+const densityEl = document.getElementById('density');
+const invertEl = document.getElementById('invert');
+const pixSizeEl = document.getElementById('pixSize');
+const circlePctEl = document.getElementById('circlePct');
+const shapeScaleEl = document.getElementById('shapeScale');
+const fadeDirEl = document.getElementById('fadeDir');
+const fadeStrengthEl = document.getElementById('fadeStrength');
+const colorMapEl = document.getElementById('colorMap');
+const mirrorEl = document.getElementById('mirror');
+const showSourceEl = document.getElementById('showSource');
+
+function v(el) { return +el.value; }
+function clamp01(t) { return Math.max(0, Math.min(1, t)); }
+function lerp(a, b, t) { return a + (b - a) * t; }
+
+function hashNoise(n) {
+  const x = Math.sin(n * 127.1 + 311.7) * 43758.5453;
+  return x - Math.floor(x);
+}
+
+document.querySelectorAll('#sampleMode button').forEach(btn => {
+  btn.onclick = () => {
+    sampleMode = btn.dataset.mode;
+    document.querySelectorAll('#sampleMode button').forEach(b => b.classList.toggle('active', b === btn));
+    document.getElementById('sampleHint').textContent = SAMPLE_HINTS[sampleMode];
+    captionEl.textContent = 'Video dust · ' + (
+      sampleMode === 'edge' ? 'edges' : sampleMode === 'motion' ? 'motion' : 'luminance'
+    ) + ' → square / circle nodes';
+  };
+});
+
+function findMatchingTonalPreset() {
+  const presets = TONAL_BY_COUNT[tonalCount] || [];
+  const current = activeTonalColors.map(normalizePaletteColorKey);
+  return presets.find(p => {
+    const presetColors = (p.colors || []).map(normalizePaletteColorKey);
+    if (presetColors.length !== current.length) return false;
+    return presetColors.every((c, i) => c === current[i]);
+  }) || null;
+}
+
+function applyTonalPreset(preset) {
+  activePresetId = preset.id;
+  activeTonalColors = preset.colors.map(normalizePaletteColorKey);
+  if (preset.bg) setBg(preset.bg, { silent: true });
+  renderTonalPresets();
+  renderTonalPreview();
+}
+
+function resizeActiveTonalColors(targetCount) {
+  const colors = (activeTonalColors || []).map(normalizePaletteColorKey);
+  if (colors.length === targetCount) return colors.slice();
+  if (colors.length > targetCount) return colors.slice(0, targetCount);
+  const next = colors.slice();
+  const related = (TONAL_BY_COUNT[targetCount] || []).find(p => {
+    const set = new Set((p.colors || []).map(normalizePaletteColorKey));
+    return next.every(c => set.has(c));
+  }) || (TONAL_BY_COUNT[targetCount] || [])[0];
+  if (related) {
+    for (const hex of related.colors.map(normalizePaletteColorKey)) {
+      if (next.length >= targetCount) break;
+      if (!next.includes(hex)) next.push(hex);
+    }
+  }
+  const fallbacks = ['#ADFF00', '#FFFFFF', '#115EF3', '#FFFF00', '#EC0648'];
+  for (const hex of fallbacks) {
+    if (next.length >= targetCount) break;
+    if (!next.includes(hex)) next.push(hex);
+  }
+  return next;
+}
+
+function setTonalCount(count) {
+  const prev = tonalCount;
+  tonalCount = count;
+  document.querySelectorAll('#tonalCount button').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.count === String(count));
+  });
+  if (prev && activeTonalColors.length) {
+    activeTonalColors = resizeActiveTonalColors(count);
+    const match = findMatchingTonalPreset();
+    activePresetId = match ? match.id : null;
+    renderTonalPresets();
+    renderTonalPreview();
+    return;
+  }
+  const presets = TONAL_BY_COUNT[count] || [];
+  applyTonalPreset(presets[0]);
+}
+
+document.querySelectorAll('#tonalCount button').forEach(btn => {
+  btn.onclick = () => setTonalCount(parseInt(btn.dataset.count, 10));
+});
+
+function renderTonalPreview() {
+  const el = document.getElementById('tonalPreview');
+  el.replaceChildren();
+  activeTonalColors.forEach((hex, i) => {
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.style.background = hex;
+    chip.title = hex + ' · click to pick from fal palette';
+    chip.addEventListener('click', e => {
+      e.stopPropagation();
+      openFalPalettePicker(chip, i);
+    });
+    el.appendChild(chip);
+  });
+}
+
+function renderTonalPresets() {
+  const container = document.getElementById('tonalPresets');
+  container.replaceChildren();
+  getGroupedTonalPresets(tonalCount).forEach(section => {
+    const heading = document.createElement('div');
+    heading.className = 'tonal-preset-group';
+    heading.textContent = section.label;
+    container.appendChild(heading);
+    section.presets.forEach(preset => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'tonal-preset' + (preset.id === activePresetId ? ' active' : '');
+      btn.innerHTML = `<span>${preset.label}</span><span class="chips"></span>`;
+      btn.title = preset.colors.join(' / ') + (preset.bg ? ` · bg ${preset.bg}` : '');
+      const chips = btn.querySelector('.chips');
+      preset.colors.forEach(hex => {
+        const chip = document.createElement('span');
+        chip.className = 'chip';
+        chip.style.background = hex;
+        chips.appendChild(chip);
+      });
+      btn.onclick = () => applyTonalPreset(preset);
+      container.appendChild(btn);
+    });
+  });
+}
+
+function initFalPalettePicker() {
+  falPalettePickerEl = document.createElement('div');
+  falPalettePickerEl.id = 'falPalettePicker';
+  falPalettePickerEl.className = 'fal-palette-picker';
+  falPalettePickerEl.hidden = true;
+  FAL_BRAND_PALETTE.forEach(group => {
+    const groupEl = document.createElement('div');
+    groupEl.className = 'fal-palette-picker-group';
+    const label = document.createElement('div');
+    label.className = 'fal-palette-picker-label';
+    label.textContent = group.label;
+    const swatches = document.createElement('div');
+    swatches.className = 'fal-palette-picker-swatches';
+    group.colors.forEach(colorHex => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'fal-palette-swatch';
+      btn.style.backgroundColor = colorHex;
+      btn.title = colorHex;
+      btn.dataset.hex = colorHex;
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        if (falPalettePickerIndex >= 0) {
+          activeTonalColors[falPalettePickerIndex] = normalizePaletteColorKey(colorHex);
+          const match = findMatchingTonalPreset();
+          activePresetId = match ? match.id : null;
+          renderTonalPresets();
+          renderTonalPreview();
+        }
+        closeFalPalettePicker();
+      };
+      swatches.appendChild(btn);
+    });
+    groupEl.appendChild(label);
+    groupEl.appendChild(swatches);
+    falPalettePickerEl.appendChild(groupEl);
+  });
+  document.body.appendChild(falPalettePickerEl);
+  document.addEventListener('click', (e) => {
+    if (!falPalettePickerEl || falPalettePickerEl.hidden) return;
+    if (falPalettePickerEl.contains(e.target)) return;
+    if (e.target.closest('.tonal-preview .chip')) return;
+    closeFalPalettePicker();
+  });
+}
+
+function openFalPalettePicker(chip, colorIndex) {
+  if (!falPalettePickerEl) return;
+  falPalettePickerIndex = colorIndex;
+  const current = activeTonalColors[colorIndex];
+  falPalettePickerEl.querySelectorAll('.fal-palette-swatch').forEach(btn => {
+    btn.classList.toggle('active', normalizePaletteColorKey(btn.dataset.hex) === normalizePaletteColorKey(current));
+  });
+  falPalettePickerEl.hidden = false;
+  falPalettePickerEl.style.visibility = 'hidden';
+  falPalettePickerEl.style.left = '0';
+  falPalettePickerEl.style.top = '0';
+  const pw = falPalettePickerEl.offsetWidth;
+  const ph = falPalettePickerEl.offsetHeight;
+  const rect = chip.getBoundingClientRect();
+  let left = rect.left;
+  let top = rect.bottom + 6;
+  if (left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
+  if (top + ph > window.innerHeight - 8) top = Math.max(8, rect.top - ph - 6);
+  falPalettePickerEl.style.left = Math.max(8, left) + 'px';
+  falPalettePickerEl.style.top = top + 'px';
+  falPalettePickerEl.style.visibility = '';
+}
+
+function closeFalPalettePicker() {
+  if (!falPalettePickerEl) return;
+  falPalettePickerEl.hidden = true;
+  falPalettePickerIndex = -1;
+}
+
+function setBg(value) {
+  bgMode = value;
+  if (value === 'custom') bg = document.getElementById('bgCustom').value;
+  else bg = value;
+  document.getElementById('bgCustomRow').style.display = value === 'custom' ? '' : 'none';
+  document.querySelectorAll('#bgSwatches .bg-swatch').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.value === value);
+  });
+}
+
+(function renderBg() {
+  const host = document.getElementById('bgSwatches');
+  BG_COLOR_OPTIONS.forEach(opt => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'bg-swatch';
+    btn.dataset.value = opt.value;
+    btn.title = opt.label;
+    if (opt.value === 'transparent') btn.classList.add('bg-swatch-transparent');
+    else if (opt.value === 'custom') {
+      btn.classList.add('bg-swatch-custom');
+      btn.textContent = '+';
+    } else {
+      btn.style.background = opt.value;
+    }
+    btn.onclick = () => setBg(opt.value);
+    host.appendChild(btn);
+  });
+  document.getElementById('bgCustom').oninput = () => {
+    if (bgMode === 'custom') bg = document.getElementById('bgCustom').value;
+  };
+})();
+
+initFalPalettePicker();
+applyTonalPreset(FAL_2.find(p => p.id === '2-j') || FAL_2[0]);
+initDialSliders(document.getElementById('controls'));
+
+function stopMedia() {
+  if (mediaStream) {
+    mediaStream.getTracks().forEach(t => t.stop());
+    mediaStream = null;
+  }
+  video.pause();
+  video.removeAttribute('src');
+  video.srcObject = null;
+  if (objectUrl) {
+    URL.revokeObjectURL(objectUrl);
+    objectUrl = null;
+  }
+  thumb.pause();
+  thumb.removeAttribute('src');
+  thumb.srcObject = null;
+  thumb.classList.remove('visible');
+  hasFrame = false;
+  sourceHintEl.textContent = 'No source yet — webcam or drop a clip.';
+}
+
+async function useWebcam() {
+  stopMedia();
+  try {
+    mediaStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: false,
+    });
+    video.srcObject = mediaStream;
+    thumb.srcObject = mediaStream;
+    await video.play();
+    thumb.play().catch(() => {});
+    syncThumbVisibility();
+    hasFrame = true;
+    sourceHintEl.textContent = 'Webcam live.';
+  } catch (err) {
+    sourceHintEl.textContent = 'Webcam blocked — allow camera access or choose a file.';
+  }
+}
+
+async function useFile(file) {
+  if (!file) return;
+  stopMedia();
+  objectUrl = URL.createObjectURL(file);
+  video.src = objectUrl;
+  thumb.src = objectUrl;
+  try {
+    await video.play();
+    thumb.play().catch(() => {});
+    syncThumbVisibility();
+    hasFrame = true;
+    sourceHintEl.textContent = file.name;
+  } catch (err) {
+    sourceHintEl.textContent = 'Could not play that file.';
+  }
+}
+
+function syncThumbVisibility() {
+  thumb.classList.toggle('visible', showSourceEl.checked && hasFrame);
+}
+
+document.getElementById('webcamBtn').onclick = () => useWebcam();
+document.getElementById('fileBtn').onclick = () => document.getElementById('fileInput').click();
+document.getElementById('fileInput').onchange = e => useFile(e.target.files && e.target.files[0]);
+document.getElementById('stopBtn').onclick = () => stopMedia();
+showSourceEl.onchange = syncThumbVisibility;
+
+function fadeKeep(nx, ny) {
+  const amt = v(fadeStrengthEl) / 100;
+  if (amt <= 0 || fadeDirEl.value === 'none') return 1;
+  let t = 1;
+  const d = fadeDirEl.value;
+  if (d === 'top') t = ny;
+  else if (d === 'bottom') t = 1 - ny;
+  else if (d === 'left') t = nx;
+  else if (d === 'right') t = 1 - nx;
+  else if (d === 'edges') t = Math.min(nx, 1 - nx, ny, 1 - ny) * 2;
+  return lerp(1, clamp01(t), amt);
+}
+
+function colorFor(i, j, score) {
+  const pal = activeTonalColors;
+  if (!pal.length) return '#ADFF00';
+  const n = pal.length;
+  const map = colorMapEl.value;
+  if (map === 'luma') {
+    const idx = Math.min(n - 1, Math.floor(clamp01(score) * n));
+    return pal[idx];
+  }
+  if (map === 'row') return pal[((j % n) + n) % n];
+  return pal[((i + j) % n + n) % n];
+}
+
+function drawCoverVideo(targetCtx, cols, rows, mirror) {
+  const vw = video.videoWidth || 1;
+  const vh = video.videoHeight || 1;
+  const scale = Math.max(cols / vw, rows / vh);
+  const dw = vw * scale;
+  const dh = vh * scale;
+  const ox = (cols - dw) / 2;
+  const oy = (rows - dh) / 2;
+  targetCtx.save();
+  if (mirror) {
+    targetCtx.translate(cols, 0);
+    targetCtx.scale(-1, 1);
+  }
+  targetCtx.drawImage(video, ox, oy, dw, dh);
+  targetCtx.restore();
+}
+
+function sampleField(cols, rows) {
+  sampleCanvas.width = cols;
+  sampleCanvas.height = rows;
+  sampleCtx.fillStyle = '#000';
+  sampleCtx.fillRect(0, 0, cols, rows);
+  if (!hasFrame || video.readyState < 2) {
+    return { luma: new Float32Array(cols * rows), scores: new Float32Array(cols * rows) };
+  }
+  const mirror = mirrorEl.checked;
+  drawCoverVideo(sampleCtx, cols, rows, mirror);
+  const img = sampleCtx.getImageData(0, 0, cols, rows);
+  const data = img.data;
+  const luma = new Float32Array(cols * rows);
+  const contrast = lerp(0.55, 2.4, v(contrastEl) / 100);
+  for (let i = 0, p = 0; i < data.length; i += 4, p++) {
+    let y = (0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]) / 255;
+    y = clamp01((y - 0.5) * contrast + 0.5);
+    luma[p] = y;
+  }
+
+  const scores = new Float32Array(cols * rows);
+  if (sampleMode === 'edge') {
+    for (let j = 1; j < rows - 1; j++) {
+      for (let i = 1; i < cols - 1; i++) {
+        const ix = j * cols + i;
+        const gx =
+          -luma[ix - cols - 1] + luma[ix - cols + 1]
+          - 2 * luma[ix - 1] + 2 * luma[ix + 1]
+          - luma[ix + cols - 1] + luma[ix + cols + 1];
+        const gy =
+          -luma[ix - cols - 1] - 2 * luma[ix - cols] - luma[ix - cols + 1]
+          + luma[ix + cols - 1] + 2 * luma[ix + cols] + luma[ix + cols + 1];
+        scores[ix] = clamp01(Math.hypot(gx, gy) * 1.35);
+      }
+    }
+  } else if (sampleMode === 'motion') {
+    if (prevSample.width !== cols || prevSample.height !== rows) {
+      prevSample.width = cols;
+      prevSample.height = rows;
+      prevCtx.fillStyle = '#000';
+      prevCtx.fillRect(0, 0, cols, rows);
+    }
+    const prev = prevCtx.getImageData(0, 0, cols, rows).data;
+    for (let i = 0, p = 0; i < data.length; i += 4, p++) {
+      const py = (0.2126 * prev[i] + 0.7152 * prev[i + 1] + 0.0722 * prev[i + 2]) / 255;
+      scores[p] = clamp01(Math.abs(luma[p] - py) * 3.2);
+    }
+    prevCtx.putImageData(img, 0, 0);
+  } else {
+    scores.set(luma);
+  }
+
+  if (invertEl.checked) {
+    for (let i = 0; i < scores.length; i++) scores[i] = 1 - scores[i];
+  }
+  return { luma, scores };
+}
+
+function drawPlaceholder() {
+  ctx.fillStyle = bgMode === 'transparent' ? '#2a2a2a' : bg;
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#666';
+  ctx.font = '500 28px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('Start webcam or choose a video', W / 2, H / 2);
+}
+
+function drawFrame() {
+  const size = Math.max(8, Math.round(v(pixSizeEl)));
+  const cols = Math.max(1, Math.floor(W / size));
+  const rows = Math.max(1, Math.floor(H / size));
+  const ox = (W - cols * size) / 2;
+  const oy = (H - rows * size) / 2;
+  const thresh = v(thresholdEl) / 100;
+  const dens = v(densityEl) / 100;
+  const cir = v(circlePctEl) / 100;
+  const scale = v(shapeScaleEl) / 100;
+  const pad = 0.35;
+
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  if (bgMode === 'transparent') {
+    const cell = 24;
+    for (let y = 0; y < H; y += cell) {
+      for (let x = 0; x < W; x += cell) {
+        ctx.fillStyle = ((x / cell + y / cell) & 1) ? '#3a3a3a' : '#2a2a2a';
+        ctx.fillRect(x, y, cell, cell);
+      }
+    }
+  } else {
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  if (!hasFrame) {
+    drawPlaceholder();
+    statusEl.textContent = `idle · ${cols}×${rows} · ${activePresetId || 'custom'} · ${W}×${H}`;
+    requestAnimationFrame(drawFrame);
+    return;
+  }
+
+  const { luma, scores } = sampleField(cols, rows);
+  let lit = 0;
+  for (let j = 0; j < rows; j++) {
+    for (let i = 0; i < cols; i++) {
+      const idx = j * cols + i;
+      let score = scores[idx];
+      score *= fadeKeep(i / Math.max(1, cols - 1), j / Math.max(1, rows - 1));
+      if (score < thresh) continue;
+      const keepChance = dens * (0.35 + score * 0.65);
+      if (hashNoise(i * 12.9898 + j * 78.233 + shapeSeed) > keepChance) continue;
+      lit++;
+      const isCircle = hashNoise(i * 7.1 + j * 19.3 + shapeSeed * 0.41) < cir;
+      const col = colorFor(i, j, colorMapEl.value === 'luma' ? luma[idx] : score);
+      const cx = ox + i * size + size / 2;
+      const cy = oy + j * size + size / 2;
+      const s = size * scale * (0.72 + score * 0.28);
+      ctx.fillStyle = col;
+      if (isCircle) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, s * 0.46, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        ctx.fillRect(cx - s / 2 - pad, cy - s / 2 - pad, s + pad * 2, s + pad * 2);
+      }
+    }
+  }
+
+  statusEl.textContent =
+    `${lit} nodes · ${sampleMode} · ${cols}×${rows} @ ${size}px · ${activePresetId || 'custom'} · ${activeTonalColors.length} colours · ${W}×${H}`;
+  requestAnimationFrame(drawFrame);
+}
+
+requestAnimationFrame(drawFrame);
+</script>
+</body>
+</html>
