@@ -9306,11 +9306,30 @@ function getGifencExports(mod) {
 }
 
 function findGifTransparentIndex(palette) {
+  let best = -1;
+  let bestAlpha = 256;
   for (let i = 0; i < palette.length; i++) {
     const c = palette[i];
-    if (c && c.length >= 4 && c[3] < 128) return i;
+    if (!c || c.length < 4) continue;
+    const a = c[3];
+    if (a < bestAlpha) {
+      bestAlpha = a;
+      best = i;
+    }
   }
-  return -1;
+  return bestAlpha < 128 ? best : -1;
+}
+
+function purgeGifExportAlpha(rgba, threshold) {
+  const cut = threshold != null ? threshold : 8;
+  for (let i = 0; i < rgba.length; i += 4) {
+    if (rgba[i + 3] <= cut) {
+      rgba[i] = 0;
+      rgba[i + 1] = 0;
+      rgba[i + 2] = 0;
+      rgba[i + 3] = 0;
+    }
+  }
 }
 
 // GIF only supports binary transparency. Anti-aliased edges are partial-alpha
@@ -9384,10 +9403,30 @@ function hardenPartialAlphaForGif(rgba) {
   for (let i = 0; i < rgba.length; i += 4) {
     const a = rgba[i + 3];
     if (a === 0 || a === 255) continue;
+    const r = rgba[i];
+    const g = rgba[i + 1];
+    const b = rgba[i + 2];
+    const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    // Drop faint near-black / near-white fringe on transparency before un-premultiply —
+    // otherwise clip midtones get hardened into an opaque background sheet.
+    if (a < 160 && lum < 10) {
+      rgba[i] = 0;
+      rgba[i + 1] = 0;
+      rgba[i + 2] = 0;
+      rgba[i + 3] = 0;
+      continue;
+    }
+    if (a < 160 && lum > 245) {
+      rgba[i] = 0;
+      rgba[i + 1] = 0;
+      rgba[i + 2] = 0;
+      rgba[i + 3] = 0;
+      continue;
+    }
     const af = a / 255;
-    rgba[i] = Math.min(255, ((rgba[i] / af) + 0.5) | 0);
-    rgba[i + 1] = Math.min(255, ((rgba[i + 1] / af) + 0.5) | 0);
-    rgba[i + 2] = Math.min(255, ((rgba[i + 2] / af) + 0.5) | 0);
+    rgba[i] = Math.min(255, ((r / af) + 0.5) | 0);
+    rgba[i + 1] = Math.min(255, ((g / af) + 0.5) | 0);
+    rgba[i + 2] = Math.min(255, ((b / af) + 0.5) | 0);
     rgba[i + 3] = 255;
   }
 }
@@ -9451,9 +9490,11 @@ function encodeGifFrameRgba(rgba, quantize, applyPalette, prequantize, transpare
   const matte = parseGifMatteRgb(matteOpts.matteRgb);
   const clipBlack = matteOpts.clipBlack != null ? matteOpts.clipBlack : 96;
   const clipWhite = matteOpts.clipWhite != null ? matteOpts.clipWhite : 160;
-  clipGifAlphaMatte(rgba, clipBlack, clipWhite);
+  purgeGifExportAlpha(rgba, Math.max(1, clipBlack >> 1));
   if (matte) mattePartialAlphaForGif(rgba, matte);
   else hardenPartialAlphaForGif(rgba);
+  clipGifAlphaMatte(rgba, clipBlack, clipWhite);
+  purgeGifExportAlpha(rgba, 0);
   // No prequantize pass: gifenc's prequantize writes Math.round(v/round)*round
   // into the Uint8Array, so saturated 255 channels wrap to 0 (#ADFF00 → #AE0001,
   // white → black). The matte above already made fringes opaque and the
