@@ -21,7 +21,72 @@
     body { overflow: auto; }
     .app { grid-template-columns: 1fr; height: auto; min-height: 100vh; }
   }
-  .sidebar { overflow-y: auto; padding: 16px 16px 32px; border-right: 1px solid #2a2a2a; background: #161616; }
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 0;
+    border-right: 1px solid #2a2a2a;
+    background: #161616;
+  }
+  .sidebar-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 16px 16px 16px;
+  }
+  .sidebar-color-dock {
+    flex-shrink: 0;
+    padding: 10px 16px 12px;
+    border-top: 1px solid #2a2a2a;
+    background: #121212;
+    box-shadow: 0 -10px 28px rgba(0, 0, 0, 0.38);
+  }
+  .sidebar-color-dock-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .sidebar-color-dock-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+  }
+  .sidebar-color-dock-meta {
+    font-size: 10px;
+    color: #555;
+    text-align: right;
+  }
+  .sidebar-color-dock-swatches {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+    min-height: 28px;
+  }
+  .sidebar-color-dock-swatches .chip {
+    width: 28px;
+    height: 28px;
+    border-radius: 5px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    padding: 0;
+  }
+  .sidebar-color-dock-swatches button.chip {
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+  }
+  .sidebar-color-dock-swatches .chip.is-editable {
+    cursor: pointer;
+  }
+  .sidebar-color-dock-swatches .chip.is-editable:hover {
+    border-color: var(--ui-accent);
+    box-shadow: 0 0 0 1px var(--ui-accent-a33);
+  }
   .preview-panel { display: flex; flex-direction: column; padding: 16px 20px; min-width: 0; min-height: 0; overflow: hidden; }
   h1 { font-size: 14px; font-weight: 500; color: #eee; margin-bottom: 4px; letter-spacing: 0.04em; text-transform: uppercase; }
   h1 span { color: var(--ui-accent); }
@@ -301,8 +366,14 @@
       order: 2;
       border-right: 0;
       border-top: 1px solid #2a2a2a;
-      padding: 12px 12px 28px;
-      overflow: visible;
+      overflow: hidden;
+    }
+    .sidebar-scroll {
+      padding: 12px 12px 16px;
+      overflow-y: auto;
+    }
+    .sidebar-color-dock {
+      padding: 10px 12px 12px;
     }
   }
   @media (max-width: 640px) {
@@ -812,6 +883,7 @@
 <body>
 <div class="app">
 <aside class="sidebar">
+<div class="sidebar-scroll">
 <div class="app-brand-wrap">
   <img class="app-brand" src="assets/app-brand.svg" alt="fal Glitch Dust" width="562" height="175">
 </div>
@@ -1391,6 +1463,14 @@
 
   <div class="hint sidebar-footer-link"><a href="maxi.html">Glitch Dust Maxi ↗</a> — turn a settings spec into a container-filling Webflow embed</div>
 
+</div>
+</div>
+<div class="sidebar-color-dock" id="sidebarColorDock">
+  <div class="sidebar-color-dock-head">
+    <span class="sidebar-color-dock-label">Canvas colors</span>
+    <span class="sidebar-color-dock-meta" id="sidebarColorDockMeta">click to pick · dbl-click cycles prompt</span>
+  </div>
+  <div class="sidebar-color-dock-swatches" id="sidebarColorDockSwatches"></div>
 </div>
 </aside>
 
@@ -4426,6 +4506,7 @@ PALETTE.forEach((s) => {
   colorInputs.push(cin); weightInputs.push(win);
   cin.oninput = () => {
     renderPaletteMediaList();
+    renderTonalPreview();
     beginCycle();
   };
 });
@@ -4456,6 +4537,35 @@ function setTonalColorAt(index, hex) {
   schedulePresetAutosave();
 }
 
+function setCanvasColorAt(index, hex) {
+  if (tonalCount === 'all') {
+    const normalized = normalizePaletteColorKey(hex);
+    if (!colorInputs[index]) return;
+    colorInputs[index].value = normalized;
+    syncPromptBorderFromPalette();
+    if (isLogoFollowPalette()) syncLogoColorsFromPalette(getLogoPaletteOffsetFromColors());
+    syncPromptSpaceColorFromPalette();
+    renderPaletteMediaList();
+    beginCycle();
+    schedulePresetAutosave();
+    renderTonalPreview();
+    return;
+  }
+  setTonalColorAt(index, hex);
+}
+
+function getCanvasColorAt(index) {
+  if (tonalCount === 'all') {
+    return colorInputs[index] ? colorInputs[index].value : null;
+  }
+  return activeTonalColors[index];
+}
+
+function getCanvasPaletteColors() {
+  if (tonalCount === 'all') return colorInputs.map(inp => inp.value);
+  return activeTonalColors.slice();
+}
+
 function initFalPalettePicker() {
   if (typeof GLITCH_DUST_LITE !== 'undefined' && GLITCH_DUST_LITE) return;
   falPalettePickerEl = document.createElement('div');
@@ -4479,7 +4589,7 @@ function initFalPalettePicker() {
       btn.dataset.hex = colorHex;
       btn.onclick = (e) => {
         e.stopPropagation();
-        if (falPalettePickerIndex >= 0) setTonalColorAt(falPalettePickerIndex, colorHex);
+        if (falPalettePickerIndex >= 0) setCanvasColorAt(falPalettePickerIndex, colorHex);
         closeFalPalettePicker();
       };
       swatches.appendChild(btn);
@@ -4492,7 +4602,7 @@ function initFalPalettePicker() {
   document.addEventListener('click', (e) => {
     if (!falPalettePickerEl || falPalettePickerEl.hidden) return;
     if (falPalettePickerEl.contains(e.target)) return;
-    if (e.target.closest('.tonal-preview .chip.is-editable')) return;
+    if (e.target.closest('.chip.is-editable')) return;
     closeFalPalettePicker();
   });
   document.addEventListener('keydown', (e) => {
@@ -4503,7 +4613,7 @@ function initFalPalettePicker() {
 function openFalPalettePicker(chip, colorIndex) {
   if (!falPalettePickerEl) return;
   falPalettePickerIndex = colorIndex;
-  const current = activeTonalColors[colorIndex];
+  const current = getCanvasColorAt(colorIndex);
   falPalettePickerEl.querySelectorAll('.fal-palette-swatch').forEach(btn => {
     btn.classList.toggle('active', normalizePaletteColorKey(btn.dataset.hex) === normalizePaletteColorKey(current));
   });
@@ -4532,10 +4642,51 @@ function closeFalPalettePicker() {
 function bindTonalChipPicker(chip, colorIndex) {
   if (typeof GLITCH_DUST_LITE !== 'undefined' && GLITCH_DUST_LITE) return;
   chip.classList.add('is-editable');
-  chip.title = (activeTonalColors[colorIndex] || '') + ' · click to pick from fal palette · double-click to cycle prompt text color';
+  chip.title = (getCanvasColorAt(colorIndex) || '') + ' · click to pick from fal palette · double-click to cycle prompt text color';
   chip.addEventListener('click', (e) => {
     e.stopPropagation();
     openFalPalettePicker(chip, colorIndex);
+  });
+}
+
+function buildCanvasColorChip(hex, colorIndex, paletteColors, asButton) {
+  const chip = asButton ? document.createElement('button') : document.createElement('div');
+  if (asButton) chip.type = 'button';
+  chip.className = 'chip';
+  chip.style.background = hex;
+  if (typeof GLITCH_DUST_LITE === 'undefined' || !GLITCH_DUST_LITE) {
+    chip.title = hex + ' · click to pick from fal palette · double-click to cycle prompt text color';
+  } else {
+    chip.title = hex + ' · double-click to cycle prompt text color';
+  }
+  bindPaletteChipCycle(chip, paletteColors, hex);
+  bindTonalChipPicker(chip, colorIndex);
+  return chip;
+}
+
+function renderSidebarColorDock() {
+  const swatches = document.getElementById('sidebarColorDockSwatches');
+  const meta = document.getElementById('sidebarColorDockMeta');
+  if (!swatches) return;
+
+  swatches.replaceChildren();
+  if (meta) {
+    meta.textContent = tonalCount === 'all'
+      ? 'All palette · click chip to pick'
+      : `${activeTonalColors.length} colors · click to pick`;
+  }
+
+  if (tonalCount === 'all') {
+    const paletteColors = getCanvasPaletteColors();
+    colorInputs.forEach((inp, i) => {
+      swatches.appendChild(buildCanvasColorChip(inp.value, i, paletteColors, true));
+    });
+    return;
+  }
+
+  const paletteColors = activeTonalColors.slice();
+  activeTonalColors.forEach((hex, i) => {
+    swatches.appendChild(buildCanvasColorChip(hex, i, paletteColors, true));
   });
 }
 
@@ -4547,22 +4698,15 @@ function renderTonalPreview() {
     span.textContent = 'All palette colors (weighted below)';
     el.appendChild(span);
     renderPaletteMediaList();
+    renderSidebarColorDock();
     return;
   }
+  const paletteColors = activeTonalColors.slice();
   activeTonalColors.forEach((hex, i) => {
-    const chip = document.createElement('div');
-    chip.className = 'chip';
-    chip.style.background = hex;
-    if (typeof GLITCH_DUST_LITE === 'undefined' || !GLITCH_DUST_LITE) {
-      chip.title = hex + ' · click to pick from fal palette · double-click to cycle prompt text color';
-    } else {
-      chip.title = hex + ' · double-click to cycle prompt text color';
-    }
-    bindPaletteChipCycle(chip, activeTonalColors, hex);
-    bindTonalChipPicker(chip, i);
-    el.appendChild(chip);
+    el.appendChild(buildCanvasColorChip(hex, i, paletteColors, false));
   });
   renderPaletteMediaList();
+  renderSidebarColorDock();
 }
 
 function renderTonalPresetButton(preset, chipLimit) {
