@@ -1335,6 +1335,11 @@
     </select>
   </div>
   <div class="hint">MP4 = H.264 · WebM = preview · GIF = animated loop · transparent GIF uses a Screen Matte (Keylight-style)</div>
+  <div class="ctrl-check">
+    <input type="checkbox" id="gifHeadlinePad">
+    <label for="gifHeadlinePad">GIF: reserve headline space (no text)</label>
+  </div>
+  <div class="hint">Uses headline layout to clear dust · omits headline from GIF so you can composite your own title</div>
   <div id="gifMatteControls">
     <div class="ctrl-check">
       <input type="checkbox" id="gifMatteAuto" checked>
@@ -2575,7 +2580,21 @@ function getTextColor() {
   return document.getElementById('textColor').value || '#000000';
 }
 
+function isGifHeadlinePadEnabled() {
+  const el = document.getElementById('gifHeadlinePad');
+  return el && el.checked;
+}
+
+function isGifHeadlinePadExportActive() {
+  return gifHeadlinePadExportActive;
+}
+
 function getTextClearBBox(progress) {
+  if (isGifHeadlinePadExportActive()) {
+    const full = getOverlayTextRaw().trim();
+    if (!full) return null;
+    return measureTextClearBBox(full);
+  }
   if (!isTextEnabled() || !document.getElementById('textClearPattern').checked) return null;
   const p = progress != null ? progress : getTextLoopProgress(lastRenderProgress);
   const tw = getTypewriterState(p);
@@ -3656,7 +3675,7 @@ function particleInTextClearZone(px, py, sz, bbox) {
 }
 
 function suppressParticleNearOverlayText(p) {
-  if (!document.getElementById('textClearPattern').checked) return false;
+  if (!isGifHeadlinePadExportActive() && !document.getElementById('textClearPattern').checked) return false;
   const sz = p.sz || getNodeSizePx();
   const snap = p.snapPx != null ? { px: p.snapPx, py: p.snapPy } : snapNode(p.x, p.y, sz);
   p.snapPx = snap.px;
@@ -7635,6 +7654,10 @@ function renderFrameContent(loopProgress, sampleTs, ts, opts) {
   renderOverlayText(textProgress);
   renderPromptText(textProgress, sampleTs);
   renderOverlayLogo();
+
+  if (exportMode && isGifHeadlinePadExportActive()) {
+    textRoot.replaceChildren();
+  }
 }
 
 function drawFrame(ts) {
@@ -8294,6 +8317,7 @@ let presetApplyInProgress = false;
 let presetAutosaveTimer = null;
 let exportCancelRequested = false;
 let exportInProgress = false;
+let gifHeadlinePadExportActive = false;
 let exportRunMeta = { format: '', fps: 0, totalFrames: 0 };
 
 function setExportButtonsBusy(busy) {
@@ -9681,6 +9705,8 @@ async function exportVideoWebM(fps, cycleMs, totalFrames, canvas, ctx, exportOpt
 async function exportVideoGif(fps, cycleMs, totalFrames, canvas, ctx, exportOpts) {
   exportOpts = exportOpts || {};
   const transparent = !!exportOpts.transparent;
+  const headlinePad = isGifHeadlinePadEnabled();
+  gifHeadlinePadExportActive = headlinePad;
   const rasterOpts = {
     solidBg: '#ffffff',
     width: canvas.width,
@@ -9722,10 +9748,12 @@ async function exportVideoGif(fps, cycleMs, totalFrames, canvas, ctx, exportOpts
   gif.finish();
   const bytes = gif.bytes();
   if (!bytes || !bytes.byteLength) throw new Error('GIF output empty');
+  const padTag = headlinePad ? '-headline-pad' : '';
   return {
     blob: new Blob([bytes], { type: 'image/gif' }),
-    filename: `fal-glitch-dust-${W}x${H}-${fps}fps-${Date.now()}.gif`,
+    filename: `fal-glitch-dust-${W}x${H}-${fps}fps${padTag}-${Date.now()}.gif`,
     format: 'gif',
+    headlinePad,
   };
 }
 
@@ -9924,9 +9952,10 @@ async function exportVideoLoop(format) {
         ? `Exported ${result.filename} · MP4 via MediaRecorder (QuickTime compatible).`
         : `Exported ${result.filename} · H.264 MP4 (QuickTime compatible).`;
     } else if (isGif) {
+      const padNote = result.headlinePad ? ' · headline space reserved' : '';
       document.getElementById('status').textContent = transparent
-        ? `Exported ${result.filename} · transparent animated GIF.`
-        : `Exported ${result.filename} · animated GIF.`;
+        ? `Exported ${result.filename} · transparent animated GIF${padNote}.`
+        : `Exported ${result.filename} · animated GIF${padNote}.`;
     } else {
       document.getElementById('status').textContent = `Exported ${result.filename} · WebM.`;
     }
@@ -9950,6 +9979,7 @@ async function exportVideoLoop(format) {
       console.error(err);
     }
   } finally {
+    gifHeadlinePadExportActive = false;
     setExportModal(false);
     setExportButtonsBusy(false);
     exportRunMeta = { format: '', fps: 0, totalFrames: 0 };
