@@ -1337,9 +1337,9 @@
   <div class="hint">MP4 = H.264 · WebM = preview · GIF = animated loop · transparent GIF uses a Screen Matte (Keylight-style)</div>
   <div class="ctrl-check">
     <input type="checkbox" id="gifHeadlinePad">
-    <label for="gifHeadlinePad">GIF: reserve headline space (no text)</label>
+    <label for="gifHeadlinePad">GIF: reserve overlay space (no text/logo)</label>
   </div>
-  <div class="hint">Uses headline layout to clear dust · omits headline from GIF so you can composite your own title</div>
+  <div class="hint">Clears dust under headline, prompt, and logo layout · omits them from GIF for compositing</div>
   <div id="gifMatteControls">
     <div class="ctrl-check">
       <input type="checkbox" id="gifMatteAuto" checked>
@@ -2483,6 +2483,7 @@ function measureLogoClearBBox() {
 }
 
 function getLogoClearBBox() {
+  if (isGifHeadlinePadExportActive()) return measureLogoClearBBox();
   if (!isLogoEnabled() || !document.getElementById('logoClearPattern').checked) return null;
   return measureLogoClearBBox();
 }
@@ -3393,6 +3394,11 @@ function measurePromptClearBBox(visibleText) {
 }
 
 function getPromptClearBBox(progress) {
+  if (isGifHeadlinePadExportActive()) {
+    const full = getPromptTextRaw().trim();
+    if (!full) return null;
+    return measurePromptClearBBox(full);
+  }
   if (!isPromptTextEnabled() || !document.getElementById('textClearPattern').checked) return null;
   const p = progress != null ? progress : getTextLoopProgress(lastRenderProgress);
   const state = getPromptTypewriterState(p);
@@ -7657,6 +7663,8 @@ function renderFrameContent(loopProgress, sampleTs, ts, opts) {
 
   if (exportMode && isGifHeadlinePadExportActive()) {
     textRoot.replaceChildren();
+    if (promptTextRoot) promptTextRoot.replaceChildren();
+    if (logoRoot) logoRoot.replaceChildren();
   }
 }
 
@@ -9952,7 +9960,7 @@ async function exportVideoLoop(format) {
         ? `Exported ${result.filename} · MP4 via MediaRecorder (QuickTime compatible).`
         : `Exported ${result.filename} · H.264 MP4 (QuickTime compatible).`;
     } else if (isGif) {
-      const padNote = result.headlinePad ? ' · headline space reserved' : '';
+      const padNote = result.headlinePad ? ' · overlay space reserved' : '';
       document.getElementById('status').textContent = transparent
         ? `Exported ${result.filename} · transparent animated GIF${padNote}.`
         : `Exported ${result.filename} · animated GIF${padNote}.`;
