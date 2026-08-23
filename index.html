@@ -9857,12 +9857,50 @@ async function exportPngStill() {
   }
 }
 
-async function copyGifBlobToClipboard(blob) {
+function downloadExportBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function beginDeferredGifClipboardWrite() {
   if (!navigator.clipboard || typeof ClipboardItem === 'undefined') {
     throw new Error('Clipboard image copy not supported — try Chrome or Edge.');
   }
-  const type = blob.type || 'image/gif';
-  await navigator.clipboard.write([new ClipboardItem({ [type]: blob })]);
+  const gifType = 'image/gif';
+  let blobResolve;
+  let blobReject;
+  const blobPromise = new Promise((resolve, reject) => {
+    blobResolve = resolve;
+    blobReject = reject;
+  });
+  const clipboardDone = navigator.clipboard.write([
+    new ClipboardItem({
+      [gifType]: blobPromise.then(blob => {
+        if (!blob) throw new Error('GIF output empty');
+        return blob.type === gifType ? blob : new Blob([blob], { type: gifType });
+      }),
+    }),
+  ]);
+  return {
+    blobResolve,
+    blobReject,
+    clipboardDone,
+    fail(err) {
+      blobReject(err instanceof Error ? err : new Error(String(err)));
+      return clipboardDone.catch(() => {});
+    },
+    async finish(blob) {
+      blobResolve(blob);
+      await clipboardDone;
+    },
+  };
 }
 
 async function exportVideoLoop(format, opts) {
@@ -9874,6 +9912,17 @@ async function exportVideoLoop(format, opts) {
   const isMp4 = format === 'mp4';
   const isGif = format === 'gif';
   const transparent = getBg() === 'transparent';
+
+  let deferredClipboard = null;
+  if (copyToClipboard) {
+    try {
+      deferredClipboard = beginDeferredGifClipboardWrite();
+    } catch (clipErr) {
+      document.getElementById('status').textContent =
+        `GIF copy failed — ${clipErr?.message || 'clipboard blocked. Use Export GIF instead.'}`;
+      return;
+    }
+  }
 
   exportCancelRequested = false;
   exportRunMeta = { format, fps, totalFrames };
@@ -9962,19 +10011,18 @@ async function exportVideoLoop(format, opts) {
 
     updateExportProgress(1, copyToClipboard ? 'Copying to clipboard…' : 'Download starting…');
     if (copyToClipboard) {
-      await copyGifBlobToClipboard(result.blob);
       const padNote = result.headlinePad ? ' · overlay space reserved' : '';
-      document.getElementById('status').textContent = `GIF copied to clipboard${padNote}.`;
+      try {
+        await deferredClipboard.finish(result.blob);
+        document.getElementById('status').textContent = `GIF copied to clipboard${padNote}.`;
+      } catch (clipErr) {
+        console.warn('GIF clipboard copy failed, downloading instead:', clipErr);
+        downloadExportBlob(result.blob, result.filename);
+        document.getElementById('status').textContent =
+          `Clipboard blocked — downloaded ${result.filename} instead${padNote}.`;
+      }
     } else {
-      const url = URL.createObjectURL(result.blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = result.filename;
-      a.rel = 'noopener';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 0);
+      downloadExportBlob(result.blob, result.filename);
       if (isMp4) {
         document.getElementById('status').textContent = mp4Method === 'mediarecorder'
           ? `Exported ${result.filename} · MP4 via MediaRecorder (QuickTime compatible).`
@@ -9989,6 +10037,7 @@ async function exportVideoLoop(format, opts) {
       }
     }
   } catch (err) {
+    if (deferredClipboard) await deferredClipboard.fail(err);
     if (err && err.message === 'cancelled') {
       document.getElementById('status').textContent = 'Video export cancelled.';
     } else if (isMp4 && (err?.message === 'mp4-muxer-load-failed' || String(err).includes('mp4-muxer'))) {
