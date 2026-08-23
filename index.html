@@ -1380,6 +1380,7 @@
       <button id="jsonBtn">Copy Lottie</button>
       <button id="webflowBtn" class="span-2">Copy Webflow embed</button>
       <button id="specBtn" class="span-2" title="Copy every control's current value + range as JSON, for rebuilding this interaction in another tool">Copy Settings (JSON spec)</button>
+      <button id="gifCopyBtn" class="span-2">Copy GIF</button>
     </div>
     <div class="action-group-label">Download</div>
     <div class="btn-grid action-export">
@@ -8329,7 +8330,7 @@ let gifHeadlinePadExportActive = false;
 let exportRunMeta = { format: '', fps: 0, totalFrames: 0 };
 
 function setExportButtonsBusy(busy) {
-  ['pngExportBtn', 'mp4ExportBtn', 'webmExportBtn', 'gifExportBtn'].forEach(id => {
+  ['pngExportBtn', 'mp4ExportBtn', 'webmExportBtn', 'gifExportBtn', 'gifCopyBtn'].forEach(id => {
     const btn = document.getElementById(id);
     if (btn) btn.classList.toggle('exporting', !!busy);
   });
@@ -9856,7 +9857,17 @@ async function exportPngStill() {
   }
 }
 
-async function exportVideoLoop(format) {
+async function copyGifBlobToClipboard(blob) {
+  if (!navigator.clipboard || typeof ClipboardItem === 'undefined') {
+    throw new Error('Clipboard image copy not supported — try Chrome or Edge.');
+  }
+  const type = blob.type || 'image/gif';
+  await navigator.clipboard.write([new ClipboardItem({ [type]: blob })]);
+}
+
+async function exportVideoLoop(format, opts) {
+  opts = opts || {};
+  const copyToClipboard = !!opts.copyToClipboard && format === 'gif';
   const fps = parseInt(document.getElementById('exportFps').value, 10) || 30;
   const cycleMs = getAnimDurationMs();
   const totalFrames = Math.max(1, Math.round(cycleMs / 1000 * fps));
@@ -9869,7 +9880,11 @@ async function exportVideoLoop(format) {
   setExportButtonsBusy(true);
   const titleEl = document.getElementById('exportModalTitle');
   if (titleEl) {
-    titleEl.textContent = isMp4 ? 'Exporting MP4' : isGif ? 'Exporting GIF' : 'Exporting WebM';
+    titleEl.textContent = isMp4
+      ? 'Exporting MP4'
+      : isGif
+        ? (copyToClipboard ? 'Copying GIF' : 'Exporting GIF')
+        : 'Exporting WebM';
   }
 
   const wasPaused = paused;
@@ -9945,27 +9960,33 @@ async function exportVideoLoop(format) {
       result = await exportVideoWebM(fps, cycleMs, totalFrames, canvas, ctx, exportOpts);
     }
 
-    updateExportProgress(1, 'Download starting…');
-    const url = URL.createObjectURL(result.blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = result.filename;
-    a.rel = 'noopener';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 0);
-    if (isMp4) {
-      document.getElementById('status').textContent = mp4Method === 'mediarecorder'
-        ? `Exported ${result.filename} · MP4 via MediaRecorder (QuickTime compatible).`
-        : `Exported ${result.filename} · H.264 MP4 (QuickTime compatible).`;
-    } else if (isGif) {
+    updateExportProgress(1, copyToClipboard ? 'Copying to clipboard…' : 'Download starting…');
+    if (copyToClipboard) {
+      await copyGifBlobToClipboard(result.blob);
       const padNote = result.headlinePad ? ' · overlay space reserved' : '';
-      document.getElementById('status').textContent = transparent
-        ? `Exported ${result.filename} · transparent animated GIF${padNote}.`
-        : `Exported ${result.filename} · animated GIF${padNote}.`;
+      document.getElementById('status').textContent = `GIF copied to clipboard${padNote}.`;
     } else {
-      document.getElementById('status').textContent = `Exported ${result.filename} · WebM.`;
+      const url = URL.createObjectURL(result.blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = result.filename;
+      a.rel = 'noopener';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+      if (isMp4) {
+        document.getElementById('status').textContent = mp4Method === 'mediarecorder'
+          ? `Exported ${result.filename} · MP4 via MediaRecorder (QuickTime compatible).`
+          : `Exported ${result.filename} · H.264 MP4 (QuickTime compatible).`;
+      } else if (isGif) {
+        const padNote = result.headlinePad ? ' · overlay space reserved' : '';
+        document.getElementById('status').textContent = transparent
+          ? `Exported ${result.filename} · transparent animated GIF${padNote}.`
+          : `Exported ${result.filename} · animated GIF${padNote}.`;
+      } else {
+        document.getElementById('status').textContent = `Exported ${result.filename} · WebM.`;
+      }
     }
   } catch (err) {
     if (err && err.message === 'cancelled') {
@@ -9973,6 +9994,9 @@ async function exportVideoLoop(format) {
     } else if (isMp4 && (err?.message === 'mp4-muxer-load-failed' || String(err).includes('mp4-muxer'))) {
       document.getElementById('status').textContent =
         'MP4 export failed — keep vendor/mp4-muxer.mjs next to index.html, or use Chrome online.';
+    } else if (isGif && copyToClipboard) {
+      document.getElementById('status').textContent =
+        `GIF copy failed — ${err?.message || 'clipboard blocked. Use Export GIF instead.'}`;
     } else if (isGif && (err?.message === 'gifenc-load-failed' || String(err).includes('gifenc'))) {
       document.getElementById('status').textContent =
         'GIF export failed — keep vendor/gifenc.mjs next to index.html, or use Chrome online.';
@@ -10028,6 +10052,15 @@ document.getElementById('pngExportBtn').onclick = () => {
 bindVideoExportButton('mp4ExportBtn', 'mp4');
 bindVideoExportButton('webmExportBtn', 'webm');
 bindVideoExportButton('gifExportBtn', 'gif');
+
+document.getElementById('gifCopyBtn').onclick = () => {
+  if (typeof exportVideoLoop !== 'function') {
+    document.getElementById('status').textContent =
+      'Export unavailable — reload the page. If opened from Dropbox, use a local server (python3 -m http.server).';
+    return;
+  }
+  exportVideoLoop('gif', { copyToClipboard: true });
+};
 
 document.getElementById('svgBtn').onclick = async () => {
   const status = document.getElementById('status');
