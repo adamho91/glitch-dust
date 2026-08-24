@@ -87,6 +87,41 @@
     border-color: var(--ui-accent);
     box-shadow: 0 0 0 1px var(--ui-accent-a33);
   }
+  .sidebar-color-dock-section + .sidebar-color-dock-section {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #232323;
+  }
+  .sidebar-color-dock-swatches.bg-dock {
+    gap: 4px;
+  }
+  .sidebar-color-dock-swatches.bg-dock .bg-swatch {
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    font-size: 11px;
+  }
+  .sidebar-color-dock-custom {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+  }
+  .sidebar-color-dock-custom.is-open { display: flex; }
+  .sidebar-color-dock-custom label {
+    font-size: 10px;
+    color: #777;
+    flex-shrink: 0;
+  }
+  .sidebar-color-dock-custom input[type=color] {
+    width: 34px;
+    height: 24px;
+    border-radius: 4px;
+    border: 1px solid #3a3a3a;
+    padding: 1px;
+    background: transparent;
+    cursor: pointer;
+  }
   .preview-panel { display: flex; flex-direction: column; padding: 16px 20px; min-width: 0; min-height: 0; overflow: hidden; }
   h1 { font-size: 14px; font-weight: 500; color: #eee; margin-bottom: 4px; letter-spacing: 0.04em; text-transform: uppercase; }
   h1 span { color: var(--ui-accent); }
@@ -1466,11 +1501,24 @@
 </div>
 </div>
 <div class="sidebar-color-dock" id="sidebarColorDock">
-  <div class="sidebar-color-dock-head">
-    <span class="sidebar-color-dock-label">Canvas colors</span>
-    <span class="sidebar-color-dock-meta" id="sidebarColorDockMeta">click to pick · dbl-click cycles prompt</span>
+  <div class="sidebar-color-dock-section">
+    <div class="sidebar-color-dock-head">
+      <span class="sidebar-color-dock-label">Canvas colors</span>
+      <span class="sidebar-color-dock-meta" id="sidebarColorDockMeta">click to pick · dbl-click cycles prompt</span>
+    </div>
+    <div class="sidebar-color-dock-swatches" id="sidebarColorDockSwatches"></div>
   </div>
-  <div class="sidebar-color-dock-swatches" id="sidebarColorDockSwatches"></div>
+  <div class="sidebar-color-dock-section">
+    <div class="sidebar-color-dock-head">
+      <span class="sidebar-color-dock-label">Background</span>
+      <span class="sidebar-color-dock-meta" id="sidebarBgDockMeta">∅ = transparent</span>
+    </div>
+    <div class="sidebar-color-dock-swatches bg-dock" id="sidebarBgDockSwatches"></div>
+    <div class="sidebar-color-dock-custom" id="sidebarBgDockCustom">
+      <label for="sidebarBgCustom">Custom</label>
+      <input type="color" id="sidebarBgCustom" value="#004012" title="Custom background">
+    </div>
+  </div>
 </div>
 </aside>
 
@@ -4186,10 +4234,20 @@ function ensureBgSelOption(value, label) {
 
 function getBg() { return bgSel.value === 'custom' ? bgCustom.value : bgSel.value; }
 
+function syncBgCustomInputs() {
+  const dockCustom = document.getElementById('sidebarBgCustom');
+  if (dockCustom && dockCustom !== document.activeElement) {
+    dockCustom.value = bgCustom.value;
+  }
+  if (bgCustom && bgCustom !== document.activeElement && dockCustom) {
+    // keep main custom input as source of truth when dock isn't being edited
+  }
+}
+
 function updateBgSwatchUi() {
   const current = getBg();
   const normalized = current === 'transparent' || current === 'custom' ? current : normalizeBgHex(current);
-  document.querySelectorAll('#bgSwatches .bg-swatch').forEach(btn => {
+  document.querySelectorAll('#bgSwatches .bg-swatch, #sidebarBgDockSwatches .bg-swatch').forEach(btn => {
     const v = btn.dataset.value;
     let active = false;
     if (v === 'custom') active = bgSel.value === 'custom';
@@ -4199,8 +4257,36 @@ function updateBgSwatchUi() {
   });
   const row = document.getElementById('bgCustomRow');
   if (row) row.style.display = bgSel.value === 'custom' ? '' : 'none';
+  const dockCustom = document.getElementById('sidebarBgDockCustom');
+  if (dockCustom) dockCustom.classList.toggle('is-open', bgSel.value === 'custom');
+  const dockMeta = document.getElementById('sidebarBgDockMeta');
+  if (dockMeta) {
+    if (bgSel.value === 'transparent') dockMeta.textContent = 'transparent';
+    else if (bgSel.value === 'custom') dockMeta.textContent = getBg();
+    else dockMeta.textContent = getBg();
+  }
+  syncBgCustomInputs();
   const gifMatteControls = document.getElementById('gifMatteControls');
   if (gifMatteControls) gifMatteControls.style.display = bgSel.value === 'transparent' ? '' : 'none';
+}
+
+function createBgSwatchButton(opt) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'bg-swatch';
+  btn.dataset.value = opt.value;
+  btn.title = opt.label;
+  if (opt.value === 'transparent') {
+    btn.classList.add('bg-swatch-transparent');
+    btn.textContent = '∅';
+  } else if (opt.value === 'custom') {
+    btn.classList.add('bg-swatch-custom');
+    btn.textContent = '…';
+  } else {
+    btn.style.backgroundColor = opt.value;
+  }
+  btn.onclick = () => setBgSelection(opt.value);
+  return btn;
 }
 
 function setBgSelection(value, opts) {
@@ -4224,6 +4310,7 @@ function setBgSelection(value, opts) {
 
 function initBgColorUi() {
   const container = document.getElementById('bgSwatches');
+  const dock = document.getElementById('sidebarBgDockSwatches');
   if (!container) return;
   bgSel.innerHTML = '';
   BG_COLOR_OPTIONS.forEach(opt => {
@@ -4233,31 +4320,30 @@ function initBgColorUi() {
     bgSel.appendChild(o);
   });
   container.innerHTML = '';
+  if (dock) dock.innerHTML = '';
   BG_COLOR_OPTIONS.forEach(opt => {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'bg-swatch';
-    btn.dataset.value = opt.value;
-    btn.title = opt.label;
-    if (opt.value === 'transparent') {
-      btn.classList.add('bg-swatch-transparent');
-      btn.textContent = '∅';
-    } else if (opt.value === 'custom') {
-      btn.classList.add('bg-swatch-custom');
-      btn.textContent = '…';
-    } else {
-      btn.style.backgroundColor = opt.value;
-    }
-    btn.onclick = () => setBgSelection(opt.value);
-    container.appendChild(btn);
+    container.appendChild(createBgSwatchButton(opt));
+    if (dock) dock.appendChild(createBgSwatchButton(opt));
   });
-  bgCustom.oninput = () => {
-    if (bgSel.value === 'custom') {
-      updateBgSwatchUi();
-      refreshTextOverlay();
-      schedulePresetAutosave();
+  const onCustomInput = (src) => {
+    if (src === 'dock') {
+      const dockCustom = document.getElementById('sidebarBgCustom');
+      if (dockCustom) bgCustom.value = dockCustom.value;
+    } else {
+      const dockCustom = document.getElementById('sidebarBgCustom');
+      if (dockCustom) dockCustom.value = bgCustom.value;
     }
+    if (bgSel.value !== 'custom') setBgSelection('custom', { silent: true });
+    updateBgSwatchUi();
+    refreshTextOverlay();
+    schedulePresetAutosave();
   };
+  bgCustom.oninput = () => onCustomInput('main');
+  const dockCustom = document.getElementById('sidebarBgCustom');
+  if (dockCustom) {
+    dockCustom.value = bgCustom.value;
+    dockCustom.oninput = () => onCustomInput('dock');
+  }
   setBgSelection('#FFFFFF', { silent: true });
 }
 
