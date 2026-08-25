@@ -168,43 +168,7 @@ function paint(ctx, P, tileCol, dotCol) {
   }
 }
 
-function parseHex(hex) {
-  const n = parseInt(String(hex).replace('#', ''), 16);
-  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
-}
-
-/** Disk (Euclidean) morphological dilate — offset the united silhouette like Illustrator. */
-function dilateEuclidean(f, rw, rh, radius) {
-  const r = Math.max(0, Math.round(radius));
-  if (r <= 0) return f;
-  const r2 = r * r;
-  const out = new Uint8Array(rw * rh);
-  const pts = [];
-  for (let y = 0; y < rh; y++) {
-    const row = y * rw;
-    for (let x = 0; x < rw; x++) {
-      if (f[row + x]) pts.push(x, y);
-    }
-  }
-  for (let i = 0; i < pts.length; i += 2) {
-    const x = pts[i];
-    const y = pts[i + 1];
-    const y0 = Math.max(0, y - r);
-    const y1 = Math.min(rh - 1, y + r);
-    const x0 = Math.max(0, x - r);
-    const x1 = Math.min(rw - 1, x + r);
-    for (let yy = y0; yy <= y1; yy++) {
-      const dy = yy - y;
-      const dy2 = dy * dy;
-      const row = yy * rw;
-      for (let xx = x0; xx <= x1; xx++) {
-        const dx = xx - x;
-        if (dx * dx + dy2 <= r2) out[row + xx] = 255;
-      }
-    }
-  }
-  return out;
-}
+const MITER_LIMIT = 4;
 
 function uniteMask() {
   const k = clamp(Math.sqrt(2600000 / (W * H)), 0.6, 1.4);
@@ -222,59 +186,51 @@ function uniteMask() {
   return { f, rw, rh, sx: W / rw, sy: H / rh };
 }
 
-function maskField(dil) {
+/** Contours of the united blob in artboard coords (Illustrator Pathfinder → Unite). */
+function unitedLoops() {
   const base = uniteMask();
-  if (!(dil > 0)) return base;
-  const rPix = Math.max(1, Math.round(dil * (base.rw / W)));
-  return {
-    f: dilateEuclidean(base.f, base.rw, base.rh, rPix),
-    rw: base.rw,
-    rh: base.rh,
-    sx: base.sx,
-    sy: base.sy,
-  };
-}
-
-function fillMask(ctx, w, h, field, color) {
-  const { f, rw, rh } = field;
-  const c = document.createElement('canvas');
-  c.width = rw;
-  c.height = rh;
-  const o = c.getContext('2d');
-  const img = o.createImageData(rw, rh);
-  const { r, g, b } = parseHex(color);
-  const data = img.data;
-  for (let i = 0; i < f.length; i++) {
-    if (!f[i]) continue;
-    const j = i * 4;
-    data[j] = r;
-    data[j + 1] = g;
-    data[j + 2] = b;
-    data[j + 3] = 255;
+  const loops = [];
+  for (let L of marching(base.f, base.rw, base.rh, 128)) {
+    L = rdp(L, 0.5);
+    if (L.length < 3) continue;
+    loops.push(L.map(p => [p[0] * base.sx, p[1] * base.sy]));
   }
-  o.putImageData(img, 0, 0);
-  ctx.drawImage(c, 0, 0, w, h);
+  return { loops, base };
 }
 
-function offsetField(base, dil) {
-  if (!(dil > 0)) return base;
-  const rPix = Math.max(1, Math.round(dil * (base.rw / W)));
-  return {
-    f: dilateEuclidean(base.f, base.rw, base.rh, rPix),
-    rw: base.rw,
-    rh: base.rh,
-    sx: base.sx,
-    sy: base.sy,
-  };
+function pathLoops(ctx, loops) {
+  for (const L of loops) {
+    ctx.moveTo(L[0][0], L[0][1]);
+    for (let i = 1; i < L.length; i++) ctx.lineTo(L[i][0], L[i][1]);
+    ctx.closePath();
+  }
 }
 
-function paintOffset(ctx, P, w, h) {
-  const base = uniteMask();
+/** Offset Path on the united silhouette — Joins: Miter, Miter limit: 4. */
+function paintMiterOffset(ctx, loops, dil, color) {
+  ctx.save();
+  ctx.fillStyle = color;
+  ctx.strokeStyle = color;
+  ctx.lineJoin = 'miter';
+  ctx.miterLimit = MITER_LIMIT;
+  ctx.lineCap = 'butt';
+  ctx.beginPath();
+  pathLoops(ctx, loops);
+  ctx.fill('evenodd');
+  if (dil > 0) {
+    ctx.lineWidth = dil * 2;
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function paintOffset(ctx, P) {
+  const { loops } = unitedLoops();
   if (st.sw > 0) {
-    fillMask(ctx, w, h, offsetField(base, st.off), st.strink);
-    fillMask(ctx, w, h, offsetField(base, Math.max(0, st.off - st.sw)), st.offink);
+    paintMiterOffset(ctx, loops, st.off, st.strink);
+    paintMiterOffset(ctx, loops, Math.max(0, st.off - st.sw), st.offink);
   } else {
-    fillMask(ctx, w, h, offsetField(base, st.off), st.offink);
+    paintMiterOffset(ctx, loops, st.off, st.offink);
   }
   paint(ctx, P, st.ink, st.ink);
 }
@@ -285,7 +241,39 @@ function paintScene(ctx, w, h) {
   const P = getPrims();
   if (st.mode === 'halftone') paint(ctx, P, PLATE, null);
   else if (st.mode === 'unite') paint(ctx, P, st.ink, st.ink);
-  else paintOffset(ctx, P, w, h);
+  else paintOffset(ctx, P);
+}
+
+/** Rasterize united contour with miter offset for SVG compound paths. */
+function maskField(dil) {
+  const base = uniteMask();
+  if (!(dil > 0)) return base;
+
+  const c = document.createElement('canvas');
+  c.width = base.rw;
+  c.height = base.rh;
+  const o = c.getContext('2d', { willReadFrequently: true });
+  o.fillStyle = '#000';
+  o.strokeStyle = '#000';
+  o.lineJoin = 'miter';
+  o.miterLimit = MITER_LIMIT;
+  o.lineCap = 'butt';
+  o.lineWidth = Math.max(1, dil * 2 * (base.rw / W));
+  o.beginPath();
+  for (let L of marching(base.f, base.rw, base.rh, 128)) {
+    L = rdp(L, 0.5);
+    if (L.length < 3) continue;
+    o.moveTo(L[0][0], L[0][1]);
+    for (let i = 1; i < L.length; i++) o.lineTo(L[i][0], L[i][1]);
+    o.closePath();
+  }
+  o.fill('evenodd');
+  o.stroke();
+
+  const d = o.getImageData(0, 0, base.rw, base.rh).data;
+  const f = new Uint8Array(base.rw * base.rh);
+  for (let i = 0, n = f.length; i < n; i++) f[i] = d[i * 4 + 3] > 0 ? 255 : 0;
+  return { f, rw: base.rw, rh: base.rh, sx: base.sx, sy: base.sy };
 }
 
 const cv = document.getElementById('cv');
@@ -484,7 +472,7 @@ function renderThumbDataUrl(map, seed) {
   o.fillRect(0, 0, artW, artH);
   if (st.mode === 'halftone') paint(o, P, PLATE, null);
   else if (st.mode === 'unite') paint(o, P, st.ink, st.ink);
-  else paintOffset(o, P, artW, artH);
+  else paintOffset(o, P);
   const url = c.toDataURL('image/png');
   cells = saved.cells;
   st.seed = saved.seed;
