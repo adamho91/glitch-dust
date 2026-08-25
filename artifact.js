@@ -179,15 +179,25 @@ function applyStrokeJoin(ctx) {
   ctx.lineCap = join === 'round' ? 'round' : 'butt';
 }
 
-/** Offset Path on the united silhouette — Joins: Miter / Round / Bevel. */
-function paintPathOffset(ctx, loops, dil, color) {
+/** True vector unite geometry — arcs + circles, not marched polygons. */
+function addUniteGeometry(ctx, P) {
+  for (const t of P.tile) tilePath(ctx, t.x, t.y, P.cw, P.r);
+  for (const d of P.dot) {
+    ctx.moveTo(d.cx + d.r, d.cy);
+    ctx.arc(d.cx, d.cy, d.r, 0, TAU);
+    ctx.closePath();
+  }
+}
+
+/** Offset Path via fill + stroke on real arcs/circles (Miter / Round / Bevel). */
+function paintPathOffset(ctx, P, dil, color) {
   ctx.save();
   ctx.fillStyle = color;
   ctx.strokeStyle = color;
   applyStrokeJoin(ctx);
   ctx.beginPath();
-  pathLoops(ctx, loops);
-  ctx.fill('evenodd');
+  addUniteGeometry(ctx, P);
+  ctx.fill('nonzero');
   if (dil > 0) {
     ctx.lineWidth = dil * 2;
     ctx.stroke();
@@ -196,50 +206,13 @@ function paintPathOffset(ctx, loops, dil, color) {
 }
 
 function paintOffset(ctx, P) {
-  const { loops } = unitedLoops();
   if (st.sw > 0) {
-    paintPathOffset(ctx, loops, st.off, st.strink);
-    paintPathOffset(ctx, loops, Math.max(0, st.off - st.sw), st.offink);
+    paintPathOffset(ctx, P, st.off, st.strink);
+    paintPathOffset(ctx, P, Math.max(0, st.off - st.sw), st.offink);
   } else {
-    paintPathOffset(ctx, loops, st.off, st.offink);
+    paintPathOffset(ctx, P, st.off, st.offink);
   }
   paint(ctx, P, st.ink, st.ink);
-}
-
-function uniteMask() {
-  const k = clamp(Math.sqrt(2600000 / (W * H)), 0.6, 1.4);
-  const rw = Math.max(4, Math.round(W * k));
-  const rh = Math.max(4, Math.round(H * k));
-  const c = document.createElement('canvas');
-  c.width = rw;
-  c.height = rh;
-  const o = c.getContext('2d', { willReadFrequently: true });
-  o.setTransform(rw / W, 0, 0, rh / H, 0, 0);
-  paint(o, getPrims(), '#000', '#000');
-  const d = o.getImageData(0, 0, rw, rh).data;
-  const f = new Uint8Array(rw * rh);
-  for (let i = 0, n = rw * rh; i < n; i++) f[i] = d[i * 4 + 3] > 0 ? 255 : 0;
-  return { f, rw, rh, sx: W / rw, sy: H / rh };
-}
-
-/** Contours of the united blob in artboard coords (Illustrator Pathfinder → Unite). */
-function unitedLoops() {
-  const base = uniteMask();
-  const loops = [];
-  for (let L of marching(base.f, base.rw, base.rh, 128)) {
-    L = rdp(L, 0.5);
-    if (L.length < 3) continue;
-    loops.push(L.map(p => [p[0] * base.sx, p[1] * base.sy]));
-  }
-  return { loops, base };
-}
-
-function pathLoops(ctx, loops) {
-  for (const L of loops) {
-    ctx.moveTo(L[0][0], L[0][1]);
-    for (let i = 1; i < L.length; i++) ctx.lineTo(L[i][0], L[i][1]);
-    ctx.closePath();
-  }
 }
 
 function paintScene(ctx, w, h) {
@@ -249,36 +222,6 @@ function paintScene(ctx, w, h) {
   if (st.mode === 'halftone') paint(ctx, P, PLATE, null);
   else if (st.mode === 'unite') paint(ctx, P, st.ink, st.ink);
   else paintOffset(ctx, P);
-}
-
-/** Rasterize united contour with join offset for SVG compound paths. */
-function maskField(dil) {
-  const base = uniteMask();
-  if (!(dil > 0)) return base;
-
-  const c = document.createElement('canvas');
-  c.width = base.rw;
-  c.height = base.rh;
-  const o = c.getContext('2d', { willReadFrequently: true });
-  o.fillStyle = '#000';
-  o.strokeStyle = '#000';
-  applyStrokeJoin(o);
-  o.lineWidth = Math.max(1, dil * 2 * (base.rw / W));
-  o.beginPath();
-  for (let L of marching(base.f, base.rw, base.rh, 128)) {
-    L = rdp(L, 0.5);
-    if (L.length < 3) continue;
-    o.moveTo(L[0][0], L[0][1]);
-    for (let i = 1; i < L.length; i++) o.lineTo(L[i][0], L[i][1]);
-    o.closePath();
-  }
-  o.fill('evenodd');
-  o.stroke();
-
-  const d = o.getImageData(0, 0, base.rw, base.rh).data;
-  const f = new Uint8Array(base.rw * base.rh);
-  for (let i = 0, n = f.length; i < n; i++) f[i] = d[i * 4 + 3] > 0 ? 255 : 0;
-  return { f, rw: base.rw, rh: base.rh, sx: base.sx, sy: base.sy };
 }
 
 const cv = document.getElementById('cv');
@@ -557,114 +500,7 @@ function generateTen() {
   setStatus('10 generations ready · click a thumb to edit');
 }
 
-/* ---- SVG compound path helpers (unite / offset export) ---- */
-function marching(f, rw, rh, T) {
-  const segs = [];
-  const V = (x, y) => f[y * rw + x];
-  for (let y = 0; y < rh - 1; y++) {
-    for (let x = 0; x < rw - 1; x++) {
-      const v0 = V(x, y);
-      const v1 = V(x + 1, y);
-      const v2 = V(x + 1, y + 1);
-      const v3 = V(x, y + 1);
-      let idx = 0;
-      if (v0 >= T) idx |= 1;
-      if (v1 >= T) idx |= 2;
-      if (v2 >= T) idx |= 4;
-      if (v3 >= T) idx |= 8;
-      if (idx === 0 || idx === 15) continue;
-      const A = () => [x + (T - v0) / (v1 - v0), y];
-      const B = () => [x + 1, y + (T - v1) / (v2 - v1)];
-      const C = () => [x + (T - v3) / (v2 - v3), y + 1];
-      const D = () => [x, y + (T - v0) / (v3 - v0)];
-      const S = (p, q) => segs.push([p[0], p[1], q[0], q[1]]);
-      switch (idx) {
-        case 1: S(D(), A()); break;
-        case 2: S(A(), B()); break;
-        case 3: S(D(), B()); break;
-        case 4: S(B(), C()); break;
-        case 5: S(D(), A()); S(B(), C()); break;
-        case 6: S(A(), C()); break;
-        case 7: S(D(), C()); break;
-        case 8: S(C(), D()); break;
-        case 9: S(C(), A()); break;
-        case 10: S(A(), B()); S(C(), D()); break;
-        case 11: S(C(), B()); break;
-        case 12: S(B(), D()); break;
-        case 13: S(B(), A()); break;
-        case 14: S(A(), D()); break;
-      }
-    }
-  }
-  const kk = (x, y) => Math.round(x * 2048) * 8388608 + Math.round(y * 2048);
-  const map = new Map();
-  for (let i = 0; i < segs.length; i++) {
-    const k = kk(segs[i][0], segs[i][1]);
-    const a = map.get(k);
-    if (a) a.push(i);
-    else map.set(k, [i]);
-  }
-  const used = new Uint8Array(segs.length);
-  const loops = [];
-  for (let i = 0; i < segs.length; i++) {
-    if (used[i]) continue;
-    const pts = [];
-    let cur = i;
-    while (cur !== -1 && !used[cur]) {
-      used[cur] = 1;
-      pts.push([segs[cur][0], segs[cur][1]]);
-      const cand = map.get(kk(segs[cur][2], segs[cur][3]));
-      let nxt = -1;
-      if (cand) for (const c of cand) if (!used[c]) { nxt = c; break; }
-      cur = nxt;
-    }
-    if (pts.length > 3) loops.push(pts);
-  }
-  return loops;
-}
-
-function rdp(pts, eps) {
-  const n = pts.length;
-  if (n < 4) return pts;
-  const keep = new Uint8Array(n);
-  keep[0] = 1;
-  keep[n - 1] = 1;
-  const stack = [[0, n - 1]];
-  while (stack.length) {
-    const [s, e] = stack.pop();
-    if (e - s < 2) continue;
-    const [x1, y1] = pts[s];
-    const [x2, y2] = pts[e];
-    const dx = x2 - x1;
-    const dy = y2 - y1;
-    const L = Math.hypot(dx, dy) || 1e-9;
-    let md = -1;
-    let mi = -1;
-    for (let i = s + 1; i < e; i++) {
-      const d = Math.abs((pts[i][0] - x1) * dy - (pts[i][1] - y1) * dx) / L;
-      if (d > md) { md = d; mi = i; }
-    }
-    if (md > eps) {
-      keep[mi] = 1;
-      stack.push([s, mi], [mi, e]);
-    }
-  }
-  const out = [];
-  for (let i = 0; i < n; i++) if (keep[i]) out.push(pts[i]);
-  return out;
-}
-
-function compound(dil) {
-  const { f, rw, rh, sx, sy } = maskField(dil);
-  let d = '';
-  for (let L of marching(f, rw, rh, 128)) {
-    L = rdp(L, 0.5);
-    if (L.length < 3) continue;
-    d += 'M' + L.map(p => (p[0] * sx).toFixed(2) + ' ' + (p[1] * sy).toFixed(2)).join('L') + 'Z';
-  }
-  return d;
-}
-
+/* ---- SVG export: real arcs + <circle> elements (not marched polygons) ---- */
 const N2 = n => n.toFixed(2);
 
 function tileSvgPath(x, y, s, r) {
@@ -677,13 +513,37 @@ function tileSvgPath(x, y, s, r) {
     + `L${N2(x)} ${N2(y + r)}A${R} ${R} 0 0 0 ${N2(x + r)} ${N2(y)}Z`;
 }
 
+function offsetJoinAttrs() {
+  const join = st.join === 'round' || st.join === 'bevel' ? st.join : 'miter';
+  const lim = join === 'miter' ? clamp(st.miterLimit || MITER_LIMIT_DEFAULT, 1, 100) : 4;
+  const cap = join === 'round' ? 'round' : 'butt';
+  return `stroke-linejoin="${join}" stroke-miterlimit="${lim}" stroke-linecap="${cap}"`;
+}
+
+function uniteSvgInner(P) {
+  let tileD = '';
+  for (const t of P.tile) tileD += tileSvgPath(t.x, t.y, P.cw, P.r);
+  let inner = tileD ? `<path d="${tileD}"/>` : '';
+  for (const c of P.dot) {
+    inner += `<circle cx="${N2(c.cx)}" cy="${N2(c.cy)}" r="${N2(c.r)}"/>`;
+  }
+  return inner;
+}
+
+function uniteSvgGroup(id, P, fill, stroke, strokeWidth) {
+  const strokePart = stroke && strokeWidth > 0
+    ? ` stroke="${stroke}" stroke-width="${N2(strokeWidth)}" ${offsetJoinAttrs()}`
+    : '';
+  return `<g id="${id}" fill="${fill}"${strokePart}>${uniteSvgInner(P)}</g>`;
+}
+
 function buildSVG() {
   const P = getPrims();
   let body = `<rect id="ground" width="${W}" height="${H}" fill="${st.gnd}"/>`;
   if (st.mode === 'halftone') {
     let d = '';
     for (const t of P.tile) d += tileSvgPath(t.x, t.y, P.cw, P.r);
-    body += `<path id="plate" fill="${PLATE}" fill-rule="evenodd" d="${d}"/>`;
+    body += `<path id="plate" fill="${PLATE}" d="${d}"/>`;
     const by = new Map();
     for (const c of P.dot) {
       by.set(c.col, (by.get(c.col) || '') + `<circle cx="${N2(c.cx)}" cy="${N2(c.cy)}" r="${N2(c.r)}"/>`);
@@ -691,17 +551,15 @@ function buildSVG() {
     let i = 0;
     for (const [col, g] of by) body += `<g id="spot-${++i}" fill="${col}">${g}</g>`;
   } else if (st.mode === 'unite') {
-    body += `<path id="united" fill="${st.ink}" fill-rule="evenodd" d="${compound(0)}"/>`;
+    body += uniteSvgGroup('united', P, st.ink, null, 0);
   } else {
     if (st.sw > 0) {
-      body += `<path id="stroke" fill="${st.strink}" fill-rule="evenodd" d="${compound(st.off)}"/>`;
-      body += `<path id="offset" fill="${st.offink}" fill-rule="evenodd" d="${compound(Math.max(0.01, st.off - st.sw))}"/>`;
+      body += uniteSvgGroup('stroke', P, st.strink, st.strink, st.off * 2);
+      body += uniteSvgGroup('offset', P, st.offink, st.offink, Math.max(0, st.off - st.sw) * 2);
     } else {
-      body += `<path id="offset" fill="${st.offink}" fill-rule="evenodd" d="${compound(st.off)}"/>`;
+      body += uniteSvgGroup('offset', P, st.offink, st.offink, st.off * 2);
     }
-    if (st.offink !== st.ink) {
-      body += `<path id="united" fill="${st.ink}" fill-rule="evenodd" d="${compound(0)}"/>`;
-    }
+    body += uniteSvgGroup('united', P, st.ink, null, 0);
   }
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">\n${body}\n</svg>`;
 }
