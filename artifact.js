@@ -154,25 +154,29 @@ function tilePath(ctx, x, y, s, r) {
 }
 
 function paint(ctx, P, dil, tileCol, dotCol) {
-  ctx.lineJoin = 'round';
-  ctx.lineCap = 'round';
-  if (dil > 0) ctx.lineWidth = dil * 2;
+  // dil > 0: square (Chebyshev) expansion so offset rims keep sharp 90° corners
+  // instead of round stroke joins.
   ctx.fillStyle = tileCol;
-  ctx.strokeStyle = tileCol;
   for (const t of P.tile) {
-    ctx.beginPath();
-    tilePath(ctx, t.x, t.y, P.cw, P.r);
-    if (dil > 0) ctx.stroke();
-    ctx.fill();
+    if (dil > 0) {
+      ctx.fillRect(t.x - dil, t.y - dil, P.cw + dil * 2, P.cw + dil * 2);
+    } else {
+      ctx.beginPath();
+      tilePath(ctx, t.x, t.y, P.cw, P.r);
+      ctx.fill();
+    }
   }
   for (const d of P.dot) {
     const c = dotCol || d.col;
     ctx.fillStyle = c;
-    ctx.strokeStyle = c;
-    ctx.beginPath();
-    ctx.arc(d.cx, d.cy, d.r, 0, TAU);
-    if (dil > 0) ctx.stroke();
-    ctx.fill();
+    if (dil > 0) {
+      const s = d.r * 2 + dil * 2;
+      ctx.fillRect(d.cx - d.r - dil, d.cy - d.r - dil, s, s);
+    } else {
+      ctx.beginPath();
+      ctx.arc(d.cx, d.cy, d.r, 0, TAU);
+      ctx.fill();
+    }
   }
 }
 
@@ -734,13 +738,27 @@ function buildSwatches(hostId, nameId, list, key) {
   });
 }
 
+function sameHex(a, b) {
+  return String(a || '').toUpperCase() === String(b || '').toUpperCase();
+}
+
+// FAL_2 often sets colors[0] === bg; ink must be the accent so unite isn't a flat fill.
+function pairingAccent(preset) {
+  const colors = preset.colors || [];
+  const accent = colors.find(c => !sameHex(c, preset.bg));
+  return accent || colors[1] || colors[0] || '#ADFF00';
+}
+
 function applyPairing(preset) {
   if (!preset) return;
+  const colors = preset.colors || [];
+  const ink = pairingAccent(preset);
+  const field = colors.find(c => !sameHex(c, ink)) || preset.bg;
   st.pairingId = preset.id;
   st.gnd = preset.bg;
-  st.ink = preset.colors[0];
-  st.offink = preset.colors[0];
-  st.strink = preset.colors[1] || '#000000';
+  st.ink = ink;
+  st.offink = ink;
+  st.strink = field || (luma(ink) > 0.5 ? '#000000' : '#FFFFFF');
   buildSwatches('ink', 'ink-name', INKS, 'ink');
   buildSwatches('offink', 'offink-name', INKS, 'offink');
   buildSwatches('strink', 'strink-name', INKS, 'strink');
