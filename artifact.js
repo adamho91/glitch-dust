@@ -72,6 +72,15 @@ const st = {
   sw: 0,
   gnd: '#FFFFFF',
   pairingId: null,
+  animate: false,
+  animDuration: 4,
+  bakeInOut: true,
+  infiniteLoop: false,
+  sweepDepth: 55,
+  diffusionSoft: 18,
+  offsetBreathe: 50,
+  spotFlicker: 35,
+  motionPreset: 'auto',
 };
 
 let cells = new Map();
@@ -81,6 +90,13 @@ const undos = [];
 let prims = null;
 let activeGen = 0;
 const generations = Array.from({ length: GEN_COUNT }, () => null);
+let cycleStart = 0;
+let animRaf = 0;
+let animProgress = 0;
+let animEnvelope = 1;
+let animOffsetScale = 1;
+let animMorph = 1;
+let animBeat = 0;
 
 const key = (ix, iy) => ix + ',' + iy;
 
@@ -91,6 +107,144 @@ function hash(x, y, s) {
 }
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+const lerp = (a, b, t) => a + (b - a) * t;
+const smoothstep = (e0, e1, x) => {
+  const t = clamp((x - e0) / (e1 - e0), 0, 1);
+  return t * t * (3 - 2 * t);
+};
+
+function gridDims() {
+  return {
+    cols: Math.max(1, Math.ceil(W / st.cell)),
+    rows: Math.max(1, Math.ceil(H / st.cell)),
+  };
+}
+
+function resolveMotionPreset() {
+  if (st.motionPreset !== 'auto') return st.motionPreset;
+  if (st.mode === 'halftone') return 'spot-flicker';
+  if (st.mode === 'offset') return 'offset-breathe';
+  return 'fill-grow';
+}
+
+function getAnimEnvelope(progress) {
+  if (!st.animate || st.infiniteLoop || !st.bakeInOut) return 1;
+  const p = clamp(progress, 0, 1);
+  const buildEnd = 0.28;
+  const fadeStart = 0.72;
+  if (p < buildEnd) return smoothstep(0, 1, p / buildEnd);
+  if (p > fadeStart) return 1 - smoothstep(0, 1, (p - fadeStart) / (1 - fadeStart));
+  return 1;
+}
+
+/** Diffusion sweep — same band + stagger language as Glitch Dust. */
+function sampleCellDiffusion(ix, iy, progress) {
+  const sweepAmt = st.sweepDepth / 100;
+  const softAmt = st.diffusionSoft / 100;
+  if (sweepAmt <= 0) return 1;
+
+  const { cols, rows } = gridDims();
+  const along = iy / Math.max(1, rows - 1);
+  const stagger = hash(ix, iy, st.seed + 911) * lerp(0, 0.28, softAmt);
+  const sample = clamp(along + stagger * 0.55 - lerp(0, 0.08, softAmt), 0, 1);
+
+  const bandDist = Math.min(
+    Math.abs(along - progress),
+    Math.abs(along - progress + 1),
+    Math.abs(along - progress - 1)
+  );
+  const bandWidth = lerp(0.06, 0.38, softAmt);
+  let band = 1 - smoothstep(0, Math.max(0.02, bandWidth), bandDist);
+
+  if (softAmt > 0) {
+    const grain = hash(ix * 3 + 17, iy * 5 + 23, st.seed + Math.floor(progress * 80));
+    band *= lerp(0.42, 1, grain);
+  }
+
+  if (st.bakeInOut && !st.infiniteLoop && progress < sample) {
+    band = lerp(0.06, band, 0.35);
+  }
+
+  return lerp(1, 0.08 + band * 0.92, sweepAmt);
+}
+
+function getCellAnimMod(ix, iy, density) {
+  if (!st.animate) return 1;
+  let mod = getAnimEnvelope(animProgress) * sampleCellDiffusion(ix, iy, animProgress);
+  const preset = resolveMotionPreset();
+  if (preset === 'spot-flicker' || (preset === 'auto' && st.mode === 'halftone')) {
+    const flick = st.spotFlicker / 100;
+    const on = hash(ix, iy, st.seed + animBeat * 131) > lerp(0.08, 0.55, flick);
+    mod *= on ? 1 : lerp(0.12, 0.35, flick);
+  }
+  return clamp(mod * density, 0, 1);
+}
+
+function updateAnimState(ts) {
+  if (!cycleStart) cycleStart = ts;
+  const dur = Math.max(0.5, st.animDuration) * 1000;
+  animProgress = ((ts - cycleStart) % dur) / dur;
+  animEnvelope = getAnimEnvelope(animProgress);
+  animBeat = Math.floor(animProgress * 10);
+
+  const preset = resolveMotionPreset();
+  const breathe = st.offsetBreathe / 100;
+
+  if (preset === 'offset-breathe' || (preset === 'auto' && st.mode === 'offset')) {
+    const pulse = 0.5 + 0.5 * Math.sin(animProgress * TAU);
+    animOffsetScale = lerp(1 - breathe * 0.82, 1 + breathe * 0.38, pulse);
+  } else {
+    animOffsetScale = 1;
+  }
+
+  if (preset === 'stage-morph') {
+    animMorph = animEnvelope * (0.35 + 0.65 * (0.5 + 0.5 * Math.sin(animProgress * TAU)));
+  } else if (preset === 'auto' && st.mode === 'offset') {
+    animMorph = animEnvelope;
+  } else {
+    animMorph = 1;
+  }
+}
+
+function getEffectiveOffset() {
+  return st.off * (st.animate ? animOffsetScale * animMorph : 1);
+}
+
+function getEffectiveStroke() {
+  if (!st.animate || st.sw <= 0) return st.sw;
+  return Math.max(0, st.sw * animOffsetScale * animMorph);
+}
+
+function tickAnim(ts) {
+  if (!st.animate) {
+    animRaf = 0;
+    return;
+  }
+  updateAnimState(ts);
+  invalidate();
+  render();
+  animRaf = requestAnimationFrame(tickAnim);
+}
+
+function setAnimate(on) {
+  st.animate = !!on;
+  document.querySelectorAll('#animToggle button').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.animate === (on ? '1' : '0'));
+  });
+  if (on) {
+    cycleStart = performance.now();
+    if (!animRaf) animRaf = requestAnimationFrame(tickAnim);
+  } else {
+    if (animRaf) cancelAnimationFrame(animRaf);
+    animRaf = 0;
+    animProgress = 0;
+    animEnvelope = 1;
+    animOffsetScale = 1;
+    animMorph = 1;
+    invalidate();
+    render();
+  }
+}
 
 function spotColor(r) {
   let t = r * SPOT_TOTAL;
@@ -119,16 +273,24 @@ function buildPrims() {
     const y = iy * cw;
     if (x > W + pad || y > H + pad || x + cw < -pad || y + cw < -pad) continue;
     const d = v / 255;
+    const animMod = getCellAnimMod(ix, iy, d);
+    if (animMod <= 0.02) continue;
     const h1 = hash(ix, iy, st.seed);
     const h2 = hash(ix, iy, st.seed + 101);
     const h3 = hash(ix, iy, st.seed + 211);
-    if (h1 < st.tiled * (0.4 + 0.6 * d)) tile.push({ x, y });
+    if (h1 < st.tiled * (0.4 + 0.6 * d)) tile.push({ x, y, a: animMod });
     else if (h2 < st.dotd) {
+      let col = spotColor(h3);
+      const preset = resolveMotionPreset();
+      if (st.animate && (preset === 'spot-flicker' || (preset === 'auto' && st.mode === 'halftone'))) {
+        col = spotColor(hash(ix, iy, st.seed + animBeat * 97 + 311));
+      }
       dot.push({
         cx: x + cw / 2,
         cy: y + cw / 2,
         r: cw * st.dot * (0.86 + 0.14 * d),
-        col: spotColor(h3),
+        col,
+        a: animMod,
       });
     }
   }
@@ -136,6 +298,7 @@ function buildPrims() {
 }
 
 function getPrims() {
+  if (st.animate) return buildPrims();
   if (!prims) prims = buildPrims();
   return prims;
 }
@@ -158,15 +321,25 @@ function tilePath(ctx, x, y, s, r) {
 function paint(ctx, P, tileCol, dotCol) {
   ctx.fillStyle = tileCol;
   for (const t of P.tile) {
+    const a = t.a != null ? t.a : 1;
+    if (a <= 0.01) continue;
+    ctx.save();
+    ctx.globalAlpha = a;
     ctx.beginPath();
     tilePath(ctx, t.x, t.y, P.cw, P.r);
     ctx.fill();
+    ctx.restore();
   }
   for (const d of P.dot) {
+    const a = d.a != null ? d.a : 1;
+    if (a <= 0.01) continue;
+    ctx.save();
+    ctx.globalAlpha = a;
     ctx.fillStyle = dotCol || d.col;
     ctx.beginPath();
     ctx.arc(d.cx, d.cy, d.r, 0, TAU);
     ctx.fill();
+    ctx.restore();
   }
 }
 
@@ -206,11 +379,13 @@ function paintPathOffset(ctx, P, dil, color) {
 }
 
 function paintOffset(ctx, P) {
+  const off = getEffectiveOffset();
+  const sw = getEffectiveStroke();
   if (st.sw > 0) {
-    paintPathOffset(ctx, P, st.off, st.strink);
-    paintPathOffset(ctx, P, Math.max(0, st.off - st.sw), st.offink);
+    paintPathOffset(ctx, P, off, st.strink);
+    paintPathOffset(ctx, P, Math.max(0, off - sw), st.offink);
   } else {
-    paintPathOffset(ctx, P, st.off, st.offink);
+    paintPathOffset(ctx, P, off, st.offink);
   }
   paint(ctx, P, st.ink, st.ink);
 }
@@ -271,7 +446,8 @@ function render() {
 
   setStatus(
     `${st.mode} · ${W}×${H} · ${cells.size} cells · gen ${activeGen + 1}/${GEN_COUNT}` +
-      (st.pairingId ? ` · ${st.pairingId}` : '')
+      (st.pairingId ? ` · ${st.pairingId}` : '') +
+      (st.animate ? ` · anim ${Math.round(animProgress * 100)}%` : '')
   );
 }
 
@@ -623,6 +799,50 @@ bindRange('sw', 'sw', v => (v === 0 ? 'None' : px(v)));
 bindRange('cell', 'cell', v => v + 'px', prev => resample(prev, st.cell));
 bindRange('miter', 'miterLimit', v => String(Number(v.toFixed(1)).toString()));
 
+function bindAnimRange(id, key, fmt) {
+  const r = document.getElementById('r-' + id);
+  const o = document.getElementById('o-' + id);
+  if (!r || !o) return;
+  r.value = st[key];
+  o.textContent = fmt(st[key]);
+  r.addEventListener('input', () => {
+    st[key] = parseFloat(r.value);
+    o.textContent = fmt(st[key]);
+  });
+}
+
+bindAnimRange('animDuration', 'animDuration', v => v.toFixed(1).replace(/\.0$/, '') + 's');
+bindAnimRange('sweepDepth', 'sweepDepth', v => String(Math.round(v)));
+bindAnimRange('diffusionSoft', 'diffusionSoft', v => String(Math.round(v)));
+bindAnimRange('offsetBreathe', 'offsetBreathe', v => String(Math.round(v)));
+bindAnimRange('spotFlicker', 'spotFlicker', v => String(Math.round(v)));
+
+function bindAnimCheckbox(id, key) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.checked = !!st[key];
+  el.addEventListener('change', () => {
+    st[key] = el.checked;
+    render();
+  });
+}
+
+bindAnimCheckbox('bakeInOut', 'bakeInOut');
+bindAnimCheckbox('infiniteLoop', 'infiniteLoop');
+
+document.querySelectorAll('#animToggle button').forEach(btn => {
+  btn.addEventListener('click', () => setAnimate(btn.dataset.animate === '1'));
+});
+
+const motionPresetEl = document.getElementById('motionPreset');
+if (motionPresetEl) {
+  motionPresetEl.value = st.motionPreset;
+  motionPresetEl.addEventListener('change', () => {
+    st.motionPreset = motionPresetEl.value;
+    render();
+  });
+}
+
 function syncJoinUi() {
   const sel = document.getElementById('joinSelect');
   const row = document.getElementById('miterLimitRow');
@@ -837,6 +1057,7 @@ document.addEventListener('keydown', e => {
   else if (k === 'e') setTool('erase');
   else if (k === 'd') setTool('draw');
   else if (k === 'r') document.getElementById('b-seed').click();
+  else if (k === 'a') setAnimate(!st.animate);
   else if (k === '[' || k === ']') {
     const r = document.getElementById('r-brush');
     r.value = clamp(st.brush + (k === ']' ? 0.5 : -0.5), 0.5, 10);

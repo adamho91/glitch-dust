@@ -332,6 +332,65 @@
       <button type="button" id="b-clear">Clear</button>
     </div>
 
+    <div class="sect">Motion</div>
+    <div class="seg" id="animToggle">
+      <button type="button" data-animate="0" class="active">Static</button>
+      <button type="button" data-animate="1">Animate</button>
+    </div>
+    <div class="hint">Diffusion sweep + loop envelope — same language as Glitch Dust</div>
+    <div class="ctrl">
+      <label>Motion</label>
+      <select id="motionPreset">
+        <option value="auto" selected>Auto (follow stage)</option>
+        <option value="fill-grow">Fill grow</option>
+        <option value="offset-breathe">Offset breathe</option>
+        <option value="stage-morph">Stage morph</option>
+        <option value="spot-flicker">Spot flicker</option>
+      </select>
+    </div>
+    <div class="ctrl">
+      <label>Loop length</label>
+      <input type="range" id="r-animDuration" min="1.5" max="12" value="4" step="0.5">
+      <span class="val" id="o-animDuration">4s</span>
+    </div>
+    <div class="ctrl-check">
+      <input type="checkbox" id="bakeInOut" checked>
+      <label for="bakeInOut">Bake in / out</label>
+    </div>
+    <div class="ctrl-check">
+      <input type="checkbox" id="infiniteLoop">
+      <label for="infiniteLoop">Infinite loop</label>
+    </div>
+    <div class="ctrl">
+      <label>Sweep depth</label>
+      <input type="range" id="r-sweepDepth" min="0" max="100" value="55" step="1">
+      <span class="val" id="o-sweepDepth">55</span>
+    </div>
+    <div class="ctrl">
+      <label>Diffusion soft</label>
+      <input type="range" id="r-diffusionSoft" min="0" max="100" value="18" step="1">
+      <span class="val" id="o-diffusionSoft">18</span>
+    </div>
+    <div class="ctrl">
+      <label>Offset breathe</label>
+      <input type="range" id="r-offsetBreathe" min="0" max="100" value="50" step="1">
+      <span class="val" id="o-offsetBreathe">50</span>
+    </div>
+    <div class="ctrl">
+      <label>Spot flicker</label>
+      <input type="range" id="r-spotFlicker" min="0" max="100" value="35" step="1">
+      <span class="val" id="o-spotFlicker">35</span>
+    </div>
+    <div class="motion-plan">
+      <p style="margin-bottom:6px"><strong>Auto presets by stage</strong></p>
+      <ul>
+        <li><strong>01 Halftone</strong> — spot recolor on staccato beats</li>
+        <li><strong>02 Unite</strong> — cells diffuse in, hold, diffuse out</li>
+        <li><strong>03 Offset</strong> — rim breathes + fill sweep</li>
+        <li><strong>Stage morph</strong> — crossfade unite ↔ offset silhouette</li>
+      </ul>
+    </div>
+
     <div class="sect">Export</div>
     <div class="btn-grid">
       <button type="button" class="primary span-2" id="b-copy">Copy SVG</button>
@@ -339,19 +398,7 @@
       <button type="button" id="b-png">Save PNG</button>
     </div>
 
-    <div class="sect">Future motion</div>
-    <div class="motion-plan">
-      <p style="margin-bottom:6px">Planned animation hooks for these artifacts:</p>
-      <ul>
-        <li><strong>Fill grow</strong> — cells spawn in over the loop (density envelope)</li>
-        <li><strong>Offset breathe</strong> — stage 03 offset pulses in/out</li>
-        <li><strong>Stage morph</strong> — crossfade unite ↔ offset silhouette</li>
-        <li><strong>Palette flicker</strong> — spot recolor on staccato beats</li>
-        <li><strong>Export</strong> — Lottie / GIF of one generation’s motion</li>
-      </ul>
-    </div>
-
-    <div class="hint">Keys: 1–3 stage · D/E draw/erase · R reroll · [ ] brush · Alt erase · ⌘Z undo</div>
+    <div class="hint">Keys: 1–3 stage · D/E draw/erase · R reroll · [ ] brush · Alt erase · ⌘Z undo · A animate</div>
   </div>
 </aside>
 
