@@ -6,11 +6,19 @@
     { id: 'typer', key: '4', label: 'Typer', href: 'typer.html' },
   ];
 
+  // Secret routes: Shift+key works, but they never appear in the tab strip.
+  const SECRET_PAGES = [
+    { id: 'artifact', key: '5', label: 'Artifact', href: 'artifact.html' },
+  ];
+
+  const ALL_PAGES = PAGES.concat(SECRET_PAGES);
+
   function currentPageId() {
     const file = (location.pathname.split('/').pop() || 'index.html').toLowerCase();
     if (file === 'lite.html') return 'lite';
     if (file === 'lower-thirds.html') return 'lower-thirds';
     if (file === 'typer.html') return 'typer';
+    if (file === 'artifact.html') return 'artifact';
     return 'editor';
   }
 
@@ -54,12 +62,10 @@
     return false;
   }
 
-  const PAGE_BY_CODE = {
-    Digit1: PAGES[0],
-    Digit2: PAGES[1],
-    Digit3: PAGES[2],
-    Digit4: PAGES[3],
-  };
+  const PAGE_BY_CODE = {};
+  ALL_PAGES.forEach(page => {
+    PAGE_BY_CODE['Digit' + page.key] = page;
+  });
 
   document.addEventListener('keydown', e => {
     if (!e.shiftKey || e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;

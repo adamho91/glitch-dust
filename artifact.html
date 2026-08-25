@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>fal — Artifact Maker</title>
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+<style>
+  @font-face {
+    font-family: 'Focal Upright';
+    src: url('Focal-Upright-VF_wght.ttf') format('truetype');
+    font-weight: 100 900;
+    font-style: normal;
+    font-display: swap;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body { background: #1a1a1a; color: #ccc; font-size: 13px; min-height: 100vh; overflow: hidden; }
+  .app { display: grid; grid-template-columns: minmax(300px, 380px) 1fr; height: 100vh; }
+  @media (max-width: 900px) {
+    body { overflow: auto; background: #111; }
+    .app { display: flex; flex-direction: column; height: auto; min-height: 100vh; }
+    .preview-panel {
+      order: 1; min-height: clamp(420px, 62svh, 720px); padding: 10px;
+      overflow: visible; background: #111; border-bottom: 1px solid #2a2a2a;
+    }
+    .sidebar { order: 2; border-right: 0; border-top: 1px solid #2a2a2a; padding: 12px 12px 28px; overflow: visible; }
+  }
+  .sidebar { overflow-y: auto; padding: 16px 16px 32px; border-right: 1px solid #2a2a2a; background: #161616; }
+  .app-brand-wrap { margin-bottom: 10px; }
+  .app-brand { width: 100%; height: auto; display: block; }
+  .preview-panel { display: flex; flex-direction: column; padding: 16px 20px; min-width: 0; min-height: 0; overflow: hidden; }
+  .subtitle { font-size: 11px; color: #666; margin-bottom: 12px; flex-shrink: 0; }
+  .secret-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    margin-bottom: 10px; padding: 4px 8px; border-radius: 4px;
+    border: 1px solid #3a3a3a; background: #1c1c1c;
+    font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: #888;
+  }
+  .secret-badge em { font-style: normal; color: var(--ui-accent-light); }
+  .preview-wrap {
+    flex: 1; min-height: 0; display: flex; flex-direction: column;
+    border: 1px solid #333; border-radius: 6px; overflow: hidden; background: #111;
+  }
+  .stage-canvas {
+    position: relative; flex: 1; min-height: 0; line-height: 0; overflow: hidden;
+  }
+  .stage-canvas canvas {
+    display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair;
+  }
+  .gen-strip {
+    flex-shrink: 0; display: grid; grid-template-columns: repeat(10, minmax(0, 1fr));
+    gap: 4px; padding: 8px; border-top: 1px solid #2a2a2a; background: #141414;
+  }
+  .gen-thumb {
+    position: relative; aspect-ratio: 1; border: 1px solid #333; border-radius: 4px;
+    background: #1a1a1a; padding: 0; overflow: hidden; cursor: pointer;
+  }
+  .gen-thumb:hover { border-color: #555; }
+  .gen-thumb.active { border-color: var(--ui-accent); box-shadow: 0 0 0 1px var(--ui-accent-a33); }
+  .gen-thumb canvas, .gen-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .gen-thumb .n {
+    position: absolute; left: 3px; bottom: 2px; font-size: 9px; color: #eee;
+    text-shadow: 0 1px 2px #000; pointer-events: none;
+  }
+  #status { font-size: 11px; color: #666; margin-top: 10px; min-height: 14px; flex-shrink: 0; }
+  .layout { display: flex; flex-direction: column; }
+  .sect { font-size: 10px; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: .08em; margin: 16px 0 8px; }
+  .sect:first-child { margin-top: 0; }
+  .ctrl { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+  .ctrl label { width: 110px; flex-shrink: 0; color: #999; }
+  .ctrl input[type=range] { flex: 1; accent-color: #ADFF00; min-width: 0; }
+  .ctrl span.val { min-width: 40px; font-size: 12px; font-weight: 500; color: #eee; text-align: right; }
+  .ctrl select { flex: 1; background: #2a2a2a; border: 1px solid #3a3a3a; color: #eee; border-radius: 4px; padding: 3px 6px; font-size: 12px; }
+  .ctrl-check { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+  .ctrl-check label { color: #999; cursor: pointer; user-select: none; }
+  .ctrl-check input { width: 16px; height: 16px; accent-color: #ADFF00; cursor: pointer; }
+  .stage-chain { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+  .stage-btn {
+    display: grid; grid-template-columns: 28px 1fr; gap: 8px; align-items: start;
+    text-align: left; padding: 8px 10px; background: #222; border: 1px solid #333;
+    border-radius: 5px; color: #bbb; cursor: pointer;
+  }
+  .stage-btn:hover { border-color: #444; background: #2a2a2a; color: #eee; }
+  .stage-btn.active { border-color: var(--ui-accent); background: var(--ui-accent-a18); color: #eee; }
+  .stage-btn .n { font-size: 10px; color: #666; padding-top: 1px; }
+  .stage-btn.active .n { color: var(--ui-accent-light); }
+  .stage-btn .t { display: block; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+  .stage-btn .d { display: block; margin-top: 2px; font-size: 10px; color: #666; line-height: 1.35; }
+  .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 8px; }
+  .seg button.active { border-color: var(--ui-accent); color: var(--ui-accent-light); background: var(--ui-accent-a22); }
+  .swatches { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
+  .swatch {
+    width: 26px; height: 26px; border-radius: 4px; border: 2px solid rgba(255,255,255,0.12);
+    padding: 0; cursor: pointer; flex-shrink: 0; background: #222;
+  }
+  .swatch:hover { border-color: #666; }
+  .swatch.active { border-color: var(--ui-accent); box-shadow: 0 0 0 1px var(--ui-accent-a33); }
+  .swatch-label { font-size: 10px; color: #555; margin: -2px 0 6px; }
+  .tonal-presets { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; max-height: 180px; overflow-y: auto; }
+  .tonal-preset {
+    display: flex; align-items: center; gap: 8px; padding: 5px 8px; border: 1px solid #333;
+    border-radius: 5px; background: #222; cursor: pointer; text-align: left; width: 100%;
+    font-size: 11px; color: #bbb;
+  }
+  .tonal-preset:hover { border-color: #444; background: #2a2a2a; }
+  .tonal-preset.active { border-color: var(--ui-accent); background: var(--ui-accent-a18); color: #eee; }
+  .tonal-preset .chips { display: flex; gap: 3px; margin-left: auto; flex-shrink: 0; }
+  .tonal-preset .chip { width: 12px; height: 12px; border-radius: 2px; border: 1px solid rgba(255,255,255,0.15); }
+  button {
+    background: #2a2a2a; border: 1px solid #3a3a3a; color: #ccc; border-radius: 5px;
+    padding: 7px 14px; font-size: 12px; cursor: pointer; transition: background 0.15s, color 0.15s;
+  }
+  button:hover { background: #3a3a3a; color: #eee; }
+  button.primary { border-color: var(--ui-accent); color: var(--ui-accent-light); }
+  button.primary:hover { background: var(--ui-accent-a22); }
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+  .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px; }
+  .btn-grid .span-2 { grid-column: 1 / -1; }
+  .hint { color: #444; font-size: 11px; line-height: 1.4; margin-bottom: 8px; }
+  .motion-plan {
+    border: 1px solid #2d2d2d; border-radius: 6px; background: #1a1a1a;
+    padding: 8px 10px; margin-bottom: 8px; color: #777; font-size: 11px; line-height: 1.45;
+  }
+  .motion-plan li { margin-left: 14px; margin-bottom: 3px; }
+  .motion-plan strong { color: #999; font-weight: 500; }
+</style>
+<link rel="stylesheet" href="ui-theme.css">
+<link rel="stylesheet" href="app-nav.css">
+<script src="fal-palette.js"></script>
+<script src="dial-sliders.js"></script>
+<script src="app-nav.js" defer></script>
+</head>
+<body>
+<div class="app">
+<aside class="sidebar">
+  <div class="app-brand-wrap">
+    <img class="app-brand" src="assets/app-brand.svg" alt="fal Glitch Dust" width="562" height="175">
+  </div>
+  <div class="secret-badge">Secret · <em>⇧5 Artifact</em> · not in tabs</div>
+  <div class="layout" id="controls">
+
+    <div class="sect">Stage</div>
+    <div class="stage-chain" id="stageChain">
+      <button type="button" class="stage-btn" data-mode="halftone">
+        <span class="n">01</span>
+        <span><span class="t">Halftone</span><span class="d">Yellow plate + spot colour dots</span></span>
+      </button>
+      <button type="button" class="stage-btn active" data-mode="unite">
+        <span class="n">02</span>
+        <span><span class="t">Unite</span><span class="d">One compound path · tiles merge</span></span>
+      </button>
+      <button type="button" class="stage-btn" data-mode="offset">
+        <span class="n">03</span>
+        <span><span class="t">Offset</span><span class="d">Filled dilation · inside stroke</span></span>
+      </button>
+    </div>
+    <div class="hint">Illustrator: Expand → Unite → compound path. Then Offset Path + Figma inside stroke.</div>
+
+    <div class="sect">Brush</div>
+    <div class="seg" id="tools">
+      <button type="button" data-tool="draw" class="active">Draw</button>
+      <button type="button" data-tool="erase">Erase</button>
+    </div>
+    <div class="ctrl">
+      <label>Size</label>
+      <input type="range" id="r-brush" min="0.5" max="10" value="2.5" step="0.25">
+      <span class="val" id="o-brush">2.5</span>
+    </div>
+    <div class="ctrl">
+      <label>Ragged edge</label>
+      <input type="range" id="r-scatter" min="0" max="1" value="0.55" step="0.02">
+      <span class="val" id="o-scatter">55%</span>
+    </div>
+
+    <div class="sect">Tile</div>
+    <div class="ctrl">
+      <label>Cell size</label>
+      <input type="range" id="r-cell" min="14" max="80" value="32" step="1">
+      <span class="val" id="o-cell">32px</span>
+    </div>
+    <div class="ctrl">
+      <label>Corner bite</label>
+      <input type="range" id="r-notch" min="0.06" max="0.49" value="0.33" step="0.005">
+      <span class="val" id="o-notch">0.33</span>
+    </div>
+    <div class="ctrl">
+      <label>Tile density</label>
+      <input type="range" id="r-tiled" min="0" max="1" value="0.62" step="0.02">
+      <span class="val" id="o-tiled">62%</span>
+    </div>
+    <div class="ctrl">
+      <label>Dot radius</label>
+      <input type="range" id="r-dot" min="0.06" max="0.48" value="0.34" step="0.005">
+      <span class="val" id="o-dot">0.34</span>
+    </div>
+    <div class="ctrl">
+      <label>Dot density</label>
+      <input type="range" id="r-dotd" min="0" max="1" value="0.55" step="0.02">
+      <span class="val" id="o-dotd">55%</span>
+    </div>
+
+    <div class="sect">Contour · stage 03</div>
+    <div class="ctrl">
+      <label>Offset</label>
+      <input type="range" id="r-off" min="1" max="40" value="10" step="0.5">
+      <span class="val" id="o-off">10px</span>
+    </div>
+    <div class="swatch-label">Offset ink · <span id="offink-name">—</span></div>
+    <div class="swatches" id="offink"></div>
+    <div class="ctrl">
+      <label>Inside stroke</label>
+      <input type="range" id="r-sw" min="0" max="24" value="0" step="0.5">
+      <span class="val" id="o-sw">None</span>
+    </div>
+    <div class="swatch-label">Stroke ink · <span id="strink-name">—</span></div>
+    <div class="swatches" id="strink"></div>
+
+    <div class="sect">Palette</div>
+    <div class="hint">2-color fal pairings · sets ink + ground</div>
+    <div class="tonal-presets" id="tonalPresets"></div>
+    <div class="swatch-label">Ink · <span id="ink-name">—</span></div>
+    <div class="swatches" id="ink"></div>
+    <div class="swatch-label">Ground · <span id="gnd-name">—</span></div>
+    <div class="swatches" id="gnd"></div>
+
+    <div class="sect">Generations</div>
+    <div class="hint">10 variations · click a thumb to edit · ⇧5 stays secret</div>
+    <div class="btn-grid">
+      <button type="button" class="primary span-2" id="b-gen10">Generate 10</button>
+      <button type="button" id="b-seed">Reroll tiles</button>
+      <button type="button" id="b-blob">Grow a blob</button>
+      <button type="button" id="b-undo">Undo</button>
+      <button type="button" id="b-clear">Clear</button>
+    </div>
+
+    <div class="sect">Export</div>
+    <div class="btn-grid">
+      <button type="button" class="primary span-2" id="b-copy">Copy SVG</button>
+      <button type="button" id="b-svg">Save SVG</button>
+      <button type="button" id="b-png">Save PNG</button>
+    </div>
+
+    <div class="sect">Future motion</div>
+    <div class="motion-plan">
+      <p style="margin-bottom:6px">Planned animation hooks for these artifacts:</p>
+      <ul>
+        <li><strong>Fill grow</strong> — cells spawn in over the loop (density envelope)</li>
+        <li><strong>Offset breathe</strong> — stage 03 offset pulses in/out</li>
+        <li><strong>Stage morph</strong> — crossfade unite ↔ offset silhouette</li>
+        <li><strong>Palette flicker</strong> — spot recolor on staccato beats</li>
+        <li><strong>Export</strong> — Lottie / GIF of one generation’s motion</li>
+      </ul>
+    </div>
+
+    <div class="hint">Keys: 1–3 stage · D/E draw/erase · R reroll · [ ] brush · Alt erase · ⌘Z undo</div>
+  </div>
+</aside>
+
+<main class="preview-panel">
+  <p class="subtitle">Artifact Maker · draw → unite → offset · fal palettes</p>
+  <div class="preview-wrap" id="previewWrap">
+    <div class="stage-canvas">
+      <canvas id="cv"></canvas>
+    </div>
+    <div class="gen-strip" id="genStrip" aria-label="Ten artifact generations"></div>
+  </div>
+  <div id="status">Ready</div>
+</main>
+</div>
+
+<script src="artifact.js"></script>
+</body>
+</html>
