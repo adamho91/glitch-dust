@@ -64,11 +64,11 @@ const st = {
   dot: 0.34,
   dotd: 0.55,
   off: 10,
-  ink: '#EC0648',
-  offink: '#EC0648',
+  ink: '#000000',
+  offink: '#000000',
   strink: '#000000',
   sw: 0,
-  gnd: '#E5ECE7',
+  gnd: '#FFFFFF',
   pairingId: null,
 };
 
@@ -153,50 +153,139 @@ function tilePath(ctx, x, y, s, r) {
   ctx.closePath();
 }
 
-function paint(ctx, P, dil, tileCol, dotCol) {
-  // dil > 0: square (Chebyshev) expansion so offset rims keep sharp 90° corners
-  // instead of round stroke joins.
+function paint(ctx, P, tileCol, dotCol) {
   ctx.fillStyle = tileCol;
   for (const t of P.tile) {
-    if (dil > 0) {
-      ctx.fillRect(t.x - dil, t.y - dil, P.cw + dil * 2, P.cw + dil * 2);
-    } else {
-      ctx.beginPath();
-      tilePath(ctx, t.x, t.y, P.cw, P.r);
-      ctx.fill();
-    }
+    ctx.beginPath();
+    tilePath(ctx, t.x, t.y, P.cw, P.r);
+    ctx.fill();
   }
   for (const d of P.dot) {
-    const c = dotCol || d.col;
-    ctx.fillStyle = c;
-    if (dil > 0) {
-      const s = d.r * 2 + dil * 2;
-      ctx.fillRect(d.cx - d.r - dil, d.cy - d.r - dil, s, s);
-    } else {
-      ctx.beginPath();
-      ctx.arc(d.cx, d.cy, d.r, 0, TAU);
-      ctx.fill();
-    }
+    ctx.fillStyle = dotCol || d.col;
+    ctx.beginPath();
+    ctx.arc(d.cx, d.cy, d.r, 0, TAU);
+    ctx.fill();
   }
 }
 
-function paintOffset(ctx, P) {
-  if (st.sw > 0) {
-    paint(ctx, P, st.off, st.strink, st.strink);
-    paint(ctx, P, Math.max(0, st.off - st.sw), st.offink, st.offink);
-  } else {
-    paint(ctx, P, st.off, st.offink, st.offink);
+function parseHex(hex) {
+  const n = parseInt(String(hex).replace('#', ''), 16);
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+
+/** Disk (Euclidean) morphological dilate — offset the united silhouette like Illustrator. */
+function dilateEuclidean(f, rw, rh, radius) {
+  const r = Math.max(0, Math.round(radius));
+  if (r <= 0) return f;
+  const r2 = r * r;
+  const out = new Uint8Array(rw * rh);
+  const pts = [];
+  for (let y = 0; y < rh; y++) {
+    const row = y * rw;
+    for (let x = 0; x < rw; x++) {
+      if (f[row + x]) pts.push(x, y);
+    }
   }
-  if (st.offink !== st.ink) paint(ctx, P, 0, st.ink, st.ink);
+  for (let i = 0; i < pts.length; i += 2) {
+    const x = pts[i];
+    const y = pts[i + 1];
+    const y0 = Math.max(0, y - r);
+    const y1 = Math.min(rh - 1, y + r);
+    const x0 = Math.max(0, x - r);
+    const x1 = Math.min(rw - 1, x + r);
+    for (let yy = y0; yy <= y1; yy++) {
+      const dy = yy - y;
+      const dy2 = dy * dy;
+      const row = yy * rw;
+      for (let xx = x0; xx <= x1; xx++) {
+        const dx = xx - x;
+        if (dx * dx + dy2 <= r2) out[row + xx] = 255;
+      }
+    }
+  }
+  return out;
+}
+
+function uniteMask() {
+  const k = clamp(Math.sqrt(2600000 / (W * H)), 0.6, 1.4);
+  const rw = Math.max(4, Math.round(W * k));
+  const rh = Math.max(4, Math.round(H * k));
+  const c = document.createElement('canvas');
+  c.width = rw;
+  c.height = rh;
+  const o = c.getContext('2d', { willReadFrequently: true });
+  o.setTransform(rw / W, 0, 0, rh / H, 0, 0);
+  paint(o, getPrims(), '#000', '#000');
+  const d = o.getImageData(0, 0, rw, rh).data;
+  const f = new Uint8Array(rw * rh);
+  for (let i = 0, n = rw * rh; i < n; i++) f[i] = d[i * 4 + 3] > 0 ? 255 : 0;
+  return { f, rw, rh, sx: W / rw, sy: H / rh };
+}
+
+function maskField(dil) {
+  const base = uniteMask();
+  if (!(dil > 0)) return base;
+  const rPix = Math.max(1, Math.round(dil * (base.rw / W)));
+  return {
+    f: dilateEuclidean(base.f, base.rw, base.rh, rPix),
+    rw: base.rw,
+    rh: base.rh,
+    sx: base.sx,
+    sy: base.sy,
+  };
+}
+
+function fillMask(ctx, w, h, field, color) {
+  const { f, rw, rh } = field;
+  const c = document.createElement('canvas');
+  c.width = rw;
+  c.height = rh;
+  const o = c.getContext('2d');
+  const img = o.createImageData(rw, rh);
+  const { r, g, b } = parseHex(color);
+  const data = img.data;
+  for (let i = 0; i < f.length; i++) {
+    if (!f[i]) continue;
+    const j = i * 4;
+    data[j] = r;
+    data[j + 1] = g;
+    data[j + 2] = b;
+    data[j + 3] = 255;
+  }
+  o.putImageData(img, 0, 0);
+  ctx.drawImage(c, 0, 0, w, h);
+}
+
+function offsetField(base, dil) {
+  if (!(dil > 0)) return base;
+  const rPix = Math.max(1, Math.round(dil * (base.rw / W)));
+  return {
+    f: dilateEuclidean(base.f, base.rw, base.rh, rPix),
+    rw: base.rw,
+    rh: base.rh,
+    sx: base.sx,
+    sy: base.sy,
+  };
+}
+
+function paintOffset(ctx, P, w, h) {
+  const base = uniteMask();
+  if (st.sw > 0) {
+    fillMask(ctx, w, h, offsetField(base, st.off), st.strink);
+    fillMask(ctx, w, h, offsetField(base, Math.max(0, st.off - st.sw)), st.offink);
+  } else {
+    fillMask(ctx, w, h, offsetField(base, st.off), st.offink);
+  }
+  paint(ctx, P, st.ink, st.ink);
 }
 
 function paintScene(ctx, w, h) {
   ctx.fillStyle = st.gnd;
   ctx.fillRect(0, 0, w, h);
   const P = getPrims();
-  if (st.mode === 'halftone') paint(ctx, P, 0, PLATE, null);
-  else if (st.mode === 'unite') paint(ctx, P, 0, st.ink, st.ink);
-  else paintOffset(ctx, P);
+  if (st.mode === 'halftone') paint(ctx, P, PLATE, null);
+  else if (st.mode === 'unite') paint(ctx, P, st.ink, st.ink);
+  else paintOffset(ctx, P, w, h);
 }
 
 const cv = document.getElementById('cv');
@@ -393,9 +482,9 @@ function renderThumbDataUrl(map, seed) {
   o.setTransform(sx, 0, 0, sy, 0, 0);
   o.fillStyle = st.gnd;
   o.fillRect(0, 0, artW, artH);
-  if (st.mode === 'halftone') paint(o, P, 0, PLATE, null);
-  else if (st.mode === 'unite') paint(o, P, 0, st.ink, st.ink);
-  else paintOffset(o, P);
+  if (st.mode === 'halftone') paint(o, P, PLATE, null);
+  else if (st.mode === 'unite') paint(o, P, st.ink, st.ink);
+  else paintOffset(o, P, artW, artH);
   const url = c.toDataURL('image/png');
   cells = saved.cells;
   st.seed = saved.seed;
@@ -472,22 +561,6 @@ function generateTen() {
 }
 
 /* ---- SVG compound path helpers (unite / offset export) ---- */
-function maskField(dil) {
-  const k = clamp(Math.sqrt(2600000 / (W * H)), 0.6, 1.4);
-  const rw = Math.max(4, Math.round(W * k));
-  const rh = Math.max(4, Math.round(H * k));
-  const c = document.createElement('canvas');
-  c.width = rw;
-  c.height = rh;
-  const o = c.getContext('2d', { willReadFrequently: true });
-  o.setTransform(rw / W, 0, 0, rh / H, 0, 0);
-  paint(o, getPrims(), dil, '#000', '#000');
-  const d = o.getImageData(0, 0, rw, rh).data;
-  const f = new Uint8Array(rw * rh);
-  for (let i = 0, n = rw * rh; i < n; i++) f[i] = d[i * 4 + 3];
-  return { f, rw, rh, sx: W / rw, sy: H / rh };
-}
-
 function marching(f, rw, rh, T) {
   const segs = [];
   const V = (x, y) => f[y * rw + x];
@@ -908,8 +981,6 @@ if (typeof initAllDialSliders === 'function') initAllDialSliders();
 new ResizeObserver(fitCanvas).observe(cv.parentElement || cv);
 fitCanvas();
 
-// Default: Black / Lime pairing energy, then 10 gens
-const defaultPair = (typeof FAL_2 !== 'undefined' && FAL_2.find(p => p.id === '2-s')) || null;
-if (defaultPair) applyPairing(defaultPair);
+// Default: black ink on white ground, then 10 gens
 generateTen();
 undos.length = 0;
