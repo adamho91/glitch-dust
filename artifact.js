@@ -64,6 +64,8 @@ const st = {
   dot: 0.34,
   dotd: 0.55,
   off: 10,
+  join: 'miter',
+  miterLimit: 4,
   ink: '#000000',
   offink: '#000000',
   strink: '#000000',
@@ -168,7 +170,41 @@ function paint(ctx, P, tileCol, dotCol) {
   }
 }
 
-const MITER_LIMIT = 4;
+const MITER_LIMIT_DEFAULT = 4;
+
+function applyStrokeJoin(ctx) {
+  const join = st.join === 'round' || st.join === 'bevel' ? st.join : 'miter';
+  ctx.lineJoin = join;
+  ctx.miterLimit = join === 'miter' ? clamp(st.miterLimit || MITER_LIMIT_DEFAULT, 1, 100) : 10;
+  ctx.lineCap = join === 'round' ? 'round' : 'butt';
+}
+
+/** Offset Path on the united silhouette — Joins: Miter / Round / Bevel. */
+function paintPathOffset(ctx, loops, dil, color) {
+  ctx.save();
+  ctx.fillStyle = color;
+  ctx.strokeStyle = color;
+  applyStrokeJoin(ctx);
+  ctx.beginPath();
+  pathLoops(ctx, loops);
+  ctx.fill('evenodd');
+  if (dil > 0) {
+    ctx.lineWidth = dil * 2;
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function paintOffset(ctx, P) {
+  const { loops } = unitedLoops();
+  if (st.sw > 0) {
+    paintPathOffset(ctx, loops, st.off, st.strink);
+    paintPathOffset(ctx, loops, Math.max(0, st.off - st.sw), st.offink);
+  } else {
+    paintPathOffset(ctx, loops, st.off, st.offink);
+  }
+  paint(ctx, P, st.ink, st.ink);
+}
 
 function uniteMask() {
   const k = clamp(Math.sqrt(2600000 / (W * H)), 0.6, 1.4);
@@ -206,35 +242,6 @@ function pathLoops(ctx, loops) {
   }
 }
 
-/** Offset Path on the united silhouette — Joins: Miter, Miter limit: 4. */
-function paintMiterOffset(ctx, loops, dil, color) {
-  ctx.save();
-  ctx.fillStyle = color;
-  ctx.strokeStyle = color;
-  ctx.lineJoin = 'miter';
-  ctx.miterLimit = MITER_LIMIT;
-  ctx.lineCap = 'butt';
-  ctx.beginPath();
-  pathLoops(ctx, loops);
-  ctx.fill('evenodd');
-  if (dil > 0) {
-    ctx.lineWidth = dil * 2;
-    ctx.stroke();
-  }
-  ctx.restore();
-}
-
-function paintOffset(ctx, P) {
-  const { loops } = unitedLoops();
-  if (st.sw > 0) {
-    paintMiterOffset(ctx, loops, st.off, st.strink);
-    paintMiterOffset(ctx, loops, Math.max(0, st.off - st.sw), st.offink);
-  } else {
-    paintMiterOffset(ctx, loops, st.off, st.offink);
-  }
-  paint(ctx, P, st.ink, st.ink);
-}
-
 function paintScene(ctx, w, h) {
   ctx.fillStyle = st.gnd;
   ctx.fillRect(0, 0, w, h);
@@ -244,7 +251,7 @@ function paintScene(ctx, w, h) {
   else paintOffset(ctx, P);
 }
 
-/** Rasterize united contour with miter offset for SVG compound paths. */
+/** Rasterize united contour with join offset for SVG compound paths. */
 function maskField(dil) {
   const base = uniteMask();
   if (!(dil > 0)) return base;
@@ -255,9 +262,7 @@ function maskField(dil) {
   const o = c.getContext('2d', { willReadFrequently: true });
   o.fillStyle = '#000';
   o.strokeStyle = '#000';
-  o.lineJoin = 'miter';
-  o.miterLimit = MITER_LIMIT;
-  o.lineCap = 'butt';
+  applyStrokeJoin(o);
   o.lineWidth = Math.max(1, dil * 2 * (base.rw / W));
   o.beginPath();
   for (let L of marching(base.f, base.rw, base.rh, 128)) {
@@ -754,6 +759,27 @@ bindRange('dotd', 'dotd', pct);
 bindRange('off', 'off', px);
 bindRange('sw', 'sw', v => (v === 0 ? 'None' : px(v)));
 bindRange('cell', 'cell', v => v + 'px', prev => resample(prev, st.cell));
+bindRange('miter', 'miterLimit', v => String(Number(v.toFixed(1)).toString()));
+
+function syncJoinUi() {
+  const sel = document.getElementById('joinSelect');
+  const row = document.getElementById('miterLimitRow');
+  if (sel) sel.value = st.join;
+  if (row) row.style.display = st.join === 'miter' ? '' : 'none';
+}
+
+(function bindJoinControls() {
+  const sel = document.getElementById('joinSelect');
+  if (!sel) return;
+  sel.value = st.join;
+  sel.addEventListener('change', () => {
+    st.join = sel.value === 'round' || sel.value === 'bevel' ? sel.value : 'miter';
+    syncJoinUi();
+    snapshotActiveGen();
+    render();
+  });
+  syncJoinUi();
+})();
 
 function resample(oldCell, newCell) {
   if (oldCell === newCell || !cells.size) return;
