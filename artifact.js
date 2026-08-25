@@ -301,6 +301,7 @@ function fitCanvas() {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   cv.width = Math.round(W * dpr);
   cv.height = Math.round(H * dpr);
+  if (genStrip) genStrip.style.setProperty('--art-aspect', `${W} / ${H}`);
   invalidate();
   render();
 }
@@ -454,12 +455,15 @@ function restoreCells(entries) {
 }
 
 function renderThumbDataUrl(map, seed) {
-  const size = 128;
+  const maxDim = 160;
   const artW = Math.max(1, W);
   const artH = Math.max(1, H);
+  const scale = maxDim / Math.max(artW, artH);
+  const tw = Math.max(1, Math.round(artW * scale));
+  const th = Math.max(1, Math.round(artH * scale));
   const c = document.createElement('canvas');
-  c.width = size;
-  c.height = size;
+  c.width = tw;
+  c.height = th;
   const o = c.getContext('2d');
   const saved = {
     cells: cells,
@@ -470,9 +474,8 @@ function renderThumbDataUrl(map, seed) {
   st.seed = seed;
   invalidate();
   const P = getPrims();
-  const sx = size / artW;
-  const sy = size / artH;
-  o.setTransform(sx, 0, 0, sy, 0, 0);
+  const s = tw / artW;
+  o.setTransform(s, 0, 0, s, 0, 0);
   o.fillStyle = st.gnd;
   o.fillRect(0, 0, artW, artH);
   if (st.mode === 'halftone') paint(o, P, PLATE, null);
@@ -507,6 +510,7 @@ function loadGeneration(index) {
 
 function renderGenStrip() {
   if (!genStrip) return;
+  genStrip.style.setProperty('--art-aspect', `${Math.max(1, W)} / ${Math.max(1, H)}`);
   genStrip.replaceChildren();
   for (let i = 0; i < GEN_COUNT; i++) {
     const btn = document.createElement('button');
