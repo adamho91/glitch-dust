@@ -4239,9 +4239,6 @@ function syncBgCustomInputs() {
   if (dockCustom && dockCustom !== document.activeElement) {
     dockCustom.value = bgCustom.value;
   }
-  if (bgCustom && bgCustom !== document.activeElement && dockCustom) {
-    // keep main custom input as source of truth when dock isn't being edited
-  }
 }
 
 function updateBgSwatchUi() {
@@ -10038,11 +10035,14 @@ async function exportVideoGif(fps, cycleMs, totalFrames, canvas, ctx, exportOpts
 }
 
 async function exportPngStill() {
-  const loopProgress = 0.5;
+  // Prefer scrubber position; otherwise the current playhead frame.
+  const loopProgress = clamp01(scrubMode ? scrubProgress : lastRenderProgress);
+  const pctLabel = Math.round(loopProgress * 100) + '%';
   exportCancelRequested = false;
   exportRunMeta = { format: 'png', fps: 0, totalFrames: 1 };
   setExportButtonsBusy(true);
   const wasPaused = paused;
+  const wasScrubbing = scrubMode;
   exportInProgress = true;
   pauseAnim();
   dustScrubAt = -1;
@@ -10060,8 +10060,8 @@ async function exportPngStill() {
   const exportDesc = document.getElementById('exportModalDesc');
   if (exportDesc) {
     exportDesc.textContent = transparent
-      ? 'Rendering loop midpoint at 1920×1080 with transparent background.'
-      : 'Rendering loop midpoint at 1920×1080.';
+      ? `Rendering scrub frame at ${pctLabel} · ${W}×${H} with transparent background.`
+      : `Rendering scrub frame at ${pctLabel} · ${W}×${H}.`;
   }
   setExportModal(true, 0, 'Preparing PNG…');
 
@@ -10079,7 +10079,7 @@ async function exportPngStill() {
   try {
     const cycleMs = getAnimDurationMs();
     const sampleTs = loopProgress * cycleMs;
-    setExportModal(true, 0.4, 'Rendering midpoint frame…');
+    setExportModal(true, 0.4, `Rendering frame at ${pctLabel}…`);
     renderFrameContent(loopProgress, sampleTs, sampleTs, { exportMode: true, skipPaletteMedia: true });
     await syncPaletteMediaForExport(getNodeLoopProgress(loopProgress));
     await renderSvgToCanvas(ctx, svg, {
@@ -10106,7 +10106,7 @@ async function exportPngStill() {
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 0);
-    document.getElementById('status').textContent = `Exported ${filename} · loop midpoint frame.`;
+    document.getElementById('status').textContent = `Exported ${filename} · frame at ${pctLabel}.`;
   } catch (err) {
     if (err && err.message === 'cancelled') {
       document.getElementById('status').textContent = 'PNG export cancelled.';
@@ -10120,10 +10120,15 @@ async function exportPngStill() {
     exportRunMeta = { format: '', fps: 0, totalFrames: 0 };
     exportInProgress = false;
     dustScrubAt = -1;
-    cycleStart = performance.now();
+    // Restore playhead / scrub position instead of restarting the loop.
+    if (wasScrubbing) {
+      scrubProgress = loopProgress;
+      scrubMode = true;
+    }
+    cycleStart = performance.now() - loopProgress * getAnimDurationMs();
     syncPaletteGifTicker();
     drawFrame(performance.now());
-    if (!wasPaused) startAnim();
+    if (!wasPaused && !wasScrubbing) startAnim();
     else pauseAnim();
   }
 }
