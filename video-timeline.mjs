@@ -1,4 +1,4 @@
-import { duration, transitionLength } from "./video-core.mjs?v=14";
+import { duration, transitionLength } from "./video-core.mjs?v=16";
 
 export function timelineGeometry(project, viewport, zoom = 0) {
   const total = duration(project);

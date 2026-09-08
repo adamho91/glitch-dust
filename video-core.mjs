@@ -1,19 +1,19 @@
-import { pixelAlignedRect } from "./video-pixel-grid.mjs?v=14";
+import { pixelAlignedRect } from "./video-pixel-grid.mjs?v=16";
 import {
   EXTRA_LAYOUTS,
   DEFAULT_DATA,
   renderExtraLayout,
-} from "./video-layouts.mjs?v=14";
-import { diffusionNodes } from "./video-diffusion.mjs?v=14";
+} from "./video-layouts.mjs?v=16";
+import { diffusionNodes } from "./video-diffusion.mjs?v=16";
 import {
   measureTextZones,
   nodeOverlapsText,
-} from "./video-text-clear.mjs?v=14";
+} from "./video-text-clear.mjs?v=16";
 import {
   MOTION_SECONDS,
   easeOutQuad as ease,
   easeInOutQuad,
-} from "./video-motion.mjs?v=14";
+} from "./video-motion.mjs?v=16";
 // Shared deterministic scene model and renderer. Preview and exports use the same timebase.
 export const FORMATS = {
   wide: [1280, 720],
@@ -78,7 +78,7 @@ export const DEFAULTS = {
   font: "Focal Upright",
   weight: 500,
   fontSize: 124,
-  lineHeight: 94,
+  lineHeight: 96,
   tracking: -3,
   align: "left",
   treatment: "solid",

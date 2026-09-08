@@ -2,7 +2,7 @@ import {
   GRID_LAYOUTS,
   GRID_DATA_LIMITS,
   renderGridLayout,
-} from "./video-grid-layouts.mjs?v=14";
+} from "./video-grid-layouts.mjs?v=16";
 export const SWISS_LAYOUTS = [
   ...GRID_LAYOUTS,
   ["chapter", "Chapter", "type"],
@@ -302,6 +302,8 @@ export function renderSwissLayout(ctx, s, t, w, h, asset, helpers, rows) {
       ctx.fillStyle = s.accent;
       ctx.strokeStyle = s.accent;
       ctx.lineWidth = 3 * k;
+      ctx.lineCap = "butt";
+      ctx.setLineDash([3 * k, 6 * k]);
       ctx.beginPath();
       points.forEach((v, i) =>
         i ? ctx.lineTo(v.x, v.y) : ctx.moveTo(v.x, v.y),
@@ -404,7 +406,8 @@ export function renderSwissLayout(ctx, s, t, w, h, asset, helpers, rows) {
         const side = Math.min(cw * 0.3, ch * 0.6);
         ctx.strokeStyle = s.fg;
         ctx.lineWidth = 2 * k;
-        ctx.strokeRect(x + cw - side - gap, yy, side, side);
+        ctx.lineCap = "butt";
+        ctx.setLineDash([2 * k, 4 * k]);
         rect(
           x + cw - side - gap,
           yy + side * (1 - ratio * p),
@@ -412,6 +415,7 @@ export function renderSwissLayout(ctx, s, t, w, h, asset, helpers, rows) {
           side * ratio * p,
           s.accent,
         );
+        ctx.strokeRect(x + cw - side - gap, yy, side, side);
         text(
           `${Math.round(ratio * p * 100)}%`,
           x,

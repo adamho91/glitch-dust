@@ -69,6 +69,8 @@ test("SVG keeps live text, escapes markup and restores clip state", () => {
     lineWidth: 2,
     lineCap: "butt",
     lineJoin: "miter",
+    lineDashOffset: 1,
+    getLineDash() { return [2, 4]; },
     font: '500 32px "Focal Upright"',
     letterSpacing: "0px",
     textAlign: "left",
@@ -95,6 +97,7 @@ test("SVG keeps live text, escapes markup and restores clip state", () => {
   ctx.fillText("<chart & stat>", 20, 20);
   ctx.restore();
   ctx.fillRect(200, 200, 10, 10);
+  ctx.strokeRect(200, 200, 10, 10);
   const svg = recorder.serialize("A & B");
   assert.match(svg, /<text[^>]* y="46"/);
   assert.match(svg, /&lt;chart &amp; stat&gt;/);
@@ -102,6 +105,7 @@ test("SVG keeps live text, escapes markup and restores clip state", () => {
   assert.match(svg, /<clipPath/);
   assert.match(svg, /<\/g><path d="M200/);
   assert.doesNotMatch(svg, /<image/);
+  assert.match(svg, /stroke-dasharray="2 4" stroke-dashoffset="1"/);
 });
 
 const { EXTRA_LAYOUTS, renderExtraLayout } = await import(

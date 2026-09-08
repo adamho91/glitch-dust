@@ -31,8 +31,10 @@ export function createSvgContext(width, height, measurementContext) {
       output = `<g clip-path="url(#${clip})">${output}</g>`;
     elements.push(output);
   };
-  const style = (stroke) =>
-    `fill="${stroke ? "none" : esc(ctx.fillStyle)}"${stroke ? ` stroke="${esc(ctx.strokeStyle)}" stroke-width="${num(ctx.lineWidth)}" stroke-linecap="${ctx.lineCap}" stroke-linejoin="${ctx.lineJoin}"` : ""} opacity="${num(ctx.globalAlpha)}" transform="${transform()}"`;
+  const style = (stroke) => {
+    const dash = stroke ? ctx.getLineDash() : [];
+    return `fill="${stroke ? "none" : esc(ctx.fillStyle)}"${stroke ? ` stroke="${esc(ctx.strokeStyle)}" stroke-width="${num(ctx.lineWidth)}" stroke-linecap="${ctx.lineCap}" stroke-linejoin="${ctx.lineJoin}"${dash.length ? ` stroke-dasharray="${dash.map(num).join(" ")}" stroke-dashoffset="${num(ctx.lineDashOffset)}"` : ""}` : ""} opacity="${num(ctx.globalAlpha)}" transform="${transform()}"`;
+  };
   const rectPath = (x, y, w, h, r = 0) => {
     r = Math.max(0, Math.min(Number(r) || 0, Math.abs(w) / 2, Math.abs(h) / 2));
     if (!r) return `M${x} ${y}h${w}v${h}h${-w}Z`;

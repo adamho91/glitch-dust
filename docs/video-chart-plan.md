@@ -4,11 +4,11 @@ Status: proposed implementation plan. The two-color palette defaults are impleme
 
 ## Direction
 
-Use the supplied matrix, horizontal bars, and paired trend chart as structural references. Keep the existing Glitch Dust identity: Focal throughout, zero tracking on chart labels and values, square geometry, flat fills, generous gutters, prompt-style callouts, and no decorative borders. The blue editor outlines in the third reference are selection guides, not part of the design.
+Use the supplied matrix, horizontal bars, and paired trend chart as structural references. Keep the existing Glitch Dust identity: Focal throughout, zero tracking on chart labels and values, square geometry, dotted strokes, flat fills, generous gutters, prompt-style callouts, and no decorative borders. The blue editor outlines in the third reference are selection guides, not part of the design.
 
 Make motion explain a comparison: reveal a row, advance a period, isolate a threshold, then hold the conclusion. Every chart must also work as a settled still. Keep existing diffusion controls and node clearance, with patterns off on data slides by default.
 
-Start with one background and one foreground color. Encode extra information using direct labels, solid versus dashed strokes, and discrete tints derived from the pair. A second series hue or categorical palette is an explicit option for data that needs it. Keep node opacity independent of chart tints and never fade the background pattern as a side effect.
+Start with one background and one foreground color. Encode extra information using direct labels, fine versus coarse dotted strokes, and discrete tints derived from the pair. A second series hue or categorical palette is an explicit option for data that needs it. Keep node opacity independent of chart tints and never fade the background pattern as a side effect.
 
 ## First release: three chart families
 
@@ -16,7 +16,7 @@ Start with one background and one foreground color. Encode extra information usi
 | --- | --- | --- |
 | Threshold matrix | Row and column headings with aligned rectangular cells. Up to 6 × 6, editable values, units, threshold boundaries and labels. Discrete shades of the selected foreground, with text in the pair's contrasting color. Missing values display a dash and never become zero. | Reveal columns as concurrency or time increases. Finish by emphasizing a selected row, column, or threshold crossing with an inset square marker and prompt callout. Keep cell values fixed while revealing them so colors never imply a false intermediate measurement. |
 | Share-of-total bars | Extend Goal bars with a common denominator, aligned value column, optional empty tracks, and endpoint ticks. Up to 8 categories on wide formats; responsive row limits keep labels readable. Offer raw units or percentages, with explicit total and optional sum validation. | Grow bars from a shared zero baseline with a short stagger. Keep labels stationary. Optionally show one row at a time, then the full comparison. One selected row can carry the takeaway; every category need not get a different hue. |
-| Multi-series trend | Shared category/time axis with 2–3 named series and up to 12 points. Solid and dashed lines with square markers, labels at line ends, and at most 3–4 grid levels. Explicit gaps for missing observations; no smoothed or invented curves. | Reveal each segment in period order. Labels attach only to observed points. End labels remain readable and separated. An optional final prompt reports a chosen delta or comparison. Start with the reference's generated-versus-retained story. |
+| Multi-series trend | Shared category/time axis with 2–3 named series and up to 12 points. Fine and coarse dotted lines with square markers, labels at line ends, and at most 3–4 grid levels. Explicit gaps for missing observations; no smoothed or invented curves. | Reveal each segment in period order. Labels attach only to observed points. End labels remain readable and separated. An optional final prompt reports a chosen delta or comparison. Start with the reference's generated-versus-retained story. |
 
 For the references' richer palettes, provide a deliberate “Series colors” choice after the minimal default. Four threshold bands can use four discrete shades of a single foreground; color plus written values and range labels communicates the bands. Avoid continuous gradients and color changes unrelated to the data.
 
@@ -52,14 +52,14 @@ Screenshot import first proposes the chart family and its table, then asks for c
 - Share a deterministic time-based chart-state function between preview, thumbnails, MP4, and still export. Derive geometry from time rather than advancing mutable animation state so backward scrubbing is identical to forward playback.
 - Use 0.6-second out-quad for entrances and position/value changes; use the symmetric 50/50 curve for comparisons between complete states. Stagger starts, then compress the sequence for short scenes so the conclusion still gets a hold. No spring overshoot on quantitative marks.
 - Keep scale domains fixed over a reveal or comparison sequence. Bar lengths use a zero baseline; trend domains may be tailored if clearly labeled. Treat gaps, signed values, all-zero data, and equal-value domains explicitly.
-- Extend the existing Canvas/SVG recorder only for primitives the new charts actually need, including dashed line support if absent. Continue editable SVG text, Focal embedding, whole-node exclusion, and seam-free squares. No separate export-only chart implementation.
+- Extend the existing Canvas/SVG recorder only for primitives the new charts actually need, including dotted line support. Continue editable SVG text, Focal embedding, whole-node exclusion, and seam-free squares. No separate export-only chart implementation.
 - PNG/JPG keep the current playhead frame. Copy SVG retains its settled-slide behavior, using the selected chart snapshot; expose snapshot selection explicitly for charts with multiple states. MP4 reproduces all beats.
 
 ## Build order and acceptance
 
 1. **Data foundation and share bars:** add the structured data adapter/table editor, scale validation, and reveal-state helper; extend Goal bars as the first end-to-end chart. Check raw/percent modes, explicit totals, and save/open roundtrips.
 2. **Matrix:** implement cell layout, threshold validation, missing cells, readable text contrast, row/column focus, and responsive capacity. Add reviewed matrix OCR only after manual input works.
-3. **Multi-series trend:** implement shared scales, dashed/solid differentiation, square markers, end-label collision handling, missing-point gaps, and ordered reveals. Add reviewed table import before attempting screenshot association.
+3. **Multi-series trend:** implement shared scales, dotted-pattern differentiation, square markers, end-label collision handling, missing-point gaps, and ordered reveals. Add reviewed table import before attempting screenshot association.
 4. **Story controls:** add focus callouts, internal beat markers, and named comparison snapshots. Reuse them for the later chart directions.
 5. **Visual and export checks:** verify wide, portrait, square, and 4:5; long labels; negative, zero, missing, and equal values; reduced motion; saved legacy projects; forward/backward scrubbing; and final-frame parity across preview, SVG, PNG, and MP4. At 100% pattern opacity, nodes must remain fully opaque outside chart/text clearance zones.
 

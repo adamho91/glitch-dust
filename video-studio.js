@@ -1,17 +1,17 @@
-import { createSvgContext } from "./video-svg.mjs?v=14";
-import { suggestChart, CHART_PALETTES } from "./video-chart-import.mjs?v=14";
+import { createSvgContext } from "./video-svg.mjs?v=16";
+import { suggestChart, CHART_PALETTES } from "./video-chart-import.mjs?v=16";
 import {
   EXTRA_LAYOUTS,
   DEFAULT_DATA,
   parseDataRows,
-} from "./video-layouts.mjs?v=14";
-import { timelineGeometry } from "./video-timeline.mjs?v=14";
-import { SWISS_DATA_LIMITS } from "./video-swiss.mjs?v=14";
+} from "./video-layouts.mjs?v=16";
+import { timelineGeometry } from "./video-timeline.mjs?v=16";
+import { SWISS_DATA_LIMITS } from "./video-swiss.mjs?v=16";
 import {
   DUST_PRESET_KEY,
   readDustPresets,
   applyDustPreset,
-} from "./video-presets.mjs?v=14";
+} from "./video-presets.mjs?v=16";
 import {
   FORMATS,
   LAYOUTS,
@@ -29,7 +29,7 @@ import {
   renderScene,
   renderFrame,
   outputSize,
-} from "./video-core.mjs?v=14";
+} from "./video-core.mjs?v=16";
 
 const $ = (id) => document.getElementById(id);
 const assets = new Map(),
