@@ -913,7 +913,7 @@
 <script src="webflow-embed-runtime.js"></script>
 <link rel="stylesheet" href="ui-theme.css">
 <link rel="stylesheet" href="app-nav.css">
-<script src="app-nav.js" defer></script>
+<script src="app-nav.js?v=hidden-video-2" defer></script>
 </head>
 <body>
 <div class="app">
@@ -8898,13 +8898,16 @@ function applySettings(settings, opts) {
     (s.colorAll || []).forEach((hex, i) => { if (colorInputs[i]) colorInputs[i].value = hex; });
     (s.colorWeights || []).forEach((w, i) => { if (weightInputs[i]) weightInputs[i].value = w; });
   } else {
-    const presets = TONAL_BY_COUNT[tonalCount] || [];
-    const match = presets.find(p => p.id === activePresetId);
-    if (match) applyTonalPreset(match, { skipRegen: true });
-    else {
-      renderTonalPresets();
-      renderTonalPreview();
-    }
+    // Restore saved canvas colors as-is. Do NOT call applyTonalPreset here —
+    // that resets chips (and dust bg) to the stock pairing and breaks ⇧1 ↔ ⇧2.
+    const match = findMatchingTonalPreset();
+    activePresetId = match ? match.id : (s.activePresetId || null);
+    renderTonalPresets();
+    renderTonalPreview();
+    syncPromptBorderFromPalette();
+    if (isLogoFollowPalette()) syncLogoColorsFromPalette(getLogoPaletteOffsetFromColors());
+    syncPromptSpaceColorFromPalette();
+    renderPaletteMediaList();
   }
 
   updateModeUI();
@@ -8955,6 +8958,19 @@ function schedulePresetAutosave() {
     persistPresetStore();
   }, 450);
 }
+
+function flushPresetAutosave() {
+  if (presetApplyInProgress) return;
+  clearTimeout(presetAutosaveTimer);
+  presetAutosaveTimer = null;
+  saveActivePresetFromUI();
+  persistPresetStore();
+}
+
+window.falGlitchDustFlushPresets = flushPresetAutosave;
+
+window.addEventListener('pagehide', flushPresetAutosave);
+window.addEventListener('beforeunload', flushPresetAutosave);
 
 function initPresetSystem() {
   presetStore = loadPresetStore();

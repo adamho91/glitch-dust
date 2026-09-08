@@ -9,6 +9,7 @@
   // Secret routes: Shift+key works, but they never appear in the tab strip.
   const SECRET_PAGES = [
     { id: 'artifact', key: '5', label: 'Artifact', href: 'artifact.html' },
+    { id: 'video', key: '6', label: 'Video', href: 'video.html' },
   ];
 
   const ALL_PAGES = PAGES.concat(SECRET_PAGES);
@@ -19,6 +20,7 @@
     if (file === 'lower-thirds.html') return 'lower-thirds';
     if (file === 'typer.html') return 'typer';
     if (file === 'artifact.html') return 'artifact';
+    if (file === 'video.html') return 'video';
     return 'editor';
   }
 
@@ -39,6 +41,11 @@
         `<span class="app-page-key">⇧${page.key}</span>` +
         `<span class="app-page-label">${page.label}</span>`;
       if (page.id === active) link.setAttribute('aria-current', 'page');
+      link.addEventListener('click', () => {
+        if (typeof window.falGlitchDustFlushPresets === 'function') {
+          try { window.falGlitchDustFlushPresets(); } catch (_) {}
+        }
+      });
       nav.appendChild(link);
     });
 
@@ -75,6 +82,9 @@
     if (!page || page.id === currentPageId()) return;
 
     e.preventDefault();
+    if (typeof window.falGlitchDustFlushPresets === 'function') {
+      try { window.falGlitchDustFlushPresets(); } catch (_) {}
+    }
     location.assign(page.href);
   }, true);
 

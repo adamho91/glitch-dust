@@ -1,0 +1,66 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Video layout checks</title>
+<style>@font-face{font-family:Focal;src:url('../Focal-Upright-VF_wght.ttf');font-weight:100 900}@font-face{font-family:'Focal Upright';src:url('../Focal-Upright-VF_wght.ttf');font-weight:100 900}body{margin:20px;background:#222;color:#ddd;font-family:Focal}button{font:inherit;padding:8px;margin-right:8px}main{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}canvas{width:100%;max-height:230px;object-fit:contain;display:block;background:#111}h2{font-size:16px;font-weight:400}nav{margin-bottom:20px}</style>
+<nav><button data-format="wide">Landscape</button><button data-format="portrait">Vertical</button><button data-format="square">Square</button></nav><label>Layouts <select id="family"><option value="new">New layouts</option><option value="all">All</option><option value="type">Swiss type</option><option value="media">Swiss media</option><option value="data">Swiss data</option></select></label><p id="opacityCheck"></p><main></main>
+<script type="module">
+import { createScene, renderScene, FORMATS } from '../video-core.mjs?v=13';
+import { diffusionNodes } from '../video-diffusion.mjs?v=13';
+import { SWISS_LAYOUTS } from '../video-swiss.mjs?v=13';
+import { GRID_LAYOUTS } from '../video-grid-layouts.mjs?v=13';
+import { EXTRA_LAYOUTS } from '../video-layouts.mjs?v=13';
+await document.fonts.load('400 48px "Focal Upright"');await document.fonts.load('500 48px "Focal Upright"');
+const examples={
+'numbered-story':{eyebrow:'01'},
+'waterfall':{dataRows:'Start | 80\nNew | 42\nChurn | -24\nExpansion | 32'},
+'delta':{dataRows:'Before | 24\nAfter | 96'},
+'funnel':{dataRows:'Visits | 920\nSignups | 480\nActivated | 240\nPaid | 120'},
+'area-squares':{dataRows:'Image | 42\nVideo | 68\nAudio | 92\nDesign | 24\nMotion | 36\nCompute | 80'},
+
+'diverging-bars':{dataRows:'Before | -42\nAfter | 68\nChange | -12'},
+'line-chart':{dataRows:'Jan | 12\nFeb | -28\nMar | 32\nApr | 48\nMay | 62\nJun | 80\nJul | 76\nAug | 92'},
+'area-chart':{dataRows:'Jan | 12\nFeb | -28\nMar | 32\nApr | 48\nMay | 62\nJun | 80\nJul | 76\nAug | 92'},
+'share-bar':{dataRows:'Design | 42\nMotion | 68\nVideo | 92\nAudio | 36\nCompute | 64\nTraining | 58'},
+ 'big-stat':{title:'Built for speed.',dataRows:'Faster generation | 42',valueSuffix:'%'},
+ 'stat-grid':{title:'A month in motion.',dataRows:'Projects | 128\nCreators | 640\nExports | 2400\nTeams | 32\nCountries | 18\nModels | 64'},
+ bars:{title:'More room to create.',dataRows:'Image | 42\nVideo | 68\nAudio | -24\nTraining | 92'},
+ columns:{title:'Make progress.',dataRows:'Jan | 12\nFeb | 28\nMar | -18\nApr | 48\nMay | 62\nJun | 80'},
+ waffle:{title:'Small pieces. Big picture.',dataRows:'Of the goal reached | 72'},
+ progress:{title:'Getting there.',dataRows:'Design | 42\nMotion | 68\nVideo | 92'},
+ comparison:{title:'A different scale.',dataRows:'Before | 24\nAfter | 96',valueSuffix:'×'},
+ steps:{title:'From idea to motion.',dataRows:'Choose a model | 1\nAdd your prompt | 2\nMake it move | 3\nPick a palette | 4\nFine-tune | 5\nExport | 6'},
+ quote:{title:'The best way to predict the future is to make something.',body:'A thought worth sharing.'},
+ 'end-card':{title:'Make your\nnext move.',body:'Start creating at fal.ai'},
+};
+let currentFormat='wide';
+function draw(format=currentFormat){currentFormat=format;const [w,h]=FORMATS[format],main=document.querySelector('main');main.replaceChildren();for(const [layout,label]of (document.getElementById('family').value==='new'?GRID_LAYOUTS:document.getElementById('family').value==='all'?EXTRA_LAYOUTS:SWISS_LAYOUTS.filter(l=>l[2]===document.getElementById('family').value))){const section=document.createElement('section'),heading=document.createElement('h2'),canvas=document.createElement('canvas');heading.textContent=label;canvas.width=w;canvas.height=h;const s=createScene({layout,title:label==='Agenda'?'The next chapter.':'Built for what comes next.',body:SWISS_LAYOUTS.some(l=>l[0]===layout && l[2]==='type')?'Start with an idea.\nMake room for the unexpected.\nBuild something that moves.\nShare it with the world.':'Your story, in motion.',...examples[layout]});renderScene(canvas.getContext('2d'),s,2,w,h,null);section.append(heading,canvas);main.append(section);}}
+document.getElementById('family').onchange=()=>draw();
+document.querySelectorAll('button').forEach(b=>b.onclick=()=>draw(b.dataset.format));draw();
+
+const testCanvas=document.createElement('canvas');testCanvas.width=1280;testCanvas.height=720;
+const testScene=createScene({layout:'waffle',title:'',body:'',pattern:'dust',opacity:100,colors:['#99edff'],fg:'#99edff',bg:'#004012',clearPattern:false,scale:24,shapeMin:100,shapeMax:100,megaRarity:0,primitive:'squares',maxNodes:2000,density:100,fadeDirection:'none'});
+const sample=diffusionNodes(testScene,2,1280,720).find(n=>n.x>1100 && n.y>60 && n.y<120);
+const tc=testCanvas.getContext('2d');
+const checks=[100,25].map(opacity=>{renderScene(tc,{...testScene,opacity},2,1280,720,null);const actual=[...tc.getImageData(Math.floor(sample.x),Math.floor(sample.y),1,1).data].slice(0,3);const a=opacity/100;const expected=[153,237,255].map((v,i)=>Math.round(v*a+[0,64,18][i]*(1-a)));return `${opacity}% ${actual.every((v,i)=>Math.abs(v-expected[i])<=1)?'PASS':'FAIL'} (${actual.join(', ')})`;});
+document.getElementById('opacityCheck').textContent='Pattern pixel check: '+checks.join(' · ');
+
+const clearanceResults=[];
+for(const format of ['wide','portrait','square']) {
+ const [w,h]=FORMATS[format], c=document.createElement('canvas'); c.width=w;c.height=h;
+ const cx=c.getContext('2d');
+ for(const layout of ['waffle','line-chart']) {
+  const scene=createScene({layout,title:'',body:'',eyebrow:'',pattern:'dust',opacity:100,colors:['#ff00ff'],fg:'#ffffff',accent:'#ffffff',promptBg:'#ffffff',promptFg:'#000000',bg:'#000000',clearPattern:false,scale:20,shapeMin:100,shapeMax:100,megaRarity:0,primitive:'squares',maxNodes:2000,density:100,fadeDirection:'none'});
+  const k=Math.min(w,h)/720,pad=50*k;
+  const top=layout==='waffle'?pad+Math.min(h*.16,112*k)+28*k:pad+(h-2*pad)*.27;
+  const bottom=layout==='waffle'?h-pad:top+(h-2*pad)*.57;
+  const counts=[];
+  for(const clearGraphics of [false,true]) {
+   renderScene(cx,{...scene,clearGraphics},2,w,h,null);
+   const data=cx.getImageData(0,0,w,h).data;let inside=0,outside=0;
+   for(let y=0;y<h;y+=2)for(let x=0;x<w;x+=2){const i=(y*w+x)*4;if(data[i]===255&&data[i+1]===0&&data[i+2]===255){if(x>pad&&x<w-pad&&y>top&&y<bottom)inside++;else outside++;}}
+   counts.push({inside,outside});
+  }
+  const passed=counts[0].inside>0&&counts[1].inside===0&&counts[1].outside>0;
+  clearanceResults.push(`${layout}/${format}: ${passed?'PASS':'FAIL'} (${counts[0].inside} → ${counts[1].inside} chart pixels; ${counts[1].outside} outside)`);
+ }
+}
+const clearanceStatus=document.createElement('p');clearanceStatus.id='clearanceCheck';clearanceStatus.textContent='Chart clearance: '+clearanceResults.join(' · ');document.querySelector('main').before(clearanceStatus);
+</script></html>

@@ -1,0 +1,862 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>fal — Video Studio</title>
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="ui-theme.css" />
+    <link rel="stylesheet" href="app-nav.css" />
+    <link rel="stylesheet" href="video-studio.css?v=13" />
+    <script src="app-nav.js?v=hidden-video-2" defer></script>
+    <script src="fal-palette.js"></script>
+    <script src="default-presets.js"></script>
+    <script src="video-studio.js?v=13" type="module"></script>
+  </head>
+  <body>
+    <div class="studio" id="studio">
+      <aside class="sidebar">
+        <div class="app-brand-wrap">
+          <img
+            class="app-brand"
+            src="assets/app-brand.svg"
+            alt="Glitch Dust Generator"
+          />
+        </div>
+        <h1 class="studio-title">Video</h1>
+        <div class="tool-tabs" role="tablist" aria-label="Scene tools">
+          <button
+            role="tab"
+            id="tab-design"
+            aria-selected="true"
+            aria-controls="panel-design"
+            data-tab="design"
+          >
+            Design
+          </button>
+          <button
+            role="tab"
+            id="tab-type"
+            aria-selected="false"
+            aria-controls="panel-type"
+            data-tab="type"
+          >
+            Type
+          </button>
+          <button
+            role="tab"
+            id="tab-media"
+            aria-selected="false"
+            aria-controls="panel-media"
+            data-tab="media"
+          >
+            Media
+          </button>
+        </div>
+        <div class="panel-scroll">
+          <section
+            id="panel-design"
+            role="tabpanel"
+            aria-labelledby="tab-design"
+          >
+            <div class="section-title">Layout</div>
+            <select id="layoutGroup" aria-label="Layout group">
+              <option value="all">All layouts · 51</option>
+              <option value="data">Charts &amp; stats · 24</option>
+              <option value="type">Type · 16</option>
+              <option value="media">Media · 11</option>
+            </select>
+            <div id="templates" class="template-grid"></div>
+            <button id="importChart" class="chart-import-button">
+              Chart from screenshot…
+            </button>
+            <section id="layoutData" hidden aria-label="Layout data">
+              <div class="section-title">Data</div>
+              <label class="field"
+                >Labels and values<textarea
+                  data-prop="dataRows"
+                  rows="5"
+                  maxlength="2000"
+                  spellcheck="false"
+                  aria-describedby="dataHelp dataStatus"
+                ></textarea>
+              </label>
+              <p class="help" id="dataHelp">
+                One row per item: Label | 42. Up to 8 rows. Use Type for the
+                headline and prompt.
+              </p>
+              <p id="dataStatus" class="help" role="status"></p>
+              <div class="row">
+                <label class="field grow"
+                  >Prefix<input
+                    data-prop="valuePrefix"
+                    maxlength="12"
+                    placeholder="$" /></label
+                ><label class="field grow"
+                  >Suffix<input
+                    data-prop="valueSuffix"
+                    maxlength="12"
+                    placeholder="%"
+                /></label>
+              </div>
+              <div class="row">
+                <label class="field grow"
+                  >Decimal places<select data-prop="dataDecimals">
+                    <option value="0">0</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                  </select></label
+                ><label class="field grow" id="chartMaxField"
+                  >Scale / goal<input
+                    type="number"
+                    min="0"
+                    max="1000000000000"
+                    data-prop="chartMax"
+                    step="any"
+                /></label>
+              </div>
+              <p class="help" id="chartMaxHelp">
+                0 uses the data range for charts, or a goal of 100 for Square
+                Share and Progress.
+              </p>
+            </section>
+            <div class="section-title">Diffusion</div>
+            <details id="dustPresetPanel" class="dust-preset-panel" open>
+              <summary>Presets</summary>
+              <label class="field"
+                >Presets from Shift 1 + 2<select
+                  id="dustPresetSelect"
+                  aria-label="Glitch Dust preset"
+                ></select
+              ></label>
+              <canvas
+                id="dustPresetPreview"
+                width="288"
+                height="162"
+                aria-label="Preset on your current layout"
+              ></canvas>
+              <label class="check"
+                ><input type="checkbox" id="dustPresetText" /> Include preset
+                text</label
+              >
+              <div class="row">
+                <button id="applyDustPreset" class="primary">
+                  Apply to scene</button
+                ><button id="importDustPreset">Import JSON…</button
+                ><button
+                  id="refreshDustPresets"
+                  aria-label="Refresh Glitch Dust presets"
+                  title="Refresh presets"
+                >
+                  ↻
+                </button>
+              </div>
+              <p class="help" id="dustPresetHelp">
+                Shared pattern settings become editable Video diffusion. Source
+                motion styles may look different.
+              </p>
+            </details>
+            <label class="check"
+              ><input type="checkbox" data-prop="clearPattern" /> Clear shapes
+              under text</label
+            >
+            <label class="check"
+              ><input type="checkbox" data-prop="clearGraphics" /> Clear shapes
+              under charts</label
+            >
+            <label class="field"
+              >Pattern<select data-prop="pattern">
+                <option value="dust">Diffusion dust</option>
+                <option value="none">None</option>
+              </select></label
+            >
+            <label class="slider-field"
+              >Density <output data-output="density"></output
+              ><input type="range" min="10" max="100" data-prop="density"
+            /></label>
+            <label class="slider-field"
+              >Node size <output data-output="scale"></output
+              ><input type="range" min="12" max="80" data-prop="scale"
+            /></label>
+            <label class="field"
+              >Primitives<select data-prop="primitive">
+                <option value="mixed">Squares + circles</option>
+                <option value="squares">Squares only</option>
+                <option value="circles">Circles only</option>
+              </select></label
+            ><label class="slider-field"
+              >Circle balance (%)<output data-output="circlePct"></output
+              ><input
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+                data-prop="circlePct" /></label
+            ><label class="slider-field"
+              >Max nodes<output data-output="maxNodes"></output
+              ><input
+                type="range"
+                min="1"
+                max="2000"
+                step="1"
+                data-prop="maxNodes" /></label
+            ><label class="slider-field"
+              >Min shape (%)<output data-output="shapeMin"></output
+              ><input
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+                data-prop="shapeMin" /></label
+            ><label class="slider-field"
+              >Max shape (%)<output data-output="shapeMax"></output
+              ><input
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+                data-prop="shapeMax" /></label
+            ><label class="slider-field"
+              >Oversize rarity<output data-output="megaRarity"></output
+              ><input
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+                data-prop="megaRarity"
+            /></label>
+            <div class="field">
+              Oversize tiers
+              <div
+                id="megaTiers"
+                class="tier-buttons"
+                aria-label="Oversize tiers"
+              >
+                <button type="button" data-tier="2" aria-pressed="false">
+                  2×</button
+                ><button type="button" data-tier="3" aria-pressed="false">
+                  3×</button
+                ><button type="button" data-tier="4" aria-pressed="false">
+                  4×</button
+                ><button type="button" data-tier="5" aria-pressed="false">
+                  5×</button
+                ><button type="button" data-tier="6" aria-pressed="false">
+                  6×</button
+                ><button type="button" data-tier="7" aria-pressed="false">
+                  7×</button
+                ><button type="button" data-tier="8" aria-pressed="false">
+                  8×
+                </button>
+              </div>
+            </div>
+            <label class="field"
+              >Density direction<select data-prop="fadeDirection">
+                <option value="right">Dense right</option>
+                <option value="left">Dense left</option>
+                <option value="bottom">Dense bottom</option>
+                <option value="top">Dense top</option>
+                <option value="none">Even</option>
+              </select></label
+            ><label class="field"
+              >Sweep axis<select data-prop="sweepAxis">
+                <option value="v">Vertical</option>
+                <option value="h">Horizontal</option>
+                <option value="d">Diagonal</option>
+              </select></label
+            ><label class="slider-field"
+              >Sweep depth<output data-output="sweepDepth"></output
+              ><input
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+                data-prop="sweepDepth" /></label
+            ><label class="slider-field"
+              >Wave ripples<output data-output="waveRipples"></output
+              ><input
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+                data-prop="waveRipples" /></label
+            ><label class="slider-field"
+              >Diffusion softness<output data-output="diffusionSoft"></output
+              ><input
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+                data-prop="diffusionSoft"
+            /></label>
+            <label class="slider-field"
+              >Motion speed <output data-output="speed"></output
+              ><input type="range" min="0" max="200" data-prop="speed"
+            /></label>
+            <label class="slider-field"
+              >Pattern opacity <output data-output="opacity"></output
+              ><input type="range" min="0" max="100" data-prop="opacity"
+            /></label>
+            <div class="row">
+              <label class="field grow"
+                >Seed<input
+                  type="number"
+                  min="1"
+                  max="999999"
+                  data-prop="seed" /></label
+              ><button id="reseed" class="align-bottom">↻ Regenerate</button>
+            </div>
+            <div class="section-title">
+              Colors <span id="paletteCount" hidden></span>
+            </div>
+            <div class="row">
+              <select id="paletteGroup" aria-label="Filter palettes">
+                <option value="all">All color families</option>
+                <option value="blue">Blue / Cyan</option>
+                <option value="purple">Purple</option>
+                <option value="green">Green / Teal</option>
+                <option value="lime">Lime / Yellow</option>
+                <option value="pink">Pink / Red</option>
+                <option value="neutral">Neutral / Earth</option></select
+              ><button
+                id="shufflePalette"
+                title="Random palette"
+                aria-label="Random palette"
+              >
+                ↻
+              </button>
+            </div>
+            <div id="palettes" class="palette-grid"></div>
+            <div id="paletteName" class="micro"></div>
+            <div class="color-row">
+              <label
+                >Background<input id="bg" data-prop="bg" type="color" /></label
+              ><label>Type<input id="fg" data-prop="fg" type="color" /></label
+              ><label
+                >Accent<input id="accent" data-prop="accent" type="color"
+              /></label>
+            </div>
+            <button class="wide subtle" id="applyColors">
+              Apply colors to every scene
+            </button>
+          </section>
+          <section
+            id="panel-type"
+            role="tabpanel"
+            aria-labelledby="tab-type"
+            hidden
+          >
+            <div class="section-title">Text</div>
+            <label class="field"
+              >Caption<input data-prop="eyebrow" maxlength="100"
+            /></label>
+            <label class="field"
+              >Headline<textarea
+                data-prop="title"
+                rows="3"
+                maxlength="500"
+              ></textarea>
+            </label>
+            <label class="field"
+              >Prompt text<textarea
+                data-prop="body"
+                rows="3"
+                maxlength="700"
+              ></textarea>
+            </label>
+            <div class="section-title">Prompt background</div>
+            <div class="color-row">
+              <label>Box<input type="color" data-prop="promptBg" /></label
+              ><label>Text<input type="color" data-prop="promptFg" /></label>
+            </div>
+            <label class="slider-field"
+              >Prompt size<output data-output="promptSize"></output
+              ><input
+                type="range"
+                min="16"
+                max="80"
+                step="1"
+                data-prop="promptSize" /></label
+            ><label class="slider-field"
+              >Box padding<output data-output="promptPadding"></output
+              ><input
+                type="range"
+                min="0"
+                max="16"
+                step="1"
+                data-prop="promptPadding" /></label
+            ><label class="slider-field"
+              >Word gap<output data-output="promptGap"></output
+              ><input
+                type="range"
+                min="0"
+                max="24"
+                step="1"
+                data-prop="promptGap" /></label
+            ><label class="slider-field"
+              >Box radius<output data-output="promptRadius"></output
+              ><input
+                type="range"
+                min="0"
+                max="20"
+                step="1"
+                data-prop="promptRadius" /></label
+            ><label class="check"
+              ><input type="checkbox" data-prop="promptReveal" />Reveal prompt
+              word by word</label
+            >
+            <div class="section-title">Typography</div>
+            <div class="field">Focal Upright</div>
+            <select data-prop="font" id="fontSelect" hidden>
+              <option value="Focal Upright">Focal Upright</option></select
+            ><button id="uploadFont" hidden>Add font</button
+            ><input id="fontInput" type="file" hidden />
+            <div class="row">
+              <label class="field grow"
+                >Weight<select data-prop="weight">
+                  <option value="300">Light</option>
+                  <option value="400">Regular</option>
+                  <option value="500">Medium</option>
+                  <option value="700">Bold</option>
+                  <option value="900">Black</option>
+                </select></label
+              ><label class="field grow"
+                >Alignment<select data-prop="align">
+                  <option value="left">Left</option>
+                  <option value="center">Center</option>
+                  <option value="right">Right</option>
+                </select></label
+              >
+            </div>
+            <label class="slider-field"
+              >Type size <output data-output="fontSize"></output
+              ><input type="range" min="36" max="200" data-prop="fontSize"
+            /></label>
+            <label class="slider-field"
+              >Line height <output data-output="lineHeight"></output
+              ><input type="range" min="80" max="160" data-prop="lineHeight"
+            /></label>
+            <label class="slider-field"
+              >Letter spacing <output data-output="tracking"></output
+              ><input type="range" min="-6" max="16" data-prop="tracking"
+            /></label>
+            <label class="field"
+              >Type treatment<select data-prop="treatment">
+                <option value="solid">Overlay text</option>
+                <option value="highlight">Prompt blocks</option>
+              </select></label
+            >
+            <label class="check"
+              ><input type="checkbox" data-prop="uppercase" /> Uppercase
+              headline</label
+            >
+            <div class="section-title">Type in motion</div>
+            <label class="field"
+              >Entrance<select data-prop="animation">
+                <option value="rise">Staggered rise</option>
+                <option value="reveal">Line reveal</option>
+                <option value="typewriter">Typewriter</option>
+                <option value="scale">Scale in</option>
+                <option value="fade">Soft fade</option>
+                <option value="none">None</option>
+              </select></label
+            >
+            <label class="slider-field"
+              >Entrance length <output data-output="entrance"></output
+              ><input type="range" min="10" max="180" data-prop="entrance"
+            /></label>
+            <div class="row">
+              <label class="field grow"
+                >Text X offset (%)<input
+                  type="number"
+                  min="-30"
+                  max="30"
+                  data-prop="textX" /></label
+              ><label class="field grow"
+                >Text Y offset (%)<input
+                  type="number"
+                  min="-30"
+                  max="30"
+                  data-prop="textY"
+              /></label>
+            </div>
+            <label class="check" hidden
+              ><input type="checkbox" data-prop="footer" /> Show scene
+              footer</label
+            >
+          </section>
+          <section
+            id="panel-media"
+            role="tabpanel"
+            aria-labelledby="tab-media"
+            hidden
+          >
+            <div class="section-title">
+              Your material <span id="mediaCount">0 assets</span>
+            </div>
+            <button class="dropzone" id="uploadMedia">
+              <span>＋</span><strong>Drop something good here</strong
+              ><small>Images & video · or click to browse</small>
+            </button>
+            <input
+              id="mediaInput"
+              type="file"
+              accept="image/*,video/*"
+              multiple
+              hidden
+            />
+            <p class="help">
+              Click an asset to place it in this scene. Media stays on this
+              device. Video clips play without audio.
+            </p>
+            <div id="mediaLibrary" class="media-library"></div>
+            <button id="sequenceMedia" class="wide subtle sequence-media">
+              ＋ Build scenes from all media
+            </button>
+            <div class="section-title">Selected scene media</div>
+            <div class="micro" id="selectedMedia">No media selected</div>
+            <label class="field"
+              >Placement<select data-prop="mediaFit">
+                <option value="cover">Fill / crop</option>
+                <option value="contain">Fit entire image</option>
+              </select></label
+            >
+            <label class="slider-field"
+              >Zoom <output data-output="mediaZoom"></output
+              ><input type="range" min="100" max="200" data-prop="mediaZoom"
+            /></label>
+            <label class="slider-field"
+              >Horizontal focus <output data-output="mediaX"></output
+              ><input type="range" min="0" max="100" data-prop="mediaX"
+            /></label>
+            <label class="slider-field"
+              >Vertical focus <output data-output="mediaY"></output
+              ><input type="range" min="0" max="100" data-prop="mediaY"
+            /></label>
+            <label class="slider-field"
+              >Darken media <output data-output="mediaDim"></output
+              ><input type="range" min="0" max="90" data-prop="mediaDim"
+            /></label>
+            <label class="field"
+              >Clip start (seconds)<input
+                type="number"
+                min="0"
+                step="0.1"
+                data-prop="mediaStart"
+            /></label>
+            <label class="check"
+              ><input type="checkbox" data-prop="mediaLoop" /> Loop clip to fill
+              scene</label
+            >
+            <button id="removeMedia" class="wide subtle">
+              Remove from scene
+            </button>
+          </section>
+        </div>
+        <div class="sidebar-foot">
+          <span class="live-dot"></span
+          ><span id="saveStatus">Ready to create</span>
+        </div>
+      </aside>
+      <main>
+        <header class="topbar">
+          <div class="project-heading">
+            <span class="micro">PROJECT /</span
+            ><input
+              id="projectName"
+              aria-label="Project name"
+              value="A study in motion"
+              maxlength="80"
+            />
+          </div>
+          <div class="row project-actions">
+            <button id="undo" title="Undo (⌘Z)" aria-label="Undo">↶</button
+            ><button id="redo" title="Redo (⌘⇧Z)" aria-label="Redo">↷</button
+            ><button id="openProject">Open</button
+            ><button id="saveProject">Save project</button
+            ><button
+              id="copySvg"
+              title="Copy the selected slide as editable SVG"
+            >
+              Copy SVG</button
+            ><button id="export" class="primary">Export ↗</button>
+          </div>
+        </header>
+        <div class="canvas-toolbar">
+          <div class="row">
+            <span class="live-dot"></span><span id="sceneLabel">SCENE 01</span
+            ><span class="toolbar-divider"></span
+            ><span id="dimensions">1920 × 1080</span>
+          </div>
+          <label class="format-label"
+            >Format
+            <select id="format" aria-label="Canvas format">
+              <option value="wide">16:9 · Landscape</option>
+              <option value="portrait">9:16 · Vertical</option>
+              <option value="square">1:1 · Square</option>
+              <option value="social">4:5 · Social</option>
+            </select></label
+          >
+        </div>
+        <div class="stage-wrap" id="stageWrap">
+          <canvas
+            id="preview"
+            width="1280"
+            height="720"
+            aria-label="Video composition preview"
+          ></canvas>
+        </div>
+        <div class="transport">
+          <span class="micro preview-note"></span>
+          <div class="row">
+            <button id="restart" aria-label="Restart">↤</button
+            ><button id="play" class="play" aria-label="Play">▶</button
+            ><span id="timecode">00:00.00 / 00:15.00</span>
+          </div>
+          <label class="check loop-check"
+            ><input id="loop" type="checkbox" checked /> Loop</label
+          >
+        </div>
+        <section class="timeline" aria-label="Scene timeline">
+          <div class="timeline-heading">
+            <div class="row">
+              <strong>Storyboard</strong
+              ><span class="micro" id="sceneCount">3 scenes</span>
+            </div>
+            <div class="row">
+              <button
+                id="moveLeft"
+                aria-label="Move scene earlier"
+                title="Move scene earlier"
+              >
+                ←</button
+              ><button
+                id="moveRight"
+                aria-label="Move scene later"
+                title="Move scene later"
+              >
+                →</button
+              ><button id="duplicate">Duplicate</button
+              ><button id="deleteScene" aria-label="Delete scene">−</button
+              ><button id="addScene">＋ Add scene</button>
+            </div>
+          </div>
+          <div class="timeline-viewport" id="timelineViewport">
+            <div class="timeline-content" id="timelineContent">
+              <div
+                class="timeline-ruler"
+                id="timelineRuler"
+                aria-hidden="true"
+              ></div>
+              <input
+                id="scrub"
+                class="scrubber"
+                type="range"
+                min="0"
+                max="15"
+                step="0.01"
+                value="0"
+                aria-label="Timeline playhead"
+              />
+              <div
+                id="transitionTrack"
+                class="transition-track"
+                aria-label="Scene transitions"
+              ></div>
+              <div id="sceneTrack" class="scene-track"></div>
+              <div
+                class="timeline-playhead"
+                id="timelinePlayhead"
+                aria-hidden="true"
+              ></div>
+            </div>
+          </div>
+          <div class="timeline-settings">
+            <div class="row">
+              <label
+                >Duration
+                <input
+                  data-prop="duration"
+                  type="number"
+                  min="0.5"
+                  max="60"
+                  step="0.5"
+                />
+                s</label
+              ><span class="toolbar-divider"></span
+              ><label
+                >Transition in
+                <select data-prop="transition">
+                  <option value="cut">Cut</option>
+                  <option value="fade">Dissolve</option>
+                  <option value="wipe">Wipe</option>
+                  <option value="slide">Slide</option>
+                </select></label
+              >
+            </div>
+            <label class="timeline-zoom"
+              >Zoom
+              <select id="timelineZoom" aria-label="Timeline zoom">
+                <option value="0">Fit</option>
+                <option value="1" selected>1×</option>
+                <option value="2">2×</option>
+                <option value="4">4×</option>
+              </select>
+            </label>
+          </div>
+        </section>
+        <div id="status" role="status" aria-live="polite">
+          Start with a layout. Make it yours.
+        </div>
+      </main>
+    </div>
+    <input id="projectInput" type="file" accept=".json" hidden />
+    <input
+      id="dustPresetInput"
+      type="file"
+      accept=".json,application/json"
+      hidden
+    />
+    <dialog id="exportDialog" aria-labelledby="exportTitle">
+      <div class="dialog-heading">
+        <span class="micro"></span
+        ><button id="closeExport" aria-label="Close export">✕</button>
+      </div>
+      <h1 id="exportTitle">Export video</h1>
+      <p class="help">Export your whole film, or capture this exact moment.</p>
+      <label class="field"
+        >Output<select id="exportFormat">
+          <option value="mp4">MP4 video · H.264</option>
+          <option value="png">PNG · Current frame</option>
+          <option value="jpeg">JPG · Current frame</option>
+          <option value="svg">SVG · Selected slide</option>
+        </select></label
+      >
+      <div class="row">
+        <label class="field grow"
+          >Resolution<select id="resolution">
+            <option value="1080">1080p</option>
+            <option value="720">720p</option>
+            <option value="2160">4K</option>
+          </select></label
+        ><label class="field grow" id="fpsField"
+          >Frame rate<select id="fps">
+            <option value="30">30 fps</option>
+            <option value="24">24 fps</option>
+            <option value="60">60 fps</option>
+          </select></label
+        >
+      </div>
+      <p class="export-detail" id="exportDetail"></p>
+      <p class="help">
+        Video exports are silent. Media is included in saved project files.
+      </p>
+      <progress id="exportProgress" max="1" value="0" hidden></progress>
+      <p id="exportStatus" role="status" aria-live="polite"></p>
+      <div class="row">
+        <button id="startExport" class="primary grow">Export MP4 ↗</button
+        ><button id="cancelExport" hidden>Cancel</button>
+      </div>
+    </dialog>
+    <dialog id="svgDialog" aria-labelledby="svgTitle">
+      <button class="dialog-close" id="closeSvg" aria-label="Close SVG">
+        ✕
+      </button>
+      <h1 id="svgTitle">Slide SVG</h1>
+      <p class="help">
+        Copy the markup or download the file. Shapes and Focal text stay
+        editable; photos and video frames are embedded images.
+      </p>
+      <textarea
+        id="svgMarkup"
+        rows="8"
+        aria-label="SVG markup"
+        readonly
+      ></textarea>
+      <button id="downloadSvg" class="primary">Download SVG</button>
+    </dialog>
+    <dialog id="chartDialog" aria-labelledby="chartTitle">
+      <button
+        class="dialog-close"
+        id="closeChart"
+        aria-label="Close chart import"
+      >
+        ✕
+      </button>
+      <h1 id="chartTitle">Chart from screenshot</h1>
+      <p class="help">
+        Read the visible labels and values, then rebuild them in Focal. Review
+        the data before adding a slide.
+      </p>
+      <div class="chart-import-grid">
+        <div>
+          <label class="field"
+            >Reference<input
+              type="file"
+              id="chartImage"
+              accept="image/png,image/jpeg,image/webp"
+          /></label>
+          <div
+            id="chartDrop"
+            tabindex="0"
+            aria-label="Paste or drop a chart screenshot"
+          >
+            <img id="chartReference" alt="Chart reference" hidden /><span
+              id="chartDropHint"
+              >Drop or paste a screenshot</span
+            >
+          </div>
+          <p id="chartReadStatus" class="help" role="status">
+            Recognition runs locally on your Mac with the local server running.
+          </p>
+          <details>
+            <summary>Recognized text</summary>
+            <pre id="chartRaw"></pre>
+          </details>
+        </div>
+        <div>
+          <label class="field"
+            >Headline<input id="chartHeadline" maxlength="500"
+          /></label>
+          <div class="row">
+            <label class="field grow"
+              >Chart type<select id="chartLayout"></select
+            ></label>
+            <label class="field grow"
+              >Palette<select id="chartPalette">
+                <option value="house">White · purple</option>
+                <option value="blue">Lt blue · royal blue</option>
+                <option value="pink">Lt pink · red</option>
+                <option value="olive">Olive · yellow</option>
+                <option value="keep">Current palette</option>
+              </select></label
+            >
+          </div>
+          <label class="field"
+            >Labels and values<textarea
+              id="chartRows"
+              rows="6"
+              placeholder="Label | 42"
+              spellcheck="false"
+            ></textarea>
+          </label>
+          <div class="row">
+            <label class="field grow"
+              >Prefix<input id="chartPrefix" maxlength="12" /></label
+            ><label class="field grow"
+              >Unit / suffix<input id="chartSuffix" maxlength="12"
+            /></label>
+          </div>
+          <label class="field"
+            >Source / note<input
+              id="chartSource"
+              maxlength="500"
+              placeholder="Source and units, if available"
+          /></label>
+          <p id="chartReviewStatus" class="help" role="status"></p>
+          <canvas id="chartPreview" aria-label="Branded chart preview"></canvas>
+          <button id="applyChart" class="primary">Add chart slide</button>
+        </div>
+      </div>
+    </dialog>
+  </body>
+</html>
