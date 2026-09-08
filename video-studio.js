@@ -1,17 +1,17 @@
-import { createSvgContext } from "./video-svg.mjs?v=13";
-import { suggestChart, CHART_PALETTES } from "./video-chart-import.mjs?v=13";
+import { createSvgContext } from "./video-svg.mjs?v=14";
+import { suggestChart, CHART_PALETTES } from "./video-chart-import.mjs?v=14";
 import {
   EXTRA_LAYOUTS,
   DEFAULT_DATA,
   parseDataRows,
-} from "./video-layouts.mjs?v=13";
-import { timelineGeometry } from "./video-timeline.mjs?v=13";
-import { SWISS_DATA_LIMITS } from "./video-swiss.mjs?v=13";
+} from "./video-layouts.mjs?v=14";
+import { timelineGeometry } from "./video-timeline.mjs?v=14";
+import { SWISS_DATA_LIMITS } from "./video-swiss.mjs?v=14";
 import {
   DUST_PRESET_KEY,
   readDustPresets,
   applyDustPreset,
-} from "./video-presets.mjs?v=13";
+} from "./video-presets.mjs?v=14";
 import {
   FORMATS,
   LAYOUTS,
@@ -29,7 +29,7 @@ import {
   renderScene,
   renderFrame,
   outputSize,
-} from "./video-core.mjs?v=13";
+} from "./video-core.mjs?v=14";
 
 const $ = (id) => document.getElementById(id);
 const assets = new Map(),
@@ -706,11 +706,23 @@ function applyPalette(p) {
   current().promptFg = current().bg;
   changed({ controls: true });
 }
-function buildPalettes() {
+function suggestedPalettes() {
   const group = $("paletteGroup").value;
-  const list = paletteList.filter((p) => group === "all" || p.group === group);
+  return paletteList.filter((p) => {
+    // Count the ground too: a few shared "2-color" presets contain a third hue.
+    const count = new Set(
+      [p.bg, ...p.colors].filter(Boolean).map((c) => c.toLowerCase()),
+    ).size;
+    return (
+      (group === "all" || p.group === group) &&
+      ($("paletteSize").value === "all" || count === 2)
+    );
+  });
+}
+function buildPalettes() {
+  const list = suggestedPalettes();
   $("palettes").replaceChildren();
-  $("paletteCount").textContent = paletteList.length + " combinations";
+  $("paletteCount").textContent = list.length + " combinations";
   for (const p of list) {
     const btn = document.createElement("button");
     btn.className = "palette";
@@ -1408,12 +1420,10 @@ $("format").onchange = () => {
   changed();
 };
 $("paletteGroup").onchange = buildPalettes;
+$("paletteSize").onchange = buildPalettes;
 $("shufflePalette").onclick = () => {
-  const list = paletteList.filter(
-    (p) =>
-      $("paletteGroup").value === "all" || p.group === $("paletteGroup").value,
-  );
-  applyPalette(list[Math.floor(Math.random() * list.length)]);
+  const list = suggestedPalettes();
+  if (list.length) applyPalette(list[Math.floor(Math.random() * list.length)]);
 };
 $("applyColors").onclick = () => {
   checkpoint();

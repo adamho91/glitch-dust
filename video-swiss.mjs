@@ -2,7 +2,7 @@ import {
   GRID_LAYOUTS,
   GRID_DATA_LIMITS,
   renderGridLayout,
-} from "./video-grid-layouts.mjs?v=13";
+} from "./video-grid-layouts.mjs?v=14";
 export const SWISS_LAYOUTS = [
   ...GRID_LAYOUTS,
   ["chapter", "Chapter", "type"],

@@ -1,8 +1,8 @@
 <!doctype html><html lang="en"><meta charset="utf-8"><title>SVG rendering checks</title>
 <style>@font-face{font-family:'Focal Upright';src:url('../Focal-Upright-VF_wght.ttf');font-weight:100 900}body{background:#222;color:white;font:16px 'Focal Upright';margin:24px}section{display:grid;grid-template-columns:1fr 1fr;gap:16px}canvas,img{width:100%}h2{grid-column:span 2}</style><h1>Canvas / SVG</h1><nav><a href="?format=wide">Landscape</a> · <a href="?format=portrait">Portrait</a> · <a href="?format=square">Square</a></nav><p id="status">Checking…</p><main></main>
 <script type="module">
-import {createScene,renderScene,LAYOUTS,FORMATS} from '../video-core.mjs?v=13';
-import {createSvgContext} from '../video-svg.mjs?v=13';
+import {createScene,renderScene,LAYOUTS,FORMATS} from '../video-core.mjs?v=14';
+import {createSvgContext} from '../video-svg.mjs?v=14';
 await document.fonts.load('500 48px "Focal Upright"');await document.fonts.load('400 48px "Focal Upright"');
 const bytes=new Uint8Array(await (await fetch('../Focal-Upright-VF_wght.ttf')).arrayBuffer());
 let binary='';for(const byte of bytes)binary+=String.fromCharCode(byte);

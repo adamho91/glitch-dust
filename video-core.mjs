@@ -1,19 +1,19 @@
-import { pixelAlignedRect } from "./video-pixel-grid.mjs?v=13";
+import { pixelAlignedRect } from "./video-pixel-grid.mjs?v=14";
 import {
   EXTRA_LAYOUTS,
   DEFAULT_DATA,
   renderExtraLayout,
-} from "./video-layouts.mjs?v=13";
-import { diffusionNodes } from "./video-diffusion.mjs?v=13";
+} from "./video-layouts.mjs?v=14";
+import { diffusionNodes } from "./video-diffusion.mjs?v=14";
 import {
   measureTextZones,
   nodeOverlapsText,
-} from "./video-text-clear.mjs?v=13";
+} from "./video-text-clear.mjs?v=14";
 import {
   MOTION_SECONDS,
   easeOutQuad as ease,
   easeInOutQuad,
-} from "./video-motion.mjs?v=13";
+} from "./video-motion.mjs?v=14";
 // Shared deterministic scene model and renderer. Preview and exports use the same timebase.
 export const FORMATS = {
   wide: [1280, 720],
@@ -44,9 +44,9 @@ export const DEFAULTS = {
   transition: "cut",
   paletteId: "2-i",
   bg: "#004012",
-  fg: "#C8FF66",
+  fg: "#ADFF00",
   accent: "#ADFF00",
-  colors: ["#C8FF66", "#ADFF00", "#99EDFF"],
+  colors: ["#ADFF00"],
   pattern: "dust",
   patternExplicit: false,
   clearPattern: true,
@@ -66,7 +66,7 @@ export const DEFAULTS = {
   waveRipples: 15,
   fadeDirection: "right",
   promptSize: 32,
-  promptBg: "#C8FF66",
+  promptBg: "#ADFF00",
   promptFg: "#004012",
   promptPadding: 4,
   promptGap: 4,
@@ -130,7 +130,9 @@ export function starterProject() {
         bg: "#C5E9FF",
         fg: "#115EF3",
         accent: "#115EF3",
-        colors: ["#115EF3", "#99EDFF", "#004012"],
+        colors: ["#115EF3"],
+        promptBg: "#115EF3",
+        promptFg: "#C5E9FF",
         paletteId: "2-m",
         seed: 1306,
         fontSize: 102,
@@ -143,9 +145,11 @@ export function starterProject() {
         body: "Make your next idea a moving one.",
         bg: "#5718C0",
         fg: "#D5BBFF",
-        accent: "#ADFF00",
-        colors: ["#D5BBFF", "#AB77FF", "#ADFF00"],
-        paletteId: "5-q",
+        accent: "#D5BBFF",
+        colors: ["#D5BBFF"],
+        promptBg: "#D5BBFF",
+        promptFg: "#5718C0",
+        paletteId: "2-aa",
         seed: 901,
         fontSize: 132,
         align: "center",

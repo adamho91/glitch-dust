@@ -1,8 +1,8 @@
 <!doctype html><html lang="en"><meta charset="utf-8"><title>Diffusion seam checks</title>
 <style>body{font:16px sans-serif;background:#222;color:#fff;margin:24px}main{display:grid;grid-template-columns:1fr 1fr;gap:20px}canvas{width:100%}h2{font-size:16px}</style><h1>Overlapping square edges</h1><p id="result">Checking…</p><main></main>
 <script type="module">
-import {createScene,renderScene} from '../video-core.mjs?v=13';
-import {diffusionNodes} from '../video-diffusion.mjs?v=13';
+import {createScene,renderScene} from '../video-core.mjs?v=14';
+import {diffusionNodes} from '../video-diffusion.mjs?v=14';
 const scene=createScene({title:'',body:'',pattern:'dust',opacity:100,bg:'#ffffff',colors:['#115ef3','#c5e9ff','#ffffff'],primitive:'squares',scale:53,shapeMin:100,shapeMax:100,megaRarity:50,megaTiers:[2,3,4],density:100,maxNodes:2000,fadeDirection:'none',sweepDepth:0,waveRipples:0,clearPattern:false,clearGraphics:false});
 const palette=new Set(['255,255,255','17,94,243','197,233,255']);
 const results=[];
