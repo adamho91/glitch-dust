@@ -1,4 +1,4 @@
-import { duration, transitionLength } from "./video-core.mjs?v=21";
+import { duration, transitionLength, usesMediaFlow } from "./video-core.mjs?v=22";
 
 export function timelineGeometry(project, viewport, zoom = 0) {
   const total = duration(project);
@@ -10,7 +10,8 @@ export function timelineGeometry(project, viewport, zoom = 0) {
       start,
       left: start * scale,
       width: scene.duration * scale,
-      transition: index ? transitionLength(scene) : 0,
+      transition: index ? transitionLength(scene, project.scenes[index - 1]) : 0,
+      mediaFlow: usesMediaFlow(project.scenes[index - 1], scene),
     };
     start += scene.duration;
     return segment;

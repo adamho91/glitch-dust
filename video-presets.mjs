@@ -1,4 +1,4 @@
-import { normalizeProject } from "./video-core.mjs?v=21";
+import { normalizeProject } from "./video-core.mjs?v=22";
 export const DUST_PRESET_KEY = "falGlitchDustPresets_v1";
 const hex = (v) => typeof v === "string" && /^#[\da-f]{6}$/i.test(v);
 

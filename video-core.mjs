@@ -1,19 +1,19 @@
-import { pixelAlignedRect } from "./video-pixel-grid.mjs?v=21";
+import { pixelAlignedRect } from "./video-pixel-grid.mjs?v=22";
 import {
   EXTRA_LAYOUTS,
   DEFAULT_DATA,
   renderExtraLayout,
-} from "./video-layouts.mjs?v=21";
-import { diffusionNodes } from "./video-diffusion.mjs?v=21";
+} from "./video-layouts.mjs?v=22";
+import { diffusionNodes } from "./video-diffusion.mjs?v=22";
 import {
   measureTextZones,
   nodeOverlapsText,
-} from "./video-text-clear.mjs?v=21";
+} from "./video-text-clear.mjs?v=22";
 import {
   MOTION_SECONDS,
   easeOutQuad as ease,
   easeInOutQuad,
-} from "./video-motion.mjs?v=21";
+} from "./video-motion.mjs?v=22";
 // Shared deterministic scene model and renderer. Preview and exports use the same timebase.
 export const FORMATS = {
   wide: [1280, 720],
@@ -96,6 +96,7 @@ export const DEFAULTS = {
   mediaDim: 15,
   mediaStart: 0,
   mediaLoop: true,
+  mediaFlow: true,
 };
 export const clamp = (n, a, b) => Math.min(b, Math.max(a, n));
 export const defaultPattern = (layout) =>
@@ -250,6 +251,7 @@ export function normalizeProject(input) {
         "uppercase",
         "footer",
         "mediaLoop",
+        "mediaFlow",
         "promptReveal",
         "clearPattern",
         "clearGraphics",
@@ -298,17 +300,35 @@ export function locate(p, time) {
 }
 export function transitionAt(p, time) {
   const at = locate(p, time);
-  const length = transitionLength(at.scene);
+  const previous = p.scenes[at.index - 1];
+  const sharedMedia = usesMediaFlow(previous, at.scene);
+  const length = transitionLength(at.scene, previous);
   return {
     ...at,
+    sharedMedia,
     blend:
-      at.index > 0 && at.scene.transition !== "cut" && at.local < length
+      at.index > 0 && at.local < length
         ? at.local / length
         : 1,
   };
 }
-export const transitionLength = (scene) =>
-  scene.transition === "cut" ? 0 : Math.min(MOTION_SECONDS, scene.duration / 3);
+export const usesMediaFlow = (previous, scene) =>
+  Boolean(previous?.mediaId && previous.mediaId === scene.mediaId && scene.mediaFlow !== false);
+export const transitionLength = (scene, previous) =>
+  scene.transition === "cut" && !usesMediaFlow(previous, scene)
+    ? 0 : Math.min(MOTION_SECONDS, scene.duration / 3);
+// Reusing the same trim and loop settings continues the clip across the whole run.
+// Changing either setting deliberately starts a new playback run.
+export function mediaSequenceStart(p, index) {
+  while (index > 0 && usesMediaFlow(p.scenes[index - 1], p.scenes[index]) &&
+    p.scenes[index - 1].mediaStart === p.scenes[index].mediaStart &&
+    p.scenes[index - 1].mediaLoop === p.scenes[index].mediaLoop) index--;
+  return index;
+}
+export function mediaElapsed(p, index, local) {
+  const start = mediaSequenceStart(p, index);
+  return local + p.scenes.slice(start, index).reduce((sum, scene) => sum + scene.duration, 0);
+}
 export function mediaTime(scene, local, clipDuration) {
   if (!Number.isFinite(clipDuration) || clipDuration <= 0) return 0;
   const end = Math.max(0, clipDuration - 0.04),
@@ -381,10 +401,19 @@ export function mediaGeometry(s, rect, iw, ih) {
   };
 }
 function media(ctx, s, asset, rect) {
+  if (s.mediaMotion) return;
   const el = asset?.element;
   const iw = el?.videoWidth || el?.naturalWidth;
   const ih = el?.videoHeight || el?.naturalHeight;
   const geometry = iw && ih ? mediaGeometry(s, rect, iw, ih) : null;
+  if (s.collectMediaGeometry) {
+    if (geometry) s.collectMediaGeometry(geometry);
+    return;
+  }
+  paintMedia(ctx, s, asset, geometry, rect);
+}
+function paintMedia(ctx, s, asset, geometry, rect = geometry.frame) {
+  const el = asset?.element;
   const [x, y, w, h] = geometry?.frame || rect;
   ctx.save();
   ctx.beginPath();
@@ -610,7 +639,8 @@ export function renderScene(ctx, s, t, w, h, asset, index = 0) {
     s.pattern !== "none" &&
     s.opacity > 0
   ) {
-    const key = JSON.stringify([s, w, h, Boolean(asset)]);
+    const {mediaMotion, onMediaBounds, collectMediaGeometry, ...zoneScene} = s;
+    const key = JSON.stringify([zoneScene, w, h, Boolean(asset)]);
     let zones = textZoneCache.get(key);
     if (!zones) {
       const padding = ((s.scale + 8) * Math.min(w, h)) / 720;
@@ -618,6 +648,8 @@ export function renderScene(ctx, s, t, w, h, asset, index = 0) {
       const clean = {
         ...s,
         onMediaBounds: undefined,
+        collectMediaGeometry: undefined,
+        mediaMotion: undefined,
         clearPattern: false,
         clearGraphics: false,
         graphicClearZones: s.clearGraphics ? graphicZones : undefined,
@@ -661,12 +693,20 @@ export function renderScene(ctx, s, t, w, h, asset, index = 0) {
   ctx.save();
   ctx.fillStyle = s.bg;
   ctx.fillRect(0, 0, w, h);
+  const paintMediaMotion = () => {
+    if (!s.mediaMotion) return;
+    for (const geometry of s.mediaMotion.geometries)
+      paintMedia(ctx, {...s, mediaDim: s.mediaMotion.dim}, s.mediaMotion.asset, geometry);
+  };
+  if (!EXTRA_LAYOUTS.some(([id, , group]) => id === s.layout && group === "media"))
+    paintMediaMotion();
   if (
     renderExtraLayout(ctx, s, t, w, h, asset, {
       headline,
       drawPrompt,
       media,
       pattern,
+      paintMediaMotion,
       reserveGraphic: (rect) => s.graphicClearZones?.push(rect),
     })
   ) {
@@ -804,15 +844,53 @@ export function renderScene(ctx, s, t, w, h, asset, index = 0) {
     );
   ctx.restore();
 }
+// Query the real layout renderer so media flow also follows adapted frames and two-crop layouts.
+const mediaGeometryCache = new Map();
+function sceneMediaGeometry(ctx, scene, w, h, asset) {
+  const el = asset?.element;
+  const iw = el?.videoWidth || el?.naturalWidth, ih = el?.videoHeight || el?.naturalHeight;
+  if (!iw || !ih) return [];
+  const key = JSON.stringify([scene, w, h, iw, ih]);
+  if (mediaGeometryCache.has(key)) return mediaGeometryCache.get(key);
+  const geometries = [];
+  measureTextZones(ctx, probe => renderScene(probe, {
+    ...scene, pattern: "none", clearPattern: false, clearGraphics: false,
+    onMediaBounds: undefined, collectMediaGeometry: g => geometries.push(g),
+  }, 10, w, h, asset), 0, false);
+  if (mediaGeometryCache.size >= 32) mediaGeometryCache.delete(mediaGeometryCache.keys().next().value);
+  mediaGeometryCache.set(key, geometries);
+  return geometries;
+}
+export function interpolateMediaGeometry(from, to, progress) {
+  const mix = (a, b) => a + (b - a) * progress;
+  return {frame: from.frame.map((n, i) => mix(n, to.frame[i])),
+    image: from.image.map((n, i) => mix(n, to.image[i]))};
+}
 export function renderFrame(canvas, p, time, assets, newLayer, onMediaBounds) {
   const ctx = canvas.getContext("2d"),
     [w, h] = FORMATS[p.format],
     at = transitionAt(p, time);
-  const activeScene = onMediaBounds ? {...at.scene, onMediaBounds} : at.scene;
+  let activeScene = onMediaBounds ? {...at.scene, onMediaBounds} : at.scene;
   ctx.save();
   ctx.scale(canvas.width / w, canvas.height / h);
   if (at.blend < 1) {
-    const prev = p.scenes[at.index - 1];
+    let prev = p.scenes[at.index - 1];
+    const blend = easeInOutQuad(at.blend);
+    const previousAsset = assets.get(prev.id) || assets.get(prev.mediaId);
+    const activeAsset = assets.get(at.scene.id) || assets.get(at.scene.mediaId);
+    if (at.sharedMedia) {
+      const from = sceneMediaGeometry(ctx, prev, w, h, previousAsset);
+      const to = sceneMediaGeometry(ctx, at.scene, w, h, activeAsset);
+      if (from.length && from.length === to.length) {
+        const mediaMotion = {
+          geometries: from.map((g, i) => interpolateMediaGeometry(g, to[i], blend)),
+          dim: prev.mediaDim + (at.scene.mediaDim - prev.mediaDim) * blend,
+          asset: activeAsset,
+        };
+        prev = {...prev, mediaMotion};
+        activeScene = {...activeScene, mediaMotion};
+      }
+    }
     renderScene(
       ctx,
       prev,
@@ -823,16 +901,16 @@ export function renderFrame(canvas, p, time, assets, newLayer, onMediaBounds) {
       at.index - 1,
     );
     ctx.save();
-    const blend = easeInOutQuad(at.blend);
-    if (at.scene.transition === "fade") ctx.globalAlpha = blend;
-    if (at.scene.transition === "wipe") {
+    const dissolve = at.sharedMedia || at.scene.transition === "fade";
+    if (dissolve) ctx.globalAlpha = blend;
+    if (!at.sharedMedia && at.scene.transition === "wipe") {
       ctx.beginPath();
       ctx.rect(0, 0, w * blend, h);
       ctx.clip();
     }
-    if (at.scene.transition === "slide") ctx.translate(w * (1 - blend), 0);
+    if (!at.sharedMedia && at.scene.transition === "slide") ctx.translate(w * (1 - blend), 0);
     // Dissolve a flattened scene to avoid separately blending its background and elements.
-    if (at.scene.transition === "fade" && newLayer) {
+    if (dissolve && newLayer) {
       newLayer.width = canvas.width;
       newLayer.height = canvas.height;
       const lc = newLayer.getContext("2d");

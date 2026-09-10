@@ -1,17 +1,17 @@
-import { createSvgContext } from "./video-svg.mjs?v=21";
-import { suggestChart, CHART_PALETTES } from "./video-chart-import.mjs?v=21";
+import { createSvgContext } from "./video-svg.mjs?v=22";
+import { suggestChart, CHART_PALETTES } from "./video-chart-import.mjs?v=22";
 import {
   EXTRA_LAYOUTS,
   DEFAULT_DATA,
   parseDataRows,
-} from "./video-layouts.mjs?v=21";
-import { timelineGeometry } from "./video-timeline.mjs?v=21";
-import { SWISS_DATA_LIMITS } from "./video-swiss.mjs?v=21";
+} from "./video-layouts.mjs?v=22";
+import { timelineGeometry } from "./video-timeline.mjs?v=22";
+import { SWISS_DATA_LIMITS } from "./video-swiss.mjs?v=22";
 import {
   DUST_PRESET_KEY,
   readDustPresets,
   applyDustPreset,
-} from "./video-presets.mjs?v=21";
+} from "./video-presets.mjs?v=22";
 import {
   FORMATS,
   LAYOUTS,
@@ -26,10 +26,12 @@ import {
   locate,
   transitionAt,
   mediaTime,
+  mediaSequenceStart,
+  mediaElapsed,
   renderScene,
   renderFrame,
   outputSize,
-} from "./video-core.mjs?v=21";
+} from "./video-core.mjs?v=22";
 
 const $ = (id) => document.getElementById(id);
 const assets = new Map(),
@@ -324,10 +326,15 @@ new ResizeObserver(fitCanvas).observe($("stageWrap"));
 function clock(t) {
   return `${String(Math.floor(t / 60)).padStart(2, "0")}:${(t % 60).toFixed(2).padStart(5, "0")}`;
 }
+function videoKey(s) {
+  const index = project.scenes.findIndex(scene => scene.id === s.id);
+  return project.scenes[mediaSequenceStart(project, index)]?.id || s.id;
+}
 function getVideo(s) {
   const a = assets.get(s.mediaId);
   if (a?.kind !== "video") return null;
-  let instance = videoInstances.get(s.id);
+  const key = videoKey(s);
+  let instance = videoInstances.get(key);
   if (!instance || instance.assetId !== a.id || instance.url !== a.url) {
     if (instance) {
       instance.element.pause();
@@ -341,20 +348,20 @@ function getVideo(s) {
     el.preload = "auto";
     el.load();
     instance = { ...a, element: el, assetId: a.id };
-    videoInstances.set(s.id, instance);
+    videoInstances.set(key, instance);
   }
   return instance;
 }
 function renderAssets() {
   const map = new Map(assets);
   for (const scene of project.scenes) {
-    const a = videoInstances.get(scene.id);
+    const a = videoInstances.get(videoKey(scene));
     if (a && a.assetId === scene.mediaId && assets.has(a.assetId)) map.set(scene.id, a);
   }
   return map;
 }
 function draw() {
-  // renderFrame looks up per-scene video elements, allowing a dissolve between two uses of one clip.
+  // Consecutive scenes share a video element when their clip settings continue playback.
   mediaRegions = [];
   renderFrame(canvas, project, time, renderAssets(), transitionCanvas,
     (rect) => mediaRegions.push(rect));
@@ -390,7 +397,8 @@ function togglePlay() {
 function syncPreviewMedia() {
   const at = transitionAt(project, time),
     active = new Map([[at.scene.id, { s: at.scene, t: at.local }]]);
-  if (at.blend < 1) {
+  if (at.blend < 1 && (!at.sharedMedia ||
+      videoKey(at.scene) !== videoKey(project.scenes[at.index - 1]))) {
     const prev = project.scenes[at.index - 1];
     active.set(prev.id, { s: prev, t: Math.max(0, prev.duration - 1 / 60) });
   }
@@ -399,7 +407,7 @@ function syncPreviewMedia() {
     if (!a) continue;
     const v = a.element;
     if (v.readyState < 2) continue;
-    const target = mediaTime(s, t, v.duration);
+    const target = mediaTime(s, mediaElapsed(project, project.scenes.indexOf(s), t), v.duration);
     if (
       !v.seeking &&
       Math.abs(v.currentTime - target) > (playing ? 0.16 : 0.015)
@@ -410,7 +418,8 @@ function syncPreviewMedia() {
       if (v.paused) v.play().catch(() => {});
     } else v.pause();
   }
-  for (const [id, a] of videoInstances) if (!active.has(id)) a.element.pause();
+  const activeKeys = new Set([...active.values()].map(({s}) => videoKey(s)));
+  for (const [id, a] of videoInstances) if (!activeKeys.has(id)) a.element.pause();
 }
 function tick(now) {
   if (!busy) {
@@ -491,7 +500,7 @@ function renderTimeline() {
       card.classList.toggle("compact", segment.width < 100);
     }
     if (!i) return;
-    const name = names[project.scenes[i].transition];
+    const name = segment.mediaFlow ? "Media flow" : names[project.scenes[i].transition];
     const marker = document.createElement("button");
     marker.className = "transition-marker";
     marker.style.left = `${segment.left}px`;
@@ -540,7 +549,7 @@ function thumb(c, s, index = 0) {
     Math.min(1, s.duration * 0.5),
     w,
     h,
-    videoInstances.get(s.id) || assets.get(s.mediaId),
+    renderAssets().get(s.id) || assets.get(s.mediaId),
     index,
   );
 }
@@ -1109,7 +1118,7 @@ async function seekVideo(s, local) {
   const v = a.element;
   v.pause();
   if (v.readyState < 2) await eventReady(v, "loadeddata");
-  const target = mediaTime(s, local, v.duration);
+  const target = mediaTime(s, mediaElapsed(project, project.scenes.indexOf(s), local), v.duration);
   if (Math.abs(v.currentTime - target) < 0.0001 && !v.seeking) return;
   const wait = eventReady(v, "seeked");
   v.currentTime = target;
@@ -1118,7 +1127,8 @@ async function seekVideo(s, local) {
 async function prepareFrame(t) {
   const at = transitionAt(project, t);
   await seekVideo(at.scene, at.local);
-  if (at.blend < 1) {
+  if (at.blend < 1 && (!at.sharedMedia ||
+      videoKey(at.scene) !== videoKey(project.scenes[at.index - 1]))) {
     const prev = project.scenes[at.index - 1];
     await seekVideo(prev, Math.max(0, prev.duration - 1 / 60));
   }

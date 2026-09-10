@@ -1,6 +1,6 @@
 // Data and editorial layouts use the same Focal text and square primitives as the editor.
-import { easeOutQuad as ease } from "./video-motion.mjs?v=21";
-import { SWISS_LAYOUTS, renderSwissLayout } from "./video-swiss.mjs?v=21";
+import { easeOutQuad as ease } from "./video-motion.mjs?v=22";
+import { SWISS_LAYOUTS, renderSwissLayout } from "./video-swiss.mjs?v=22";
 export const EXTRA_LAYOUTS = [
   ["big-stat", "Big stat", "data"],
   ["stat-grid", "Stat grid", "data"],
@@ -149,6 +149,8 @@ export function renderExtraLayout(ctx, s, t, w, h, asset, helpers) {
   )
     media(ctx, s, asset, [0, 0, w, h]);
   pattern(ctx, s, t, w, h);
+  if (SWISS_LAYOUTS.some(([id, , group]) => id === s.layout && group === "media"))
+    helpers.paintMediaMotion?.();
   if (
     renderSwissLayout(
       ctx,

@@ -16,6 +16,9 @@ import {
   transitionAt,
   mediaTime,
   mediaGeometry,
+  mediaElapsed,
+  mediaSequenceStart,
+  interpolateMediaGeometry,
   renderScene,
   outputSize,
   random,
@@ -427,4 +430,54 @@ test("chart rows validate numbers, bounds, and limits without inventing missing 
   });
   assert.deepEqual(chartDomain([{ value: 0 }]), { low: 0, high: 1 });
   assert.deepEqual(chartDomain([{ value: 200 }], 100), { low: 0, high: 200 });
+});
+
+
+test("shared media flows automatically, with an opt-out and bounded storyboard timing", () => {
+  const p = {version:1, format:"wide", scenes:[createScene({mediaId:"clip"}), createScene({mediaId:"clip"})]};
+  assert.equal(transitionAt(p, 5).blend, 0);
+  assert.equal(transitionAt(p, 5).sharedMedia, true);
+  assert.ok(Math.abs(transitionAt(p, 5.3).blend - .5) < 1e-10);
+  assert.equal(transitionAt(p, 5.61).blend, 1);
+  assert.equal(timelineGeometry(p, 800).segments[1].transition, .6);
+  assert.equal(timelineGeometry(p, 800).segments[1].mediaFlow, true);
+  p.scenes[1].duration = .5;
+  assert.equal(timelineGeometry(p, 800).segments[1].transition, .5 / 3);
+  p.scenes[1].mediaFlow = false;
+  assert.equal(transitionAt(p, 5).blend, 1);
+  assert.equal(normalizeProject(p).scenes[1].mediaFlow, false);
+  p.scenes[1].mediaFlow = true;
+  p.scenes[1].mediaId = "other";
+  assert.equal(transitionAt(p, 5).sharedMedia, false);
+  assert.equal(transitionAt(p, 5).blend, 1);
+});
+
+test("reused video follows one clock across scenes, trims, loop and hold", () => {
+  const p = {scenes:[0,1,2].map(() => createScene({mediaId:"clip", duration:3, mediaStart:2}))};
+  assert.equal(mediaSequenceStart(p, 2), 0);
+  assert.equal(mediaElapsed(p, 2, .3), 6.3);
+  assert.equal(mediaTime(p.scenes[1], mediaElapsed(p, 1, 0), 20), 5);
+  assert.equal(mediaTime(p.scenes[2], mediaElapsed(p, 2, 0), 7), 3);
+  for (const scene of p.scenes) scene.mediaLoop = false;
+  assert.equal(mediaTime(p.scenes[2], mediaElapsed(p, 2, 0), 7), 6.96);
+  p.scenes[1].mediaStart = 1;
+  assert.equal(mediaSequenceStart(p, 1), 1);
+  assert.equal(mediaElapsed(p, 1, .4), .4);
+  p.scenes[1].mediaStart = 2;
+  p.scenes[1].mediaFlow = false;
+  assert.equal(mediaSequenceStart(p, 2), 1);
+  assert.equal(mediaElapsed(p, 2, .4), 3.4);
+});
+
+test("media morph preserves source aspect ratio while interpolating frame, crop and zoom", () => {
+  const from = mediaGeometry(createScene({mediaFit:"contain"}), [0,0,1280,720], 1600,900);
+  const to = mediaGeometry(createScene({mediaFit:"adapt",mediaZoom:160,mediaX:10}), [500,50,300,620], 1600,900);
+  assert.deepEqual(interpolateMediaGeometry(from,to,0), from);
+  const end = interpolateMediaGeometry(from,to,1);
+  for (const key of ["frame","image"]) end[key].forEach((n,i) => assert.ok(Math.abs(n-to[key][i])<1e-9));
+  for (const t of [.1,.5,.9]) {
+    const g = interpolateMediaGeometry(from,to,t);
+    assert.ok(Math.abs(g.image[2]/g.image[3]-1600/900)<1e-10);
+    assert.ok(g.frame[0]>from.frame[0] && g.frame[0]<to.frame[0]);
+  }
 });

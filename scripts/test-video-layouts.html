@@ -2,11 +2,11 @@
 <style>@font-face{font-family:Focal;src:url('../Focal-Upright-VF_wght.ttf');font-weight:100 900}@font-face{font-family:'Focal Upright';src:url('../Focal-Upright-VF_wght.ttf');font-weight:100 900}body{margin:20px;background:#222;color:#ddd;font-family:Focal}button{font:inherit;padding:8px;margin-right:8px}main{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}canvas{width:100%;max-height:230px;object-fit:contain;display:block;background:#111}h2{font-size:16px;font-weight:400}nav{margin-bottom:20px}</style>
 <nav><button data-format="wide">Landscape</button><button data-format="portrait">Vertical</button><button data-format="square">Square</button></nav><label>Layouts <select id="family"><option value="new">New layouts</option><option value="all">All</option><option value="type">Swiss type</option><option value="media">Swiss media</option><option value="data">Swiss data</option></select></label><p id="opacityCheck"></p><main></main>
 <script type="module">
-import { createScene, renderScene, FORMATS } from '../video-core.mjs?v=21';
-import { diffusionNodes } from '../video-diffusion.mjs?v=21';
-import { SWISS_LAYOUTS } from '../video-swiss.mjs?v=21';
-import { GRID_LAYOUTS } from '../video-grid-layouts.mjs?v=21';
-import { EXTRA_LAYOUTS } from '../video-layouts.mjs?v=21';
+import { createScene, renderScene, FORMATS } from '../video-core.mjs?v=22';
+import { diffusionNodes } from '../video-diffusion.mjs?v=22';
+import { SWISS_LAYOUTS } from '../video-swiss.mjs?v=22';
+import { GRID_LAYOUTS } from '../video-grid-layouts.mjs?v=22';
+import { EXTRA_LAYOUTS } from '../video-layouts.mjs?v=22';
 await document.fonts.load('400 48px "Focal Upright"');await document.fonts.load('500 48px "Focal Upright"');
 const examples={
 'numbered-story':{eyebrow:'01'},

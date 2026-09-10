@@ -1,0 +1,43 @@
+<!doctype html><meta charset="utf-8"><title>Media flow checks</title>
+<style>body{background:#181818;color:#eee;font:16px system-ui;margin:24px}canvas{max-width:700px;width:100%;display:block;margin:16px 0}button{padding:12px}#status{max-width:1000px}</style>
+<h1>Media flow</h1><p id="status">Checking…</p><button id="play">Play transition</button><button id="fixture">Download video test project</button><main></main>
+<script type="module">
+import {createScene,renderFrame,FORMATS} from '../video-core.mjs?v=22';
+import {Muxer,ArrayBufferTarget} from '../vendor/mp4-muxer.mjs';
+const source=document.createElement('canvas');source.width=640;source.height=360;
+const sc=source.getContext('2d');sc.fillStyle='#115ef3';sc.fillRect(0,0,640,360);sc.fillStyle='#99edff';sc.fillRect(80,60,480,240);
+const image=new Image();image.src=source.toDataURL();await image.decode();
+const assets=new Map([['media',{element:image}]]),results=[];
+function scene(layout,extra={}){return createScene({layout,mediaId:'media',title:'',body:'',eyebrow:'',animation:'none',pattern:'none',mediaDim:0,bg:'#ffffff',...extra})}
+function canvas(w,h){const c=document.createElement('canvas');c.width=w;c.height=h;return c}
+function difference(a,b){let sum=0;for(let i=0;i<a.length;i++)sum+=Math.abs(a[i]-b[i]);return sum/(a.length*255)}
+for(const pattern of ['none','dust']) for(const format of Object.keys(FORMATS)) for(const [first,last] of [['hero','split'],['editorial','media-left'],['media-window','media-band'],['media-crops','media-crops'],['media-crops','media-right']]) {
+ const [w,h]=FORMATS[format],out=canvas(w,h),layer=canvas(w,h),ref=canvas(w,h);
+ const p={format,scenes:[scene(first,{mediaFit:'contain',pattern,speed:0,clearPattern:false,clearGraphics:false}),scene(last,{mediaFit:'adapt',mediaZoom:130,mediaDim:30,transition:'slide',pattern,speed:0,clearPattern:false,clearGraphics:false})]};
+ renderFrame(out,p,5,assets,layer);renderFrame(ref,{format,scenes:[p.scenes[0]]},4.99,assets,layer);
+ const a=out.getContext('2d').getImageData(0,0,w,h).data,b=ref.getContext('2d').getImageData(0,0,w,h).data;
+ const start=difference(a,b)<.001;
+ renderFrame(out,p,5.59999,assets,layer);renderFrame(ref,p,5.61,assets,layer);
+ const endError=difference(out.getContext('2d').getImageData(0,0,w,h).data,ref.getContext('2d').getImageData(0,0,w,h).data);const end=endError<.001;
+ if(!end){const title=document.createElement('h2');title.textContent=`${format} ${first} → ${last} ${endError}`;document.querySelector('main').append(title,out,ref)}
+ const bounds=[];renderFrame(out,p,5.3,assets,layer,r=>bounds.push(r));
+ const middle=bounds.length>0&&bounds.every(r=>Object.values(r).every(Number.isFinite)&&r.width>0&&r.height>0);
+ results.push(`${format} ${pattern} ${first} → ${last}: ${start&&end&&middle?'PASS':'FAIL'} (start ${start}, end ${end}, middle ${middle})`);
+}
+document.querySelector('#status').textContent=results.join(' · ');
+const preview=canvas(1280,720),layer=canvas(1280,720);
+document.querySelector('main').append(preview);
+const demo={format:'wide',scenes:[scene('hero'),scene('split',{mediaFit:'adapt',mediaZoom:130})]};
+renderFrame(preview,demo,5.3,assets,layer);
+document.querySelector('#play').onclick=()=>{const start=performance.now();function tick(now){const t=4.7+(now-start)/1000;renderFrame(preview,demo,Math.min(t,6),assets,layer);if(t<6)requestAnimationFrame(tick)}requestAnimationFrame(tick)};
+document.querySelector('#fixture').onclick=async()=>{
+ const target=new ArrayBufferTarget(),muxer=new Muxer({target,video:{codec:'avc',width:640,height:360},fastStart:'in-memory'});
+ const encoder=new VideoEncoder({output:(chunk,meta)=>muxer.addVideoChunk(chunk,meta),error:e=>{throw e}});
+ encoder.configure({codec:'avc1.42001f',width:640,height:360,framerate:10,bitrate:1000000,avc:{format:'avc'}});
+ for(let i=0;i<60;i++) {sc.fillStyle=i<30?'#115ef3':'#004012';sc.fillRect(0,0,640,360);sc.fillStyle='#adff00';sc.fillRect(i*8,100,100,100);const frame=new VideoFrame(source,{timestamp:i*100000,duration:100000});encoder.encode(frame,{keyFrame:i%10===0});frame.close()}
+ await encoder.flush();encoder.close();muxer.finalize();
+ const blob=new Blob([target.buffer],{type:'video/mp4'}),reader=new FileReader();reader.readAsDataURL(blob);await new Promise(resolve=>reader.onload=resolve);
+ const project={version:1,name:'Media flow verification',format:'wide',scenes:[scene('hero',{duration:3}),scene('split',{duration:3,mediaFit:'adapt'})],media:[{id:'media',name:'Flow clip.mp4',kind:'video',data:reader.result}],fonts:[]};
+ const link=document.createElement('a');link.href=URL.createObjectURL(new Blob([JSON.stringify(project)],{type:'application/json'}));link.download='media-flow-test.fal-video.json';link.click();document.querySelector('#fixture').textContent='Test project downloaded';
+};
+</script>
