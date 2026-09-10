@@ -7,11 +7,11 @@
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="ui-theme.css" />
     <link rel="stylesheet" href="app-nav.css" />
-    <link rel="stylesheet" href="video-studio.css?v=16" />
+    <link rel="stylesheet" href="video-studio.css?v=21" />
     <script src="app-nav.js?v=hidden-video-2" defer></script>
     <script src="fal-palette.js"></script>
     <script src="default-presets.js"></script>
-    <script src="video-studio.js?v=16" type="module"></script>
+    <script src="video-studio.js?v=21" type="module"></script>
   </head>
   <body>
     <div class="studio" id="studio">
@@ -448,9 +448,11 @@
             <label class="field"
               >Type treatment<select data-prop="treatment">
                 <option value="solid">Overlay text</option>
+                <option value="background">Background fill · no padding</option>
                 <option value="highlight">Prompt blocks</option>
               </select></label
             >
+            <p class="help">Background fill uses the Prompt background box and text colors, fitted tightly to each headline line.</p>
             <label class="check"
               ><input type="checkbox" data-prop="uppercase" /> Uppercase
               headline</label
@@ -520,12 +522,17 @@
             </button>
             <div class="section-title">Selected scene media</div>
             <div class="micro" id="selectedMedia">No media selected</div>
+            <button id="removeMedia" class="wide subtle">
+              Remove from scene
+            </button>
             <label class="field"
               >Placement<select data-prop="mediaFit">
                 <option value="cover">Fill / crop</option>
                 <option value="contain">Fit entire image</option>
+                <option value="adapt">Adapt frame to media</option>
               </select></label
             >
+            <p class="help">Adapt frame to media keeps the original proportions without cropping or empty frame space. Zoom and focus still work inside the adapted frame.</p>
             <label class="slider-field"
               >Zoom <output data-output="mediaZoom"></output
               ><input type="range" min="100" max="200" data-prop="mediaZoom"
@@ -553,9 +560,7 @@
               ><input type="checkbox" data-prop="mediaLoop" /> Loop clip to fill
               scene</label
             >
-            <button id="removeMedia" class="wide subtle">
-              Remove from scene
-            </button>
+
           </section>
         </div>
         <div class="sidebar-foot">
@@ -593,6 +598,7 @@
             ><span class="toolbar-divider"></span
             ><span id="dimensions">1920 × 1080</span>
           </div>
+          <button id="removePreviewMedia" hidden>Remove media</button>
           <label class="format-label"
             >Format
             <select id="format" aria-label="Canvas format">
@@ -609,7 +615,11 @@
             width="1280"
             height="720"
             aria-label="Video composition preview"
+            aria-describedby="mediaDragHint"
+            tabindex="0"
           ></canvas>
+          <div id="mediaSelection" hidden aria-hidden="true"></div>
+          <div id="mediaDragHint" hidden>Delete to remove · drag outside to remove</div>
         </div>
         <div class="transport">
           <span class="micro preview-note"></span>

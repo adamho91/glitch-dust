@@ -1,8 +1,8 @@
 <!doctype html><html lang="en"><meta charset="utf-8"><title>SVG rendering checks</title>
-<style>@font-face{font-family:'Focal Upright';src:url('../Focal-Upright-VF_wght.ttf');font-weight:100 900}body{background:#222;color:white;font:16px 'Focal Upright';margin:24px}section{display:grid;grid-template-columns:1fr 1fr;gap:16px}canvas,img{width:100%}h2{grid-column:span 2}</style><h1>Canvas / SVG</h1><nav><a href="?format=wide">Landscape</a> · <a href="?format=portrait">Portrait</a> · <a href="?format=square">Square</a></nav><p id="status">Checking…</p><main></main>
+<style>@font-face{font-family:'Focal Upright';src:url('../Focal-Upright-VF_wght.ttf');font-weight:100 900}body{background:#222;color:white;font:16px 'Focal Upright';margin:24px}section{display:grid;grid-template-columns:1fr 1fr;gap:16px}canvas,img{width:100%}h2{grid-column:span 2}</style><h1>Canvas / SVG</h1><nav><a href="?format=wide">Landscape</a> · <a href="?format=portrait">Portrait</a> · <a href="?format=square">Square</a></nav><a href="?treatment=background">Headline backgrounds</a><p id="status">Checking…</p><main></main>
 <script type="module">
-import {createScene,renderScene,LAYOUTS,FORMATS} from '../video-core.mjs?v=16';
-import {createSvgContext} from '../video-svg.mjs?v=16';
+import {createScene,renderScene,LAYOUTS,FORMATS} from '../video-core.mjs?v=21';
+import {createSvgContext} from '../video-svg.mjs?v=21';
 await document.fonts.load('500 48px "Focal Upright"');await document.fonts.load('400 48px "Focal Upright"');
 const bytes=new Uint8Array(await (await fetch('../Focal-Upright-VF_wght.ttf')).arrayBuffer());
 let binary='';for(const byte of bytes)binary+=String.fromCharCode(byte);
@@ -13,7 +13,7 @@ const media=document.createElement('canvas');media.width=200;media.height=120;co
 const mediaImage=new Image();mediaImage.src=media.toDataURL();await mediaImage.decode();
 for(const [layout,label] of LAYOUTS){
  const [w,h]=FORMATS[new URLSearchParams(location.search).get('format')||'wide'],canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;const ctx=canvas.getContext('2d');
- const scene=createScene({layout,title:'A study in motion.',body:'Make it move.',animation:'none',promptReveal:false,pattern:'dust'});
+ const scene=createScene({layout,treatment:new URLSearchParams(location.search).get('treatment')||'solid',title:'A study in motion.',body:'Make it move.',animation:'none',promptReveal:false,pattern:'dust'});
  const asset={element:mediaImage};
  renderScene(ctx,scene,2,w,h,asset);
  const recorder=createSvgContext(w,h,document.createElement('canvas').getContext('2d'));renderScene(recorder.context,scene,2,w,h,asset);

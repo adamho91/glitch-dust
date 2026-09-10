@@ -1,17 +1,17 @@
-import { createSvgContext } from "./video-svg.mjs?v=16";
-import { suggestChart, CHART_PALETTES } from "./video-chart-import.mjs?v=16";
+import { createSvgContext } from "./video-svg.mjs?v=21";
+import { suggestChart, CHART_PALETTES } from "./video-chart-import.mjs?v=21";
 import {
   EXTRA_LAYOUTS,
   DEFAULT_DATA,
   parseDataRows,
-} from "./video-layouts.mjs?v=16";
-import { timelineGeometry } from "./video-timeline.mjs?v=16";
-import { SWISS_DATA_LIMITS } from "./video-swiss.mjs?v=16";
+} from "./video-layouts.mjs?v=21";
+import { timelineGeometry } from "./video-timeline.mjs?v=21";
+import { SWISS_DATA_LIMITS } from "./video-swiss.mjs?v=21";
 import {
   DUST_PRESET_KEY,
   readDustPresets,
   applyDustPreset,
-} from "./video-presets.mjs?v=16";
+} from "./video-presets.mjs?v=21";
 import {
   FORMATS,
   LAYOUTS,
@@ -29,14 +29,16 @@ import {
   renderScene,
   renderFrame,
   outputSize,
-} from "./video-core.mjs?v=16";
+} from "./video-core.mjs?v=21";
 
 const $ = (id) => document.getElementById(id);
 const assets = new Map(),
+  removedAssets = new Map(),
   videoInstances = new Map(),
   fontAssets = new Map();
 const canvas = $("preview"),
   transitionCanvas = document.createElement("canvas");
+let mediaRegions = [], mediaSelection = null, mediaDrag = null;
 const paletteList = [2, 3, 4, 5].flatMap((n) =>
   getGroupedTonalPresets(n).flatMap((g) => g.presets),
 );
@@ -111,7 +113,7 @@ function refreshDustPresets() {
     $("dustPresetHelp").textContent =
       "Built-in library loaded. For presets saved in another browser or page origin, export JSON from Shift 1 or 2 and import it here. Shared controls use Video diffusion.";
 }
-const copy = () => JSON.stringify(project);
+const copy = () => JSON.stringify({project, assetIds: [...assets.keys()]});
 const status = (message) => ($("status").textContent = message);
 function checkpoint() {
   const str = copy();
@@ -140,10 +142,25 @@ function history(direction) {
   if (!from.length) return;
   stop();
   to.push(copy());
-  project = JSON.parse(from.pop());
+  const snapshot = JSON.parse(from.pop());
+  const wanted = new Set(snapshot.assetIds);
+  for (const [id, asset] of assets) {
+    if (!wanted.has(id)) {
+      removedAssets.set(id, asset);
+      assets.delete(id);
+    }
+  }
+  for (const id of wanted) {
+    if (!assets.has(id) && removedAssets.has(id)) {
+      assets.set(id, removedAssets.get(id));
+      removedAssets.delete(id);
+    }
+  }
+  project = snapshot.project;
   selected = Math.min(selected, project.scenes.length - 1);
   time =
     sceneStart(project, selected) + Math.min(0.9, current().duration * 0.5);
+  buildLibrary();
   syncAll();
   scheduleSave();
 }
@@ -187,9 +204,10 @@ function saveLocal() {
       transaction("project", "readwrite", (s) => s.put(data, "current")),
     )
     .then(() => {
-      if (JSON.stringify(project) === JSON.stringify(data.project))
+      if (JSON.stringify(project) === JSON.stringify(data.project) &&
+          JSON.stringify([...assets.keys()]) === JSON.stringify(data.assetIds))
         dirty = false;
-      $("saveStatus").textContent = unsavedAssets.size
+      $("saveStatus").textContent = [...unsavedAssets].some(id => assets.has(id) || fontAssets.has(id))
         ? "Media not autosaved · use Save project"
         : "Saved on this device";
     })
@@ -260,6 +278,7 @@ function syncControls() {
   $("selectedMedia").textContent =
     assets.get(s.mediaId)?.name || "No media selected";
   $("removeMedia").disabled = !s.mediaId;
+  $("removePreviewMedia").hidden = !s.mediaId;
   $("sceneLabel").textContent = "Scene " + (selected + 1);
   $("deleteScene").disabled = project.scenes.length === 1;
   $("moveLeft").disabled = selected === 0;
@@ -328,12 +347,18 @@ function getVideo(s) {
 }
 function renderAssets() {
   const map = new Map(assets);
-  for (const [id, a] of videoInstances) map.set(id, a);
+  for (const scene of project.scenes) {
+    const a = videoInstances.get(scene.id);
+    if (a && a.assetId === scene.mediaId && assets.has(a.assetId)) map.set(scene.id, a);
+  }
   return map;
 }
 function draw() {
   // renderFrame looks up per-scene video elements, allowing a dissolve between two uses of one clip.
-  renderFrame(canvas, project, time, renderAssets(), transitionCanvas);
+  mediaRegions = [];
+  renderFrame(canvas, project, time, renderAssets(), transitionCanvas,
+    (rect) => mediaRegions.push(rect));
+  updateMediaSelection();
   $("timecode").textContent = clock(time) + " / " + clock(duration(project));
   $("scrub").max = duration(project);
   $("scrub").value = time;
@@ -821,6 +846,9 @@ function buildLibrary() {
   $("mediaCount").textContent = assets.size + " assets";
   $("sequenceMedia").disabled = !assets.size;
   for (const a of assets.values()) {
+    const card = document.createElement("div");
+    card.className = "media-card";
+    card.dataset.id = a.id;
     const b = document.createElement("button");
     b.className = "media-item";
     b.dataset.id = a.id;
@@ -835,14 +863,46 @@ function buildLibrary() {
     name.textContent = (a.kind === "video" ? "▶ " : "") + a.name;
     b.append(el, name);
     b.onclick = () => {
+      if (busy) return;
+      stop();
       checkpoint();
       current().mediaId = a.id;
       changed({ controls: true });
       status(a.name + " added to this scene.");
     };
-    $("mediaLibrary").append(b);
+    const remove = document.createElement("button");
+    remove.className = "media-delete";
+    remove.textContent = "Delete";
+    remove.setAttribute("aria-label", "Delete " + a.name + " from project");
+    remove.title = "Remove this upload from the project and all scenes. Undo restores it.";
+    remove.onclick = () => deleteLibraryMedia(a.id);
+    card.append(b, remove);
+    $("mediaLibrary").append(card);
   }
   syncControls();
+}
+function deleteLibraryMedia(id) {
+  if (busy || !assets.has(id)) return;
+  stop();
+  checkpoint();
+  const a = assets.get(id);
+  removedAssets.set(id, a);
+  assets.delete(id);
+  for (const scene of project.scenes) {
+    if (scene.mediaId === id) scene.mediaId = null;
+  }
+  for (const [sceneId, instance] of videoInstances) {
+    if (instance.assetId === id) {
+      instance.element.pause();
+      instance.element.removeAttribute("src");
+      instance.element.load();
+      videoInstances.delete(sceneId);
+    }
+  }
+  clearMediaSelection();
+  buildLibrary();
+  changed({controls: true});
+  status(a.name + " deleted from the project. Undo to restore it.");
 }
 async function importMedia(files) {
   if (busy) return;
@@ -1004,6 +1064,8 @@ async function openProject(file) {
     clearTimeout(saveTimer);
     for (const a of assets.values()) releaseAsset(a);
     assets.clear();
+    for (const a of removedAssets.values()) releaseAsset(a);
+    removedAssets.clear();
     for (const a of videoInstances.values()) releaseAsset(a);
     videoInstances.clear();
     for (const a of fontAssets.values()) document.fonts.delete(a.face);
@@ -1535,11 +1597,99 @@ $("sequenceMedia").onclick = () => {
     `Created ${scenes.length} media scenes. Add headlines in the Type tab.`,
   );
 };
-$("removeMedia").onclick = () => {
+function removeSceneMedia() {
+  if (busy || !current().mediaId) return;
+  stop();
   checkpoint();
   current().mediaId = null;
+  clearMediaSelection();
   changed({ controls: true });
-};
+  status("Media removed from this scene. Undo to restore it; the original stays in Your material.");
+}
+$("removeMedia").onclick = removeSceneMedia;
+$("removePreviewMedia").onclick = removeSceneMedia;
+
+function clearMediaSelection() {
+  const pointer = mediaDrag?.pointerId;
+  mediaDrag = null;
+  mediaSelection = null;
+  if (pointer !== undefined && canvas.hasPointerCapture(pointer)) canvas.releasePointerCapture(pointer);
+  $("mediaSelection").hidden = true;
+  $("mediaDragHint").hidden = true;
+  canvas.style.cursor = "";
+}
+function updateMediaSelection() {
+  if (!mediaSelection) return;
+  if (busy || playing || mediaSelection.sceneId !== current().id ||
+      mediaSelection.assetId !== current().mediaId || !mediaRegions.length) {
+    clearMediaSelection();
+    return;
+  }
+  const rect = mediaRegions[mediaSelection.region] || mediaRegions[0];
+  const bounds = canvas.getBoundingClientRect(), stage = $("stageWrap").getBoundingClientRect();
+  const outline = $("mediaSelection");
+  Object.assign(outline.style, {
+    left: `${bounds.left - stage.left + rect.x * bounds.width / canvas.width + (mediaDrag?.dx || 0)}px`,
+    top: `${bounds.top - stage.top + rect.y * bounds.height / canvas.height + (mediaDrag?.dy || 0)}px`,
+    width: `${rect.width * bounds.width / canvas.width}px`,
+    height: `${rect.height * bounds.height / canvas.height}px`,
+  });
+  outline.hidden = false;
+  $("mediaDragHint").hidden = false;
+  $("mediaDragHint").textContent = mediaDrag?.outside
+    ? "Release to remove media"
+    : "Delete to remove · drag outside to remove";
+}
+function hitMedia(e) {
+  // A transition may still show another scene's media. Select after it settles.
+  if (transitionAt(project, time).blend < 1) return -1;
+  const b = canvas.getBoundingClientRect();
+  const x = (e.clientX - b.left) * canvas.width / b.width;
+  const y = (e.clientY - b.top) * canvas.height / b.height;
+  return mediaRegions.findIndex(r => x >= r.x && x <= r.x + r.width && y >= r.y && y <= r.y + r.height);
+}
+canvas.addEventListener("pointerdown", (e) => {
+  if (busy || e.button !== 0) return;
+  const region = hitMedia(e);
+  if (!current().mediaId || region < 0) { clearMediaSelection(); return; }
+  e.preventDefault();
+  stop();
+  canvas.focus({preventScroll: true});
+  mediaSelection = {sceneId: current().id, assetId: current().mediaId, region};
+  mediaDrag = {pointerId: e.pointerId, x: e.clientX, y: e.clientY, dx: 0, dy: 0, outside: false};
+  canvas.setPointerCapture(e.pointerId);
+  updateMediaSelection();
+});
+canvas.addEventListener("pointermove", (e) => {
+  if (mediaDrag?.pointerId === e.pointerId) {
+    mediaDrag.dx = e.clientX - mediaDrag.x;
+    mediaDrag.dy = e.clientY - mediaDrag.y;
+    const b = canvas.getBoundingClientRect();
+    mediaDrag.outside = e.clientX < b.left || e.clientX > b.right || e.clientY < b.top || e.clientY > b.bottom;
+    canvas.style.cursor = "grabbing";
+    updateMediaSelection();
+  } else canvas.style.cursor = !busy && current().mediaId && hitMedia(e) >= 0 ? "grab" : "";
+});
+canvas.addEventListener("pointerup", (e) => {
+  if (mediaDrag?.pointerId !== e.pointerId) return;
+  const remove = mediaDrag.outside && Math.hypot(mediaDrag.dx, mediaDrag.dy) > 8 &&
+    mediaSelection?.sceneId === current().id && mediaSelection?.assetId === current().mediaId;
+  mediaDrag = null;
+  canvas.releasePointerCapture(e.pointerId);
+  if (remove) removeSceneMedia();
+  else updateMediaSelection();
+});
+canvas.addEventListener("pointercancel", clearMediaSelection);
+canvas.addEventListener("lostpointercapture", () => { if (mediaDrag) clearMediaSelection(); });
+window.addEventListener("blur", clearMediaSelection);
+canvas.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !busy && current().mediaId && mediaRegions.length) {
+    e.preventDefault();
+    stop();
+    mediaSelection = {sceneId:current().id, assetId:current().mediaId, region:0};
+    updateMediaSelection();
+  }
+});
 $("uploadFont").onclick = () => $("fontInput").click();
 $("fontInput").onchange = async () => {
   const f = $("fontInput").files[0];
@@ -1883,6 +2033,17 @@ document.addEventListener("keydown", (e) => {
     return;
   }
   if (typing) return;
+  if (e.key === "Escape" && mediaSelection) {
+    e.preventDefault();
+    clearMediaSelection();
+    return;
+  }
+  if (["Delete", "Backspace"].includes(e.key) && document.activeElement === canvas &&
+      mediaSelection?.sceneId === current().id) {
+    e.preventDefault();
+    removeSceneMedia();
+    return;
+  }
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
     e.preventDefault();
     history(e.shiftKey ? "redo" : "undo");

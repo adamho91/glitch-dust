@@ -15,9 +15,54 @@ import {
   sceneStart,
   transitionAt,
   mediaTime,
+  mediaGeometry,
+  renderScene,
   outputSize,
   random,
 } from "../video-core.mjs";
+
+test("adapted media preserves source proportions and keeps zoom inside the fitted frame", () => {
+  const slot = [100, 50, 400, 600];
+  for (const [iw, ih] of [[1600, 900], [900, 1600], [800, 800]]) {
+    const s = createScene({ mediaFit: "adapt" });
+    const {frame, image} = mediaGeometry(s, slot, iw, ih);
+    assert.ok(Math.abs(frame[2] / frame[3] - iw / ih) < 1e-10);
+    assert.ok(frame[0] >= slot[0] && frame[1] >= slot[1]);
+    assert.ok(frame[2] <= slot[2] && frame[3] <= slot[3]);
+    image.forEach((n, i) => assert.ok(Math.abs(n - frame[i]) < 1e-10));
+    const zoom = mediaGeometry({...s, mediaZoom: 150}, slot, iw, ih);
+    assert.deepEqual(zoom.frame, frame);
+    assert.ok(zoom.image[2] > frame[2] && zoom.image[3] > frame[3]);
+  }
+  const project = starterProject();
+  project.scenes[0].mediaFit = "adapt";
+  assert.equal(normalizeProject(project).scenes[0].mediaFit, "adapt");
+});
+
+test("media darkening follows image bounds instead of painting letterbox margins", () => {
+  for (const mediaFit of ["contain", "adapt", "cover"]) {
+    const fills = [], images = [], bounds = [];
+    const ctx = new Proxy({
+      measureText: () => ({width: 0}),
+      getTransform: () => ({a:2,b:0,c:0,d:2,e:10,f:20}),
+      fillRect(...bounds) { fills.push({color:this.fillStyle, bounds}); },
+      drawImage(el, ...bounds) { images.push(bounds); },
+    }, {get: (target,key) => key in target ? target[key] : () => {}});
+    const s = createScene({layout:"frame", mediaId:"test", mediaFit, mediaDim:40,
+      pattern:"none", title:"", body:"", eyebrow:"", onMediaBounds:r=>bounds.push(r)});
+    renderScene(ctx, s, 2, 720, 720, {element:{naturalWidth:1600,naturalHeight:900}});
+    const dim = fills.find(f => f.color === "rgba(0,0,0,0.4)");
+    assert.deepEqual(dim.bounds, images[0]);
+    assert.equal(bounds.length, 1);
+    assert.ok(bounds[0].x >= 110 && bounds[0].y >= 120);
+    assert.ok(bounds[0].width <= 1240 && bounds[0].height <= 1240);
+    if (mediaFit === "cover") assert.deepEqual(bounds[0], {x:110,y:120,width:1240,height:1240});
+    if (mediaFit !== "cover") {
+      assert.ok(dim.bounds[1] > 50);
+      assert.ok(dim.bounds[3] < 620);
+    }
+  }
+});
 
 test("scene boundaries select the incoming scene without dropping the final frame", () => {
   const p = starterProject();
@@ -222,6 +267,7 @@ test("project roundtrip preserves composition settings and local media reference
   p.scenes[0].mediaId = "example-clip";
   p.scenes[0].font = "Focal Upright";
   p.scenes[0].treatment = "highlight";
+  p.scenes[1].treatment = "background";
   assert.deepEqual(normalizeProject(JSON.parse(JSON.stringify(p))), p);
 });
 

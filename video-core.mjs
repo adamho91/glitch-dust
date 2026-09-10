@@ -1,19 +1,19 @@
-import { pixelAlignedRect } from "./video-pixel-grid.mjs?v=16";
+import { pixelAlignedRect } from "./video-pixel-grid.mjs?v=21";
 import {
   EXTRA_LAYOUTS,
   DEFAULT_DATA,
   renderExtraLayout,
-} from "./video-layouts.mjs?v=16";
-import { diffusionNodes } from "./video-diffusion.mjs?v=16";
+} from "./video-layouts.mjs?v=21";
+import { diffusionNodes } from "./video-diffusion.mjs?v=21";
 import {
   measureTextZones,
   nodeOverlapsText,
-} from "./video-text-clear.mjs?v=16";
+} from "./video-text-clear.mjs?v=21";
 import {
   MOTION_SECONDS,
   easeOutQuad as ease,
   easeInOutQuad,
-} from "./video-motion.mjs?v=16";
+} from "./video-motion.mjs?v=21";
 // Shared deterministic scene model and renderer. Preview and exports use the same timebase.
 export const FORMATS = {
   wide: [1280, 720],
@@ -78,7 +78,7 @@ export const DEFAULTS = {
   font: "Focal Upright",
   weight: 500,
   fontSize: 124,
-  lineHeight: 96,
+  lineHeight: 89,
   tracking: -3,
   align: "left",
   treatment: "solid",
@@ -200,9 +200,9 @@ const enums = {
   sweepAxis: ["h", "v", "d"],
   fadeDirection: ["none", "left", "right", "top", "bottom"],
   align: ["left", "center", "right"],
-  treatment: ["solid", "highlight"],
+  treatment: ["solid", "highlight", "background"],
   animation: ["rise", "reveal", "typewriter", "scale", "fade", "none"],
-  mediaFit: ["cover", "contain"],
+  mediaFit: ["cover", "contain", "adapt"],
 };
 const hex = (x) => typeof x === "string" && /^#[\da-f]{6}$/i.test(x);
 export function normalizeProject(input) {
@@ -360,34 +360,50 @@ function pattern(ctx, s, t, w, h) {
   }
   ctx.restore();
 }
+export function mediaGeometry(s, rect, iw, ih) {
+  let [x, y, w, h] = rect;
+  if (s.mediaFit === "adapt") {
+    const fit = Math.min(w / iw, h / ih);
+    const fw = iw * fit, fh = ih * fit;
+    x += ((w - fw) * s.mediaX) / 100;
+    y += ((h - fh) * s.mediaY) / 100;
+    w = fw;
+    h = fh;
+  }
+  const scale = (s.mediaFit === "contain"
+    ? Math.min(w / iw, h / ih)
+    : Math.max(w / iw, h / ih)) * s.mediaZoom / 100;
+  const dw = iw * scale, dh = ih * scale;
+  return {
+    frame: [x, y, w, h],
+    image: [x + ((w - dw) * s.mediaX) / 100,
+      y + ((h - dh) * s.mediaY) / 100, dw, dh],
+  };
+}
 function media(ctx, s, asset, rect) {
-  const [x, y, w, h] = rect;
+  const el = asset?.element;
+  const iw = el?.videoWidth || el?.naturalWidth;
+  const ih = el?.videoHeight || el?.naturalHeight;
+  const geometry = iw && ih ? mediaGeometry(s, rect, iw, ih) : null;
+  const [x, y, w, h] = geometry?.frame || rect;
   ctx.save();
   ctx.beginPath();
   ctx.rect(x, y, w, h);
   ctx.clip();
-  if (asset?.element) {
-    const el = asset.element,
-      iw = el.videoWidth || el.naturalWidth,
-      ih = el.videoHeight || el.naturalHeight;
-    if (iw && ih) {
-      const f =
-        ((s.mediaFit === "contain"
-          ? Math.min(w / iw, h / ih)
-          : Math.max(w / iw, h / ih)) *
-          s.mediaZoom) /
-        100;
-      const dw = iw * f,
-        dh = ih * f;
-      ctx.drawImage(
-        el,
-        x + ((w - dw) * s.mediaX) / 100,
-        y + ((h - dh) * s.mediaY) / 100,
-        dw,
-        dh,
-      );
+  if (el) {
+    if (geometry) {
+      if (s.onMediaBounds) {
+        const [ix, iy, iw, ih] = geometry.image;
+        const left = Math.max(x, ix), top = Math.max(y, iy);
+        const right = Math.min(x + w, ix + iw), bottom = Math.min(y + h, iy + ih);
+        const m = ctx.getTransform();
+        s.onMediaBounds({x: left * m.a + m.e, y: top * m.d + m.f,
+          width: (right - left) * m.a, height: (bottom - top) * m.d});
+      }
+      ctx.drawImage(el, ...geometry.image);
       ctx.fillStyle = `rgba(0,0,0,${s.mediaDim / 100})`;
-      ctx.fillRect(x, y, w, h);
+      // Darken the placed media, never the unused space around a fitted image.
+      ctx.fillRect(...geometry.image);
     }
   } else {
     ctx.fillStyle = s.accent;
@@ -458,35 +474,54 @@ function headline(ctx, s, t, rect, k) {
   const lh = (size * s.lineHeight) / 100,
     tx = x + (s.align === "center" ? w / 2 : s.align === "right" ? w : 0);
   const total = lines.join("").length;
-  let consumed = 0;
-  lines.forEach((line, i) => {
-    ctx.save();
-    const p =
-      s.animation === "none" ? 1 : ease((t - i * 0.075) / (s.entrance / 100));
-    let yy = y + i * lh;
-    if (s.animation === "rise") yy += (1 - p) * size * 0.6;
-    if (["rise", "scale", "fade"].includes(s.animation)) ctx.globalAlpha = p;
-    if (s.animation === "reveal") {
-      ctx.beginPath();
-      ctx.rect(x - 4, y + i * lh - 4, w + 8, lh * p + 8 * p);
-      ctx.clip();
-      yy += (1 - p) * lh;
-    }
-    if (s.animation === "scale") {
-      ctx.translate(tx, yy);
-      ctx.scale(0.7 + p * 0.3, 0.7 + p * 0.3);
-      ctx.translate(-tx, -yy);
-    }
-    if (s.animation === "typewriter") {
-      const count = Math.floor(ease(t / (s.entrance / 100)) * total);
-      const len = line.length;
-      line = line.slice(0, Math.max(0, count - consumed));
-      consumed += len;
-    }
-    ctx.fillStyle = s.fg;
-    ctx.fillText(line, tx, yy);
-    ctx.restore();
-  });
+  const paintLines = (background) => {
+    let consumed = 0;
+    lines.forEach((line, i) => {
+      ctx.save();
+      const p =
+        s.animation === "none" ? 1 : ease((t - i * 0.075) / (s.entrance / 100));
+      let yy = y + i * lh;
+      if (s.animation === "rise") yy += (1 - p) * size * 0.6;
+      if (["rise", "scale", "fade"].includes(s.animation)) ctx.globalAlpha = p;
+      if (s.animation === "reveal") {
+        ctx.beginPath();
+        ctx.rect(x - 4, y + i * lh - 4, w + 8, lh * p + 8 * p);
+        ctx.clip();
+        yy += (1 - p) * lh;
+      }
+      if (s.animation === "scale") {
+        ctx.translate(tx, yy);
+        ctx.scale(0.7 + p * 0.3, 0.7 + p * 0.3);
+        ctx.translate(-tx, -yy);
+      }
+      if (s.animation === "typewriter") {
+        const count = Math.floor(ease(t / (s.entrance / 100)) * total);
+        const len = line.length;
+        line = line.slice(0, Math.max(0, count - consumed));
+        consumed += len;
+      }
+      if (background) {
+        if (line.trim()) {
+          const m = ctx.measureText(line);
+          ctx.fillStyle = s.promptBg;
+          ctx.fillRect(
+            tx - m.actualBoundingBoxLeft,
+            yy - m.actualBoundingBoxAscent,
+            m.actualBoundingBoxLeft + m.actualBoundingBoxRight,
+            m.actualBoundingBoxAscent + m.actualBoundingBoxDescent,
+          );
+        }
+      } else {
+        ctx.fillStyle = s.treatment === "background" ? s.promptFg : s.fg;
+        ctx.fillText(line, tx, yy);
+      }
+      ctx.restore();
+    });
+  };
+  // Paint all tight line backgrounds first so closely spaced lines cannot
+  // cover the preceding line's descenders. Both passes share the same motion.
+  if (s.treatment === "background") paintLines(true);
+  paintLines(false);
   ctx.restore();
   return Math.min(h, lines.length * lh);
 }
@@ -582,6 +617,7 @@ export function renderScene(ctx, s, t, w, h, asset, index = 0) {
       const graphicZones = [];
       const clean = {
         ...s,
+        onMediaBounds: undefined,
         clearPattern: false,
         clearGraphics: false,
         graphicClearZones: s.clearGraphics ? graphicZones : undefined,
@@ -721,7 +757,10 @@ export function renderScene(ctx, s, t, w, h, asset, index = 0) {
     ),
   );
   let titleHeight = 0;
-  if (s.layout === "prompt" || s.treatment === "highlight") {
+  if (
+    (s.layout === "prompt" && s.treatment !== "background") ||
+    s.treatment === "highlight"
+  ) {
     let titleStyle = { ...s, promptSize: s.fontSize * 0.5 };
     for (
       let i = 0;
@@ -765,10 +804,11 @@ export function renderScene(ctx, s, t, w, h, asset, index = 0) {
     );
   ctx.restore();
 }
-export function renderFrame(canvas, p, time, assets, newLayer) {
+export function renderFrame(canvas, p, time, assets, newLayer, onMediaBounds) {
   const ctx = canvas.getContext("2d"),
     [w, h] = FORMATS[p.format],
     at = transitionAt(p, time);
+  const activeScene = onMediaBounds ? {...at.scene, onMediaBounds} : at.scene;
   ctx.save();
   ctx.scale(canvas.width / w, canvas.height / h);
   if (at.blend < 1) {
@@ -800,7 +840,7 @@ export function renderFrame(canvas, p, time, assets, newLayer) {
       lc.scale(newLayer.width / w, newLayer.height / h);
       renderScene(
         lc,
-        at.scene,
+        activeScene,
         at.local,
         w,
         h,
@@ -812,7 +852,7 @@ export function renderFrame(canvas, p, time, assets, newLayer) {
     } else
       renderScene(
         ctx,
-        at.scene,
+        activeScene,
         at.local,
         w,
         h,
@@ -823,7 +863,7 @@ export function renderFrame(canvas, p, time, assets, newLayer) {
   } else
     renderScene(
       ctx,
-      at.scene,
+      activeScene,
       at.local,
       w,
       h,
