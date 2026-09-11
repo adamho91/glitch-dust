@@ -1,6 +1,7 @@
+import {MEDIA_TEMPLATES,renderMediaTemplate} from './video-media-layouts.mjs?v=24';
 // Data and editorial layouts use the same Focal text and square primitives as the editor.
-import { easeOutQuad as ease } from "./video-motion.mjs?v=22";
-import { SWISS_LAYOUTS, renderSwissLayout } from "./video-swiss.mjs?v=22";
+import { easeOutQuad as ease } from "./video-motion.mjs?v=24";
+import { SWISS_LAYOUTS, renderSwissLayout } from "./video-swiss.mjs?v=24";
 export const EXTRA_LAYOUTS = [
   ["big-stat", "Big stat", "data"],
   ["stat-grid", "Stat grid", "data"],
@@ -13,6 +14,7 @@ export const EXTRA_LAYOUTS = [
   ["quote", "Quote", "type"],
   ["end-card", "End card", "type"],
   ...SWISS_LAYOUTS,
+  ...MEDIA_TEMPLATES,
 ];
 export const DEFAULT_DATA = "Design | 42\nMotion | 68\nVideo | 92";
 export function parseDataRows(text) {
@@ -145,12 +147,13 @@ export function renderExtraLayout(ctx, s, t, w, h, asset, helpers) {
     );
   if (
     asset &&
-    !SWISS_LAYOUTS.some(([id, , group]) => id === s.layout && group === "media")
+    !EXTRA_LAYOUTS.some(([id, , group]) => id === s.layout && group === "media")
   )
     media(ctx, s, asset, [0, 0, w, h]);
   pattern(ctx, s, t, w, h);
-  if (SWISS_LAYOUTS.some(([id, , group]) => id === s.layout && group === "media"))
+  if (EXTRA_LAYOUTS.some(([id, , group]) => id === s.layout && group === "media"))
     helpers.paintMediaMotion?.();
+  if (renderMediaTemplate(ctx,s,t,w,h,asset,helpers)) return true;
   if (
     renderSwissLayout(
       ctx,

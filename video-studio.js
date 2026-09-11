@@ -1,17 +1,18 @@
-import { createSvgContext } from "./video-svg.mjs?v=22";
-import { suggestChart, CHART_PALETTES } from "./video-chart-import.mjs?v=22";
+import {isComparison,MEDIA_FIELDS,secondaryMediaScene,resolveSceneAsset} from './video-media-layouts.mjs?v=24';
+import { createSvgContext } from "./video-svg.mjs?v=24";
+import { suggestChart, CHART_PALETTES } from "./video-chart-import.mjs?v=24";
 import {
   EXTRA_LAYOUTS,
   DEFAULT_DATA,
   parseDataRows,
-} from "./video-layouts.mjs?v=22";
-import { timelineGeometry } from "./video-timeline.mjs?v=22";
-import { SWISS_DATA_LIMITS } from "./video-swiss.mjs?v=22";
+} from "./video-layouts.mjs?v=24";
+import { timelineGeometry } from "./video-timeline.mjs?v=24";
+import { SWISS_DATA_LIMITS } from "./video-swiss.mjs?v=24";
 import {
   DUST_PRESET_KEY,
   readDustPresets,
   applyDustPreset,
-} from "./video-presets.mjs?v=22";
+} from "./video-presets.mjs?v=24";
 import {
   FORMATS,
   LAYOUTS,
@@ -31,7 +32,7 @@ import {
   renderScene,
   renderFrame,
   outputSize,
-} from "./video-core.mjs?v=22";
+} from "./video-core.mjs?v=24";
 
 const $ = (id) => document.getElementById(id);
 const assets = new Map(),
@@ -234,17 +235,26 @@ async function persistAsset(item) {
     status("Device storage is full. Save a project file to keep your media.");
   }
 }
+let mediaSlot = 'primary';
+const selectedMediaKey = () => mediaSlot === 'secondary' && isComparison(current().layout) ? 'mediaIdB' : 'mediaId';
+const controlKey = key => mediaSlot === 'secondary' && isComparison(current().layout) && MEDIA_FIELDS.includes(key) ? key+'B' : key;
 function syncControls() {
   const s = current();
+  if (!isComparison(s.layout)) mediaSlot='primary';
+  $("mediaSlotField").hidden=!isComparison(s.layout);
+  $("mediaLabels").hidden=!isComparison(s.layout);
+  $("mediaSlot").value=mediaSlot;
+  document.querySelector('[data-prop="mediaFlow"]').closest("label").hidden=isComparison(s.layout);
+  $("mediaFlowHelp").hidden=isComparison(s.layout);
   renderDustPresetPreview();
   syncDataControls();
   document.querySelectorAll("[data-prop]").forEach((el) => {
-    const v = s[el.dataset.prop];
+    const v = s[controlKey(el.dataset.prop)];
     if (el.type === "checkbox") el.checked = v;
     else el.value = v;
   });
   document.querySelectorAll("[data-output]").forEach((el) => {
-    const k = el.dataset.output;
+    const k = controlKey(el.dataset.output);
     el.value = k === "entrance" ? (s[k] / 100).toFixed(2) + "s" : s[k];
   });
   const isChart = EXTRA_LAYOUTS.some(
@@ -278,15 +288,15 @@ function syncControls() {
     paletteList.find((p) => p.id === s.paletteId)?.label ||
     "Custom color story";
   $("selectedMedia").textContent =
-    assets.get(s.mediaId)?.name || "No media selected";
-  $("removeMedia").disabled = !s.mediaId;
-  $("removePreviewMedia").hidden = !s.mediaId;
+    assets.get(s[selectedMediaKey()])?.name || "No media selected";
+  $("removeMedia").disabled = !s[selectedMediaKey()];
+  $("removePreviewMedia").hidden = !s[selectedMediaKey()];
   $("sceneLabel").textContent = "Scene " + (selected + 1);
   $("deleteScene").disabled = project.scenes.length === 1;
   $("moveLeft").disabled = selected === 0;
   $("moveRight").disabled = selected === project.scenes.length - 1;
   for (const el of $("mediaLibrary").children)
-    el.classList.toggle("active", el.dataset.id === s.mediaId);
+    el.classList.toggle("active", el.dataset.id === s[selectedMediaKey()]);
 }
 function syncAll() {
   for (const option of $("layoutGroup").options) {
@@ -354,7 +364,7 @@ function getVideo(s) {
 }
 function renderAssets() {
   const map = new Map(assets);
-  for (const scene of project.scenes) {
+  for (const scene of project.scenes.flatMap(s => isComparison(s.layout) ? [s,secondaryMediaScene(s)] : [s])) {
     const a = videoInstances.get(videoKey(scene));
     if (a && a.assetId === scene.mediaId && assets.has(a.assetId)) map.set(scene.id, a);
   }
@@ -402,12 +412,15 @@ function syncPreviewMedia() {
     const prev = project.scenes[at.index - 1];
     active.set(prev.id, { s: prev, t: Math.max(0, prev.duration - 1 / 60) });
   }
+  for (const {s,t} of [...active.values()]) {
+    if(isComparison(s.layout)) {const secondary=secondaryMediaScene(s);active.set(secondary.id,{s:secondary,t});}
+  }
   for (const { s, t } of active.values()) {
     const a = getVideo(s);
     if (!a) continue;
     const v = a.element;
     if (v.readyState < 2) continue;
-    const target = mediaTime(s, mediaElapsed(project, project.scenes.indexOf(s), t), v.duration);
+    const target = mediaTime(s, mediaElapsed(project, project.scenes.findIndex(scene => scene.id === s.id), t), v.duration);
     if (
       !v.seeking &&
       Math.abs(v.currentTime - target) > (playing ? 0.16 : 0.015)
@@ -549,7 +562,7 @@ function thumb(c, s, index = 0) {
     Math.min(1, s.duration * 0.5),
     w,
     h,
-    renderAssets().get(s.id) || assets.get(s.mediaId),
+    resolveSceneAsset(renderAssets(), s),
     index,
   );
 }
@@ -875,7 +888,7 @@ function buildLibrary() {
       if (busy) return;
       stop();
       checkpoint();
-      current().mediaId = a.id;
+      current()[selectedMediaKey()] = a.id;
       changed({ controls: true });
       status(a.name + " added to this scene.");
     };
@@ -899,6 +912,7 @@ function deleteLibraryMedia(id) {
   assets.delete(id);
   for (const scene of project.scenes) {
     if (scene.mediaId === id) scene.mediaId = null;
+    if (scene.mediaIdB === id) scene.mediaIdB = null;
   }
   for (const [sceneId, instance] of videoInstances) {
     if (instance.assetId === id) {
@@ -936,7 +950,8 @@ async function importMedia(files) {
     }
     if (loaded.length) {
       checkpoint();
-      current().mediaId = loaded[0].id;
+      current()[selectedMediaKey()] = loaded[0].id;
+      if (isComparison(current().layout) && mediaSlot === 'primary' && loaded[1]) current().mediaIdB=loaded[1].id;
       buildLibrary();
       changed({ controls: true });
       status(
@@ -1066,7 +1081,7 @@ async function openProject(file) {
     }
     if (
       next.scenes.some(
-        (s) => s.mediaId && !staged.some((a) => a.id === s.mediaId),
+        (s) => [s.mediaId,s.mediaIdB].some(id => id && !staged.some((a) => a.id === id)),
       )
     )
       throw Error("This project is missing embedded media.");
@@ -1118,7 +1133,7 @@ async function seekVideo(s, local) {
   const v = a.element;
   v.pause();
   if (v.readyState < 2) await eventReady(v, "loadeddata");
-  const target = mediaTime(s, mediaElapsed(project, project.scenes.indexOf(s), local), v.duration);
+  const target = mediaTime(s, mediaElapsed(project, project.scenes.findIndex(scene => scene.id === s.id), local), v.duration);
   if (Math.abs(v.currentTime - target) < 0.0001 && !v.seeking) return;
   const wait = eventReady(v, "seeked");
   v.currentTime = target;
@@ -1127,10 +1142,12 @@ async function seekVideo(s, local) {
 async function prepareFrame(t) {
   const at = transitionAt(project, t);
   await seekVideo(at.scene, at.local);
+  if (isComparison(at.scene.layout)) await seekVideo(secondaryMediaScene(at.scene), at.local);
   if (at.blend < 1 && (!at.sharedMedia ||
       videoKey(at.scene) !== videoKey(project.scenes[at.index - 1]))) {
     const prev = project.scenes[at.index - 1];
     await seekVideo(prev, Math.max(0, prev.duration - 1 / 60));
+    if(isComparison(prev.layout)) await seekVideo(secondaryMediaScene(prev),Math.max(0,prev.duration-1/60));
   }
 }
 function exportInfo() {
@@ -1245,7 +1262,7 @@ async function exportMovie(out) {
 }
 async function runExport() {
   if (busy) return;
-  if (project.scenes.some((s) => s.mediaId && !assets.has(s.mediaId))) {
+  if (project.scenes.some((s) => [s.mediaId,s.mediaIdB].some(id => id && !assets.has(id)))) {
     $("exportStatus").textContent =
       "Some scene media is missing. Restore it by opening a saved project file, or remove it from the scene.";
     return;
@@ -1446,7 +1463,7 @@ for (const el of document.querySelectorAll("[data-prop]")) {
   el.addEventListener("input", () => {
     if (busy) return;
     stop();
-    const k = el.dataset.prop;
+    const k = controlKey(el.dataset.prop);
     if (k === "font")
       document.fonts.load(`${current().weight} 48px "${el.value}"`).then(() => {
         draw();
@@ -1466,7 +1483,7 @@ for (const el of document.querySelectorAll("[data-prop]")) {
       current().paletteId = "custom";
       if (k === "accent") current().colors = [v];
     }
-    const output = document.querySelector(`[data-output="${k}"]`);
+    const output = document.querySelector(`[data-output="${el.dataset.prop}"]`);
     if (output)
       output.value = k === "entrance" ? (v / 100).toFixed(2) + "s" : v;
     if (k === "duration")
@@ -1607,11 +1624,12 @@ $("sequenceMedia").onclick = () => {
     `Created ${scenes.length} media scenes. Add headlines in the Type tab.`,
   );
 };
+$("mediaSlot").onchange = () => {mediaSlot=$("mediaSlot").value;clearMediaSelection();syncControls();};
 function removeSceneMedia() {
-  if (busy || !current().mediaId) return;
+  if (busy || !current()[selectedMediaKey()]) return;
   stop();
   checkpoint();
-  current().mediaId = null;
+  current()[selectedMediaKey()] = null;
   clearMediaSelection();
   changed({ controls: true });
   status("Media removed from this scene. Undo to restore it; the original stays in Your material.");
@@ -1631,7 +1649,7 @@ function clearMediaSelection() {
 function updateMediaSelection() {
   if (!mediaSelection) return;
   if (busy || playing || mediaSelection.sceneId !== current().id ||
-      mediaSelection.assetId !== current().mediaId || !mediaRegions.length) {
+      mediaSelection.assetId !== current()[selectedMediaKey()] || !mediaRegions.length) {
     clearMediaSelection();
     return;
   }
@@ -1661,11 +1679,13 @@ function hitMedia(e) {
 canvas.addEventListener("pointerdown", (e) => {
   if (busy || e.button !== 0) return;
   const region = hitMedia(e);
-  if (!current().mediaId || region < 0) { clearMediaSelection(); return; }
+  if (region < 0) { clearMediaSelection(); return; }
+  mediaSlot = mediaRegions[region].slot || "primary";
+  syncControls();
   e.preventDefault();
   stop();
   canvas.focus({preventScroll: true});
-  mediaSelection = {sceneId: current().id, assetId: current().mediaId, region};
+  mediaSelection = {sceneId: current().id, assetId: current()[selectedMediaKey()], region};
   mediaDrag = {pointerId: e.pointerId, x: e.clientX, y: e.clientY, dx: 0, dy: 0, outside: false};
   canvas.setPointerCapture(e.pointerId);
   updateMediaSelection();
@@ -1678,12 +1698,12 @@ canvas.addEventListener("pointermove", (e) => {
     mediaDrag.outside = e.clientX < b.left || e.clientX > b.right || e.clientY < b.top || e.clientY > b.bottom;
     canvas.style.cursor = "grabbing";
     updateMediaSelection();
-  } else canvas.style.cursor = !busy && current().mediaId && hitMedia(e) >= 0 ? "grab" : "";
+  } else canvas.style.cursor = !busy && hitMedia(e) >= 0 ? "grab" : "";
 });
 canvas.addEventListener("pointerup", (e) => {
   if (mediaDrag?.pointerId !== e.pointerId) return;
   const remove = mediaDrag.outside && Math.hypot(mediaDrag.dx, mediaDrag.dy) > 8 &&
-    mediaSelection?.sceneId === current().id && mediaSelection?.assetId === current().mediaId;
+    mediaSelection?.sceneId === current().id && mediaSelection?.assetId === current()[selectedMediaKey()];
   mediaDrag = null;
   canvas.releasePointerCapture(e.pointerId);
   if (remove) removeSceneMedia();
@@ -1693,10 +1713,12 @@ canvas.addEventListener("pointercancel", clearMediaSelection);
 canvas.addEventListener("lostpointercapture", () => { if (mediaDrag) clearMediaSelection(); });
 window.addEventListener("blur", clearMediaSelection);
 canvas.addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && !busy && current().mediaId && mediaRegions.length) {
+  if (e.key === "Enter" && !busy && mediaRegions.length) {
     e.preventDefault();
     stop();
-    mediaSelection = {sceneId:current().id, assetId:current().mediaId, region:0};
+    mediaSlot=mediaRegions[0].slot || "primary";
+    syncControls();
+    mediaSelection = {sceneId:current().id, assetId:current()[selectedMediaKey()], region:0};
     updateMediaSelection();
   }
 });
@@ -1734,6 +1756,7 @@ async function slideSvg(w, h) {
   const local = Math.max(0, time - sceneStart(project, selected));
   await document.fonts.load(`${scene.weight} 48px "Focal Upright"`);
   await seekVideo(scene, local);
+  if(isComparison(scene.layout)) await seekVideo(secondaryMediaScene(scene),local);
   if (embeddedFocal === undefined) {
     try {
       const response = await fetch("Focal-Upright-VF_wght.ttf");
@@ -1745,7 +1768,7 @@ async function slideSvg(w, h) {
   }
   const measurement = document.createElement("canvas");
   const recorder = createSvgContext(w, h, measurement.getContext("2d"));
-  const asset = getVideo(scene) || assets.get(scene.mediaId);
+  const asset = resolveSceneAsset(renderAssets(), scene);
   renderScene(
     recorder.context,
     { ...scene, animation: "none", promptReveal: false },

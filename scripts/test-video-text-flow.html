@@ -1,0 +1,15 @@
+<!doctype html><meta charset="utf-8"><title>Text flow checks</title>
+<style>@font-face{font-family:'Focal Upright';src:url('../Focal-Upright-VF_wght.ttf');font-weight:100 900}body{background:#181818;color:white;font:16px 'Focal Upright';margin:24px}main{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}canvas{width:100%}</style><h1>Typewriter + word rise</h1><p id="status">Checking…</p><main></main>
+<script type="module">
+import {createScene,renderScene} from '../video-core.mjs?v=24';
+await document.fonts.load('500 48px "Focal Upright"');await document.fonts.load('400 48px "Focal Upright"');
+const results=[],s=createScene({layout:'hero',title:'Make more\nwith less.',body:'A little less friction.',pattern:'none',bg:'#d9bfff',fg:'#5e16c7',promptBg:'#5e16c7',promptFg:'#d9bfff'});
+function draw(scene,time){const c=document.createElement('canvas');c.width=1280;c.height=720;renderScene(c.getContext('2d'),scene,time,1280,720);return c}
+for(const treatment of ['solid','background'])for(const align of ['left','center','right']){
+ const scene={...s,treatment,align};
+ const a=draw(scene,2).getContext('2d').getImageData(0,0,1280,720).data,b=draw({...scene,animation:'none',promptReveal:false},2).getContext('2d').getImageData(0,0,1280,720).data;
+ results.push(`${treatment} ${align}: ${a.every((v,i)=>v===b[i])?'PASS':'FAIL'}`);
+}
+for(const t of [.15,.45,1.2]){const section=document.createElement('section'),label=document.createElement('p');label.textContent=t+'s';section.append(label,draw(s,t));document.querySelector('main').append(section)}
+document.querySelector('#status').textContent=results.join(' · ');
+</script>

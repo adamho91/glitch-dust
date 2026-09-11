@@ -1,19 +1,21 @@
-import { pixelAlignedRect } from "./video-pixel-grid.mjs?v=22";
+import {isComparison,resolveSceneAsset} from './video-media-layouts.mjs?v=24';
+import { pixelAlignedRect } from "./video-pixel-grid.mjs?v=24";
 import {
   EXTRA_LAYOUTS,
   DEFAULT_DATA,
   renderExtraLayout,
-} from "./video-layouts.mjs?v=22";
-import { diffusionNodes } from "./video-diffusion.mjs?v=22";
+} from "./video-layouts.mjs?v=24";
+import { diffusionNodes } from "./video-diffusion.mjs?v=24";
 import {
   measureTextZones,
   nodeOverlapsText,
-} from "./video-text-clear.mjs?v=22";
+} from "./video-text-clear.mjs?v=24";
 import {
   MOTION_SECONDS,
   easeOutQuad as ease,
   easeInOutQuad,
-} from "./video-motion.mjs?v=22";
+  wordEntrance,
+} from "./video-motion.mjs?v=24";
 // Shared deterministic scene model and renderer. Preview and exports use the same timebase.
 export const FORMATS = {
   wide: [1280, 720],
@@ -83,12 +85,22 @@ export const DEFAULTS = {
   align: "left",
   treatment: "solid",
   uppercase: false,
-  animation: "rise",
+  animation: "type-rise",
   entrance: MOTION_SECONDS * 100,
   textX: 0,
   textY: 0,
   footer: false,
   mediaId: null,
+  mediaIdB: null,
+  mediaLabelA: "Before",
+  mediaLabelB: "After",
+  mediaFitB: "cover",
+  mediaZoomB: 100,
+  mediaXB: 50,
+  mediaYB: 50,
+  mediaDimB: 15,
+  mediaStartB: 0,
+  mediaLoopB: true,
   mediaFit: "cover",
   mediaZoom: 100,
   mediaX: 50,
@@ -103,6 +115,7 @@ export const defaultPattern = (layout) =>
   ["hero", "poster"].includes(layout) ? "dust" : "none";
 export function setSceneLayout(scene, layout) {
   scene.layout = layout;
+  if (isComparison(layout) && scene.transition === "cut") scene.transition = "fade";
   if (!scene.patternExplicit) scene.pattern = defaultPattern(layout);
 }
 export function createScene(overrides = {}) {
@@ -202,9 +215,11 @@ const enums = {
   fadeDirection: ["none", "left", "right", "top", "bottom"],
   align: ["left", "center", "right"],
   treatment: ["solid", "highlight", "background"],
-  animation: ["rise", "reveal", "typewriter", "scale", "fade", "none"],
+  animation: ["type-rise", "rise", "reveal", "typewriter", "scale", "fade", "none"],
   mediaFit: ["cover", "contain", "adapt"],
 };
+for (const key of ["mediaZoom","mediaX","mediaY","mediaDim","mediaStart"]) ranges[key+'B']=ranges[key];
+enums.mediaFitB=enums.mediaFit;
 const hex = (x) => typeof x === "string" && /^#[\da-f]{6}$/i.test(x);
 export function normalizeProject(input) {
   if (
@@ -232,7 +247,7 @@ export function normalizeProject(input) {
       if (s.entrance === 85) s.entrance = DEFAULTS.entrance;
       for (const [k, values] of Object.entries(enums))
         if (values.includes(raw[k])) s[k] = raw[k];
-      for (const k of ["title", "body", "eyebrow", "font", "paletteId"])
+      for (const k of ["title", "body", "eyebrow", "font", "paletteId", "mediaLabelA", "mediaLabelB"])
         if (typeof raw[k] === "string")
           s[k] = raw[k].slice(
             0,
@@ -251,6 +266,7 @@ export function normalizeProject(input) {
         "uppercase",
         "footer",
         "mediaLoop",
+        "mediaLoopB",
         "mediaFlow",
         "promptReveal",
         "clearPattern",
@@ -258,6 +274,7 @@ export function normalizeProject(input) {
       ])
         if (typeof raw[k] === "boolean") s[k] = raw[k];
       if (typeof raw.mediaId === "string") s.mediaId = raw.mediaId;
+      if (typeof raw.mediaIdB === "string") s.mediaIdB = raw.mediaIdB;
       if (typeof raw.id === "string" && !ids.has(raw.id)) s.id = raw.id;
       s.font = "Focal Upright";
       s.footer = false;
@@ -313,7 +330,8 @@ export function transitionAt(p, time) {
   };
 }
 export const usesMediaFlow = (previous, scene) =>
-  Boolean(previous?.mediaId && previous.mediaId === scene.mediaId && scene.mediaFlow !== false);
+  Boolean(previous?.mediaId && previous.mediaId === scene.mediaId && scene.mediaFlow !== false &&
+    !isComparison(previous.layout) && !isComparison(scene.layout));
 export const transitionLength = (scene, previous) =>
   scene.transition === "cut" && !usesMediaFlow(previous, scene)
     ? 0 : Math.min(MOTION_SECONDS, scene.duration / 3);
@@ -326,6 +344,7 @@ export function mediaSequenceStart(p, index) {
   return index;
 }
 export function mediaElapsed(p, index, local) {
+  if (index < 0) return local;
   const start = mediaSequenceStart(p, index);
   return local + p.scenes.slice(start, index).reduce((sum, scene) => sum + scene.duration, 0);
 }
@@ -427,7 +446,7 @@ function paintMedia(ctx, s, asset, geometry, rect = geometry.frame) {
         const right = Math.min(x + w, ix + iw), bottom = Math.min(y + h, iy + ih);
         const m = ctx.getTransform();
         s.onMediaBounds({x: left * m.a + m.e, y: top * m.d + m.f,
-          width: (right - left) * m.a, height: (bottom - top) * m.d});
+          width: (right - left) * m.a, height: (bottom - top) * m.d, ...(s.mediaSlot ? {slot:s.mediaSlot} : {})});
       }
       ctx.drawImage(el, ...geometry.image);
       ctx.fillStyle = `rgba(0,0,0,${s.mediaDim / 100})`;
@@ -503,6 +522,7 @@ function headline(ctx, s, t, rect, k) {
   const lh = (size * s.lineHeight) / 100,
     tx = x + (s.align === "center" ? w / 2 : s.align === "right" ? w : 0);
   const total = lines.join("").length;
+  const flowTotal = Array.from(lines.join("")).length;
   const paintLines = (background) => {
     let consumed = 0;
     lines.forEach((line, i) => {
@@ -510,6 +530,33 @@ function headline(ctx, s, t, rect, k) {
       const p =
         s.animation === "none" ? 1 : ease((t - i * 0.075) / (s.entrance / 100));
       let yy = y + i * lh;
+      if (s.animation === "type-rise" && t < 2 * s.entrance / 100) {
+        const left = tx - (s.align === "center" ? ctx.measureText(line).width / 2 : s.align === "right" ? ctx.measureText(line).width : 0);
+        ctx.textAlign = "left";
+        for (const match of line.matchAll(/\S+/gu)) {
+          const prefix = line.slice(0,match.index);
+          const word = Array.from(match[0]);
+          const motion = wordEntrance(t,consumed+Array.from(prefix).length,word.length,flowTotal,s.entrance/100);
+          if (!motion.count) continue;
+          const str=word.slice(0,motion.count).join("");
+          const xx=left+ctx.measureText(prefix).width;
+          const wy=yy+(1-motion.progress)*size*.35;
+          if (background) {
+            const m=ctx.measureText(str);
+            ctx.fillStyle=s.promptBg;
+            const trailing=line.slice(match.index+match[0].length).match(/^\s+/)?.[0] || "";
+            const bridge=motion.count===word.length ? ctx.measureText(trailing).width*motion.progress : 0;
+            ctx.fillRect(xx-m.actualBoundingBoxLeft,wy-m.actualBoundingBoxAscent,
+              m.actualBoundingBoxLeft+m.actualBoundingBoxRight+bridge,m.actualBoundingBoxAscent+m.actualBoundingBoxDescent);
+          } else {
+            ctx.fillStyle=s.treatment === "background" ? s.promptFg : s.fg;
+            ctx.fillText(str,xx,wy);
+          }
+        }
+        consumed+=Array.from(line).length;
+        ctx.restore();
+        return;
+      }
       if (s.animation === "rise") yy += (1 - p) * size * 0.6;
       if (["rise", "scale", "fade"].includes(s.animation)) ctx.globalAlpha = p;
       if (s.animation === "reveal") {
@@ -600,6 +647,9 @@ function drawPrompt(ctx, s, text, t, x, y, width, k, measure = false) {
           lines.reduce((sum, line) => sum + line.length, 0),
       )
     : Infinity;
+  const flowing=s.promptReveal && s.animation === "type-rise";
+  const characters=lines.flat().reduce((sum,item)=>sum+Array.from(item.word).length,0);
+  let consumedCharacters=0;
   let visible = 0;
   lines.forEach((line, i) => {
     const lineWidth = line.length ? line.at(-1).x + line.at(-1).w : 0;
@@ -610,12 +660,17 @@ function drawPrompt(ctx, s, text, t, x, y, width, k, measure = false) {
           ? width - lineWidth
           : 0;
     line.forEach((item) => {
-      if (visible++ >= count) return;
+      const letters=Array.from(item.word);
+      const motion=flowing?wordEntrance(t,consumedCharacters,letters.length,characters,s.entrance/100):null;
+      consumedCharacters+=letters.length;
+      if (flowing ? !motion.count : visible++ >= count) return;
+      const wordY=y+i*(height+gap)+(motion?(1-motion.progress)*height*.6:0);
+      const shown=motion?letters.slice(0,motion.count).join(""):item.word;
       ctx.fillStyle = s.promptBg;
       ctx.beginPath();
       ctx.roundRect(
         x + offset + item.x,
-        y + i * (height + gap),
+        wordY,
         item.w,
         height,
         s.promptRadius * k,
@@ -623,9 +678,9 @@ function drawPrompt(ctx, s, text, t, x, y, width, k, measure = false) {
       ctx.fill();
       ctx.fillStyle = s.promptFg;
       ctx.fillText(
-        item.word,
+        shown,
         x + offset + item.x + pad,
-        y + i * (height + gap) + pad + ascent,
+        wordY + pad + ascent,
       );
     });
   });
@@ -670,8 +725,8 @@ export function renderScene(ctx, s, t, w, h, asset, index = 0) {
           );
           // Reserve the start position too, so rising/scaling text never sweeps
           // through a node while the final text bounds remain stable.
-          if (["rise", "scale", "reveal"].includes(s.animation))
-            renderScene(probe, clean, 0, w, h, asset, index);
+          if (["type-rise", "rise", "scale", "reveal"].includes(s.animation))
+            renderScene(probe, s.animation === "type-rise" ? {...clean,animation:"rise"} : clean, 0, w, h, asset, index);
         },
         padding,
         s.clearPattern,
@@ -876,8 +931,8 @@ export function renderFrame(canvas, p, time, assets, newLayer, onMediaBounds) {
   if (at.blend < 1) {
     let prev = p.scenes[at.index - 1];
     const blend = easeInOutQuad(at.blend);
-    const previousAsset = assets.get(prev.id) || assets.get(prev.mediaId);
-    const activeAsset = assets.get(at.scene.id) || assets.get(at.scene.mediaId);
+    const previousAsset = resolveSceneAsset(assets, prev);
+    const activeAsset = resolveSceneAsset(assets, at.scene);
     if (at.sharedMedia) {
       const from = sceneMediaGeometry(ctx, prev, w, h, previousAsset);
       const to = sceneMediaGeometry(ctx, at.scene, w, h, activeAsset);
@@ -897,7 +952,7 @@ export function renderFrame(canvas, p, time, assets, newLayer, onMediaBounds) {
       Math.max(0, prev.duration - 1 / 60),
       w,
       h,
-      assets.get(prev.id) || assets.get(prev.mediaId),
+      resolveSceneAsset(assets, prev),
       at.index - 1,
     );
     ctx.save();
@@ -922,7 +977,7 @@ export function renderFrame(canvas, p, time, assets, newLayer, onMediaBounds) {
         at.local,
         w,
         h,
-        assets.get(at.scene.id) || assets.get(at.scene.mediaId),
+        resolveSceneAsset(assets, at.scene),
         at.index,
       );
       lc.restore();
@@ -934,7 +989,7 @@ export function renderFrame(canvas, p, time, assets, newLayer, onMediaBounds) {
         at.local,
         w,
         h,
-        assets.get(at.scene.id) || assets.get(at.scene.mediaId),
+        resolveSceneAsset(assets, at.scene),
         at.index,
       );
     ctx.restore();
@@ -945,7 +1000,7 @@ export function renderFrame(canvas, p, time, assets, newLayer, onMediaBounds) {
       at.local,
       w,
       h,
-      assets.get(at.scene.id) || assets.get(at.scene.mediaId),
+      resolveSceneAsset(assets, at.scene),
       at.index,
     );
   ctx.restore();

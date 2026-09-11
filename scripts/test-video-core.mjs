@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { readDustPresets, applyDustPreset } from "../video-presets.mjs";
 import { nodeOverlapsText } from "../video-text-clear.mjs";
 import { timelineGeometry } from "../video-timeline.mjs";
-import { easeOutQuad, easeInOutQuad } from "../video-motion.mjs";
+import { easeOutQuad, easeInOutQuad, wordEntrance } from "../video-motion.mjs";
 import {
   starterProject,
   createScene,
@@ -366,9 +366,9 @@ test("data layouts pass the chosen opacity through without hidden dimming", () =
     assert.equal(observed, opacity);
   }
 });
-test("forty-five extra layouts retain editable data through save/open", () => {
-  assert.equal(EXTRA_LAYOUTS.length, 45);
-  assert.equal(new Set(EXTRA_LAYOUTS.map((l) => l[0])).size, 45);
+test("fifty-seven extra layouts retain editable data through save/open", () => {
+  assert.equal(EXTRA_LAYOUTS.length, 57);
+  assert.equal(new Set(EXTRA_LAYOUTS.map((l) => l[0])).size, 57);
   const project = starterProject();
   for (const [id] of EXTRA_LAYOUTS) {
     setSceneLayout(project.scenes[0], id);
@@ -480,4 +480,18 @@ test("media morph preserves source aspect ratio while interpolating frame, crop 
     assert.ok(Math.abs(g.image[2]/g.image[3]-1600/900)<1e-10);
     assert.ok(g.frame[0]>from.frame[0] && g.frame[0]<to.frame[0]);
   }
+});
+
+
+test("default typewriter word rise reveals in order and settles without overshoot", () => {
+ assert.equal(createScene().animation,"type-rise");
+ assert.deepEqual(wordEntrance(0,0,5,11),{count:0,progress:0});
+ assert.equal(wordEntrance(.1,6,5,11).count,0);
+ const middle=wordEntrance(.35,6,5,11);
+ assert.ok(middle.count>0&&middle.count<5);
+ assert.ok(middle.progress>0&&middle.progress<1);
+ assert.deepEqual(wordEntrance(1.2,6,5,11),{count:5,progress:1});
+ const p={version:1,scenes:[createScene({animation:"type-rise"}),createScene({animation:"none"})]};
+ assert.equal(normalizeProject(p).scenes[0].animation,"type-rise");
+ assert.equal(normalizeProject(p).scenes[1].animation,"none");
 });

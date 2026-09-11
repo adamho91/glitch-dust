@@ -1,4 +1,4 @@
-import { duration, transitionLength, usesMediaFlow } from "./video-core.mjs?v=22";
+import { duration, transitionLength, usesMediaFlow } from "./video-core.mjs?v=24";
 
 export function timelineGeometry(project, viewport, zoom = 0) {
   const total = duration(project);

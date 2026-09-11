@@ -7,11 +7,11 @@
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="ui-theme.css" />
     <link rel="stylesheet" href="app-nav.css" />
-    <link rel="stylesheet" href="video-studio.css?v=22" />
+    <link rel="stylesheet" href="video-studio.css?v=24" />
     <script src="app-nav.js?v=hidden-video-2" defer></script>
     <script src="fal-palette.js"></script>
     <script src="default-presets.js"></script>
-    <script src="video-studio.js?v=22" type="module"></script>
+    <script src="video-studio.js?v=24" type="module"></script>
   </head>
   <body>
     <div class="studio" id="studio">
@@ -61,10 +61,10 @@
           >
             <div class="section-title">Layout</div>
             <select id="layoutGroup" aria-label="Layout group">
-              <option value="all">All layouts · 51</option>
+              <option value="all">All layouts · 63</option>
               <option value="data">Charts &amp; stats · 24</option>
               <option value="type">Type · 16</option>
-              <option value="media">Media · 11</option>
+              <option value="media">Media · 23</option>
             </select>
             <div id="templates" class="template-grid"></div>
             <button id="importChart" class="chart-import-button">
@@ -460,6 +460,7 @@
             <div class="section-title">Type in motion</div>
             <label class="field"
               >Entrance<select data-prop="animation">
+                <option value="type-rise">Typewriter + word rise</option>
                 <option value="rise">Staggered rise</option>
                 <option value="reveal">Line reveal</option>
                 <option value="typewriter">Typewriter</option>
@@ -516,6 +517,8 @@
               Click an asset to place it in this scene. Media stays on this
               device. Video clips play without audio.
             </p>
+            <label class="field" id="mediaSlotField" hidden>Place / edit media<select id="mediaSlot"><option value="primary">A · First media</option><option value="secondary">B · Second media</option></select></label>
+
             <div id="mediaLibrary" class="media-library"></div>
             <button id="sequenceMedia" class="wide subtle sequence-media">
               ＋ Build scenes from all media
@@ -525,8 +528,9 @@
             <button id="removeMedia" class="wide subtle">
               Remove from scene
             </button>
+            <div id="mediaLabels" hidden><label class="field">Label A<input data-prop="mediaLabelA" maxlength="80" /></label><label class="field">Label B<input data-prop="mediaLabelB" maxlength="80" /></label><p class="help">Choose A or B, then click an upload. Each has its own crop and clip settings. Upload two files together to fill both.</p></div>
             <label class="check"><input type="checkbox" data-prop="mediaFlow" /> Flow from previous scene</label>
-            <p class="help">Reusing the same media smoothly moves its frame and continues the clip. Turn off to use the scene transition and restart the clip.</p>
+            <p class="help" id="mediaFlowHelp">Reusing the same media smoothly moves its frame and continues the clip. Turn off to use the scene transition and restart the clip.</p>
             <label class="field"
               >Placement<select data-prop="mediaFit">
                 <option value="cover">Fill / crop</option>

@@ -1,0 +1,25 @@
+<!doctype html><meta charset="utf-8"><title>Media template checks</title>
+<style>@font-face{font-family:'Focal Upright';src:url('../Focal-Upright-VF_wght.ttf');font-weight:100 900}body{background:#181818;color:#eee;font:16px 'Focal Upright';margin:24px}main{display:grid;grid-template-columns:1fr 1fr;gap:20px}canvas{width:100%;display:block}h2{font-size:18px}#status{max-width:1000px}</style>
+<h1>Media templates</h1><p id="status">Checking…</p><main></main>
+<script type="module">
+import {MEDIA_TEMPLATES,resolveSceneAsset} from '../video-media-layouts.mjs?v=24';
+import {createScene,renderScene,FORMATS} from '../video-core.mjs?v=24';
+import {createSvgContext} from '../video-svg.mjs?v=24';
+await document.fonts.load('500 48px "Focal Upright"');await document.fonts.load('400 48px "Focal Upright"');
+async function source(bg,fg,vertical=false){const c=document.createElement('canvas');c.width=vertical?400:800;c.height=vertical?600:450;const ctx=c.getContext('2d');ctx.fillStyle=bg;ctx.fillRect(0,0,c.width,c.height);ctx.fillStyle=fg;ctx.fillRect(c.width*.12,c.height*.15,c.width*.76,c.height*.7);ctx.fillStyle=bg;ctx.fillRect(c.width*.2,c.height*.25,c.width*.6,c.height*.12);const image=new Image();image.src=c.toDataURL();await image.decode();return {element:image}}
+const a=await source('#115ef3','#99edff'),b=await source('#004012','#adff00',true),results=[];
+const format=new URLSearchParams(location.search).get('format')||'wide';
+for(const [layout,label] of MEDIA_TEMPLATES){
+ const [w,h]=FORMATS[format],c=document.createElement('canvas');c.width=w;c.height=h;
+ const s=createScene({layout,title:'A better way\nto make.',body:layout==='feature-steps'?'Faster previews\nMore precise controls\nReady to share':'A little less friction. A lot more possibility.',mediaId:'a',mediaIdB:'b',mediaDim:0,mediaDimB:0,mediaFit:'adapt',mediaFitB:'adapt',bg:'#ffffff',fg:'#000000',promptBg:'#adff00',promptFg:'#004012',animation:'none',pattern:'none',promptReveal:false});
+ const asset=resolveSceneAsset(new Map([['a',a],['b',b]]),s),bounds=[];
+ renderScene(c.getContext('2d'),{...s,onMediaBounds:r=>bounds.push(r)},1,w,h,asset);
+ const recorder=createSvgContext(w,h,document.createElement('canvas').getContext('2d'));renderScene(recorder.context,s,1,w,h,asset);
+ const doc=new DOMParser().parseFromString(recorder.serialize(),'image/svg+xml');
+ const expected=layout.startsWith('compare-')?2:1;
+ const valid=bounds.length===expected&&bounds.every(r=>r.width>0&&r.height>0)&&doc.querySelectorAll('image').length===expected&&!doc.querySelector('parsererror');
+ results.push(`${label}: ${valid?'PASS':'FAIL'}`);
+ const section=document.createElement('section'),heading=document.createElement('h2');heading.textContent=label;section.append(heading,c);document.querySelector('main').append(section);
+}
+document.querySelector('#status').textContent=results.join(' · ');
+</script>

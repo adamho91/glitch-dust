@@ -2,8 +2,8 @@
 <style>body{background:#222;color:#eee;font:16px system-ui;margin:24px}section{display:grid;grid-template-columns:1fr 1fr;gap:16px}h2{grid-column:span 2}canvas,img{width:100%}</style>
 <h1>Media frame / SVG</h1><p id="status">Checking…</p><main></main>
 <script type="module">
-import {createScene,renderScene} from '../video-core.mjs?v=22';
-import {createSvgContext} from '../video-svg.mjs?v=22';
+import {createScene,renderScene} from '../video-core.mjs?v=24';
+import {createSvgContext} from '../video-svg.mjs?v=24';
 const results=[];
 for(const orientation of ['landscape','portrait']) {
  const source=document.createElement('canvas');source.width=orientation==='landscape'?400:200;source.height=orientation==='landscape'?200:400;
