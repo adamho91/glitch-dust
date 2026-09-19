@@ -1905,8 +1905,11 @@ function initSoftGlitchMode() {
   if (!el || el.dataset.wired === 'true') return;
   el.dataset.wired = 'true';
   try {
-    el.checked = localStorage.getItem('glitchDustSoftGlitch') === '1';
-  } catch (_) {}
+    // Lite defaults Soft Glitch on for every preset; only stay off if user opted out.
+    el.checked = localStorage.getItem('glitchDustSoftGlitch') !== '0';
+  } catch (_) {
+    el.checked = true;
+  }
   el.addEventListener('change', () => {
     try {
       localStorage.setItem('glitchDustSoftGlitch', el.checked ? '1' : '0');

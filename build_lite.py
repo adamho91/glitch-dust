@@ -242,7 +242,7 @@ html = html[:custom_weights_pos] + LITE_SIDEBAR_TEXT + html[custom_weights_pos:]
 html = html.replace(
     '    <div class="btn-row action-play">',
     '    <div class="ctrl-check soft-glitch-toggle">\n'
-    '      <input type="checkbox" id="softGlitchMode">\n'
+    '      <input type="checkbox" id="softGlitchMode" checked>\n'
     '      <label for="softGlitchMode">Soft Glitch Mode</label>\n'
     '    </div>\n'
     '    <div class="hint soft-glitch-hint">Plays at 1/6 speed · easier to read</div>\n'
