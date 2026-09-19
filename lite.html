@@ -1551,7 +1551,7 @@
       <input type="checkbox" id="softGlitchMode">
       <label for="softGlitchMode">Soft Glitch Mode</label>
     </div>
-    <div class="hint soft-glitch-hint">Plays at half speed · easier to read</div>
+    <div class="hint soft-glitch-hint">Plays at 1/4 speed · easier to read</div>
     <div class="btn-row action-play lite-play-row">
       <button class="primary" id="genBtn">Generate</button>
       <button id="animBtn">Pause</button>
@@ -1941,7 +1941,7 @@ function isSoftGlitchMode() {
 
 function getAnimDurationMs() {
   const base = parseFloat(document.getElementById('animDuration').value) * 1000;
-  return isSoftGlitchMode() ? base * 2 : base;
+  return isSoftGlitchMode() ? base * 4 : base;
 }
 
 function applySoftGlitchTiming() {
