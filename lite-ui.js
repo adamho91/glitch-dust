@@ -168,6 +168,9 @@
       }
       if (typeof updateNodeMediaUi === 'function') updateNodeMediaUi();
     }
+    if (typeof ensureLiteReadableTextColors === 'function') {
+      ensureLiteReadableTextColors();
+    }
   }
 
   function syncLiteTextFromSettings(settings) {
@@ -261,6 +264,7 @@
     const promptTw = document.getElementById('promptTypewriter');
     if (textTw) textTw.checked = false;
     if (promptTw) promptTw.checked = false;
+    if (typeof ensureLiteReadableTextColors === 'function') ensureLiteReadableTextColors({ skipRefresh: true });
     if (typeof refreshTextOverlay === 'function') refreshTextOverlay();
     if (typeof refreshPromptTextOverlay === 'function') refreshPromptTextOverlay();
     if (typeof drawFrame === 'function') drawFrame(performance.now());

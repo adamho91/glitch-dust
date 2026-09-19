@@ -2806,15 +2806,155 @@ function getPromptTextColor() {
   return document.getElementById('promptTextColor').value || '#ffffff';
 }
 
+const LITE_TEXT_CONTRAST_MIN = 4.5;
+
+function parseHexColorRgb(hex) {
+  if (!hex || typeof hex !== 'string' || hex === 'transparent') return null;
+  let h = hex.trim();
+  if (!h.startsWith('#')) h = '#' + h;
+  if (h.length === 4) h = '#' + h[1] + h[1] + h[2] + h[2] + h[3] + h[3];
+  if (!/^#[0-9a-fA-F]{6}$/.test(h)) return null;
+  return {
+    r: parseInt(h.slice(1, 3), 16),
+    g: parseInt(h.slice(3, 5), 16),
+    b: parseInt(h.slice(5, 7), 16),
+  };
+}
+
+function normalizeHexColor(hex) {
+  const rgb = parseHexColorRgb(hex);
+  if (!rgb) return null;
+  return '#' + [rgb.r, rgb.g, rgb.b].map(n => n.toString(16).padStart(2, '0')).join('').toLowerCase();
+}
+
+function relativeLuminanceRgb(rgb) {
+  const channel = c => {
+    c /= 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * channel(rgb.r) + 0.7152 * channel(rgb.g) + 0.0722 * channel(rgb.b);
+}
+
+function contrastRatioHex(hexA, hexB) {
+  const a = parseHexColorRgb(hexA);
+  const b = parseHexColorRgb(hexB);
+  if (!a || !b) return 1;
+  const l1 = relativeLuminanceRgb(a);
+  const l2 = relativeLuminanceRgb(b);
+  const lighter = Math.max(l1, l2);
+  const darker = Math.min(l1, l2);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function pickContrastingTextColor(againstHex, preferredHex, paletteColors) {
+  const against = normalizeHexColor(againstHex) || '#000000';
+  const preferred = preferredHex ? normalizeHexColor(preferredHex) : null;
+  const seen = new Set();
+  const candidates = [];
+  const add = (hex) => {
+    const n = normalizeHexColor(hex);
+    if (!n || seen.has(n) || n === against) return;
+    seen.add(n);
+    candidates.push(n);
+  };
+  (paletteColors || []).forEach(add);
+  add('#ffffff');
+  add('#000000');
+  if (preferred) add(preferred);
+
+  if (preferred && contrastRatioHex(preferred, against) >= LITE_TEXT_CONTRAST_MIN) {
+    return preferred;
+  }
+
+  let best = null;
+  candidates.forEach(color => {
+    const ratio = contrastRatioHex(color, against);
+    const isNeutral = color === '#ffffff' || color === '#000000';
+    const score = ratio
+      + (isNeutral ? 0 : 0.08)
+      + (preferred && color === preferred ? 0.12 : 0);
+    if (!best || score > best.score) best = { color, ratio, score };
+  });
+
+  if (best && best.ratio >= LITE_TEXT_CONTRAST_MIN) return best.color;
+  return contrastRatioHex('#ffffff', against) >= contrastRatioHex('#000000', against)
+    ? '#ffffff'
+    : '#000000';
+}
+
+function isLiteAppMode() {
+  return typeof GLITCH_DUST_LITE !== 'undefined' && !!GLITCH_DUST_LITE;
+}
+
+/** Keep Lite headline/prompt text readable against bg / prompt boxes. */
+function ensureLiteReadableTextColors(opts) {
+  if (!isLiteAppMode()) return false;
+  opts = opts || {};
+  let changed = false;
+  const palette = typeof getActivePaletteColorList === 'function'
+    ? getActivePaletteColorList()
+    : ((typeof activeTonalColors !== 'undefined' && activeTonalColors) || []).slice();
+
+  const bgRaw = typeof getBg === 'function' ? getBg() : '#ffffff';
+  const headlineAgainst = (!bgRaw || bgRaw === 'transparent') ? '#111111' : bgRaw;
+  const textEl = document.getElementById('textColor');
+  if (textEl) {
+    const next = pickContrastingTextColor(headlineAgainst, textEl.value, palette);
+    if (normalizeHexColor(textEl.value) !== normalizeHexColor(next)) {
+      textEl.value = next;
+      changed = true;
+    }
+  }
+
+  const boxRaw = typeof getPromptBoxColor === 'function'
+    ? getPromptBoxColor()
+    : (document.getElementById('promptBorderColor') || {}).value || '#ec0648';
+  const promptEl = document.getElementById('promptTextColor');
+  if (promptEl) {
+    const next = pickContrastingTextColor(boxRaw, promptEl.value, palette);
+    if (normalizeHexColor(promptEl.value) !== normalizeHexColor(next)) {
+      promptEl.value = next;
+      changed = true;
+    }
+  }
+
+  if (typeof isPromptSpaceColorEnabled === 'function' && isPromptSpaceColorEnabled()) {
+    const spaceEl = document.getElementById('promptSpaceColor');
+    const textHex = promptEl ? promptEl.value : '#ffffff';
+    if (spaceEl) {
+      const alt = palette.filter(c => normalizeHexColor(c) !== normalizeHexColor(textHex));
+      const next = pickContrastingTextColor(boxRaw, spaceEl.value, alt.length ? alt : palette);
+      if (normalizeHexColor(spaceEl.value) !== normalizeHexColor(next)) {
+        spaceEl.value = next;
+        changed = true;
+      }
+    }
+  }
+
+  if (changed && !opts.skipRefresh) {
+    if (typeof refreshTextOverlay === 'function') refreshTextOverlay();
+    if (typeof refreshPromptTextOverlay === 'function') refreshPromptTextOverlay();
+  }
+  return changed;
+}
+
 function getActivePaletteColorList() {
   if (tonalCount === 'all') return PALETTE.map(entry => entry.hex);
   return activeTonalColors.slice();
 }
 
 function cyclePromptTextColor(fromHex, paletteColors) {
-  const colors = (paletteColors && paletteColors.length)
+  let colors = (paletteColors && paletteColors.length)
     ? paletteColors.slice()
     : getActivePaletteColorList();
+  if (isLiteAppMode()) {
+    const box = getPromptBoxColor();
+    const readable = colors.filter(c => contrastRatioHex(c, box) >= LITE_TEXT_CONTRAST_MIN);
+    if (readable.length) colors = readable;
+    else colors = [
+      contrastRatioHex('#ffffff', box) >= contrastRatioHex('#000000', box) ? '#ffffff' : '#000000',
+    ];
+  }
   if (!colors.length) return;
   const current = getPromptTextColor().toLowerCase();
   const from = (fromHex || current).toLowerCase();
@@ -2825,6 +2965,7 @@ function cyclePromptTextColor(fromHex, paletteColors) {
   if (isPromptSpaceColorEnabled() && getPromptSpaceColor().toLowerCase() === next.toLowerCase()) {
     document.getElementById('promptSpaceColor').value = pickPromptSpaceColorFromPalette(next);
   }
+  if (isLiteAppMode()) ensureLiteReadableTextColors({ skipRefresh: true });
   refreshPromptTextOverlay();
 }
 
@@ -4165,17 +4306,20 @@ document.getElementById('promptFontSize').oninput = () => {
 };
 document.getElementById('promptBorderColor').oninput = () => {
   document.getElementById('promptBorderFollowPalette').checked = false;
+  ensureLiteReadableTextColors({ skipRefresh: true });
   refreshPromptTextOverlay();
 };
 document.getElementById('promptBorderFromPalette').onclick = () => {
   document.getElementById('promptBorderFollowPalette').checked = true;
   syncPromptBorderFromPalette();
+  ensureLiteReadableTextColors({ skipRefresh: true });
   refreshPromptTextOverlay();
 };
 document.getElementById('promptTextColor').oninput = () => refreshPromptTextOverlay();
 document.getElementById('promptTextColorCycle').onclick = () => cyclePromptTextColor();
 document.getElementById('promptBorderFollowPalette').onchange = () => {
   if (document.getElementById('promptBorderFollowPalette').checked) syncPromptBorderFromPalette();
+  ensureLiteReadableTextColors({ skipRefresh: true });
   refreshPromptTextOverlay();
 };
 document.getElementById('promptLineWrapOffset').onchange = () => {
@@ -4347,6 +4491,7 @@ function setBgSelection(value, opts) {
   bgSel.value = v;
   if (v === 'custom' && opts.customHex) bgCustom.value = opts.customHex;
   updateBgSwatchUi();
+  ensureLiteReadableTextColors({ skipRefresh: !!opts.silent });
   if (!opts.silent) {
     refreshTextOverlay();
     schedulePresetAutosave();
@@ -4892,6 +5037,7 @@ function applyTonalPreset(preset, opts) {
   syncPromptBorderFromPalette();
   if (isLogoFollowPalette()) syncLogoColorsFromPalette(getLogoPaletteOffsetFromColors());
   syncPromptSpaceColorFromPalette();
+  ensureLiteReadableTextColors();
   renderPaletteMediaList();
   if (!opts || !opts.skipRegen) beginCycle();
 }
@@ -4956,6 +5102,7 @@ function applyTonalColors(colors, opts) {
   syncPromptBorderFromPalette();
   if (isLogoFollowPalette()) syncLogoColorsFromPalette(getLogoPaletteOffsetFromColors());
   syncPromptSpaceColorFromPalette();
+  ensureLiteReadableTextColors();
   renderPaletteMediaList();
   if (!opts || !opts.skipRegen) beginCycle();
 }
@@ -8968,6 +9115,8 @@ function applySettings(settings, opts) {
   if (preset) {
     document.getElementById('presetName').value = preset.name;
   }
+
+  ensureLiteReadableTextColors({ skipRefresh: true });
 
   presetApplyInProgress = false;
   syncDialSliders();
