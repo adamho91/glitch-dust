@@ -3163,14 +3163,17 @@ function isVerticalMiddlePin(pin) {
   return pin === 'center' || pin === 'left' || pin === 'right';
 }
 
-/** When logo is vertically centered and prompt exists, stack headline+prompt+logo and center as one group. */
+/** When vertically centering with logo + prompt, stack headline+prompt+logo and center as one group. */
 function shouldGroupLogoWithPromptStack() {
   if (!isLogoEnabled() || !isPromptTextEnabled()) return false;
+  // Text pin is the centering intent — Lite often parks the logo top/bottom, which used to skip grouping.
+  if (isVerticalMiddlePin(getTextPin())) return true;
   return isVerticalMiddlePin(getEffectiveLogoPin());
 }
 
 function groupStackHorizontalMode() {
-  const pin = getEffectiveLogoPin();
+  // Prefer text pin for left/center/right when it's on the middle row.
+  const pin = isVerticalMiddlePin(getTextPin()) ? getTextPin() : getEffectiveLogoPin();
   if (pin === 'left') return 'left';
   if (pin === 'right') return 'right';
   return 'center';
@@ -3209,8 +3212,9 @@ function getGroupedOverlayStackLayout(canvasW, canvasH, opts) {
       : (isPromptTextEnabled() ? getPromptTextRaw() : ''));
   const logoH = getLogoHeight();
   const logoPin = getEffectiveLogoPin();
+  const textPin = getTextPin();
   const cacheKey = [
-    cw, ch, logoPin, logoH, getTextAlign(), getPromptAlign(),
+    cw, ch, textPin, logoPin, logoH, getTextAlign(), getPromptAlign(),
     headlineVisible, promptVisible, getLogoStyle(), getNodeSizePx(),
   ].join('|');
   if (groupedOverlayLayoutCache && groupedOverlayLayoutCache.key === cacheKey) {
