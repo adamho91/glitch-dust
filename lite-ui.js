@@ -172,6 +172,9 @@
       const enabled = settings.logo && settings.logo.enabled === true;
       logo.checked = enabled;
       liteLogo.checked = enabled;
+      if (enabled && typeof ensureLiteLogoPlacement === 'function') {
+        ensureLiteLogoPlacement(settings);
+      }
       if (typeof refreshLogoOverlay === 'function') refreshLogoOverlay();
     }
     if (settings.nodeMedia && document.getElementById('nodeMediaEnabled')) {
@@ -201,6 +204,9 @@
     lite.checked = logo.checked;
     lite.addEventListener('change', () => {
       logo.checked = lite.checked;
+      if (lite.checked && typeof ensureLiteLogoPlacement === 'function') {
+        ensureLiteLogoPlacement();
+      }
       if (typeof refreshLogoOverlay === 'function') refreshLogoOverlay();
       if (typeof drawFrame === 'function') drawFrame(performance.now());
       if (typeof schedulePresetAutosave === 'function') schedulePresetAutosave();
@@ -320,10 +326,12 @@
     if (textTw) textTw.checked = false;
     if (promptTw) promptTw.checked = false;
     if (typeof ensureLiteMatchingTextAlign === 'function') ensureLiteMatchingTextAlign();
+    if (typeof ensureLiteLogoPlacement === 'function') ensureLiteLogoPlacement();
     if (typeof ensureLiteReadableTextColors === 'function') ensureLiteReadableTextColors({ skipRefresh: true });
     syncLiteTextMirrors();
     if (typeof refreshTextOverlay === 'function') refreshTextOverlay();
     if (typeof refreshPromptTextOverlay === 'function') refreshPromptTextOverlay();
+    if (typeof refreshLogoOverlay === 'function') refreshLogoOverlay();
     if (typeof drawFrame === 'function') drawFrame(performance.now());
 
     const importBtn = document.getElementById('litePresetImport');

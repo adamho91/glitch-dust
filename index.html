@@ -2199,7 +2199,10 @@ function setTextPin(pin) {
   document.querySelectorAll('#textPinGrid .pin-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.pin === value);
   });
-  if (isLiteAppMode()) ensureLiteMatchingTextAlign();
+  if (isLiteAppMode()) {
+    ensureLiteMatchingTextAlign();
+    ensureLiteLogoPlacement();
+  }
 }
 
 function initTextPinPicker() {
@@ -2207,7 +2210,10 @@ function initTextPinPicker() {
     btn.onclick = () => {
       setTextPin(btn.dataset.pin);
       refreshTextOverlay();
-      if (isLiteAppMode()) refreshPromptTextOverlay();
+      if (isLiteAppMode()) {
+        refreshPromptTextOverlay();
+        refreshLogoOverlay();
+      }
       if (isLogoPinMatchText()) refreshLogoOverlay();
     };
   });
@@ -2905,6 +2911,50 @@ function ensureLiteMatchingTextAlign(settings) {
   if (settings && settings.text) settings.text.align = align;
   if (settings && settings.promptText) settings.promptText.align = align;
   return true;
+}
+
+/** Park the Lite logo away from headline/prompt — bottom-center by default. */
+function pickLiteLogoPin() {
+  const pin = getTextPin();
+  if (pin === 'bottom' || pin.startsWith('bottom-')) return 'top';
+  return 'bottom';
+}
+
+function ensureLiteLogoPlacement(settings) {
+  if (!isLiteAppMode()) return false;
+  if (!isLogoEnabled()) return false;
+
+  let changed = false;
+  const matchEl = document.getElementById('logoPinMatchText');
+  if (matchEl && matchEl.checked) {
+    matchEl.checked = false;
+    changed = true;
+  }
+
+  const nextPin = pickLiteLogoPin();
+  if (getLogoPin() !== nextPin || getEffectiveLogoPin() !== nextPin) {
+    setLogoPin(nextPin);
+    changed = true;
+  }
+
+  const marginEl = document.getElementById('logoMarginNodes');
+  if (marginEl) {
+    const cur = parseInt(marginEl.value, 10) || 1;
+    if (cur < 2) {
+      marginEl.value = '2';
+      changed = true;
+    }
+  }
+
+  if (settings && settings.logo) {
+    settings.logo.matchText = false;
+    settings.logo.pin = nextPin;
+    settings.logo.marginNodes = Math.max(2, parseInt(document.getElementById('logoMarginNodes').value, 10) || 2);
+  }
+
+  if (typeof updateLogoPinUi === 'function') updateLogoPinUi();
+  if (typeof updateLogoMarginLabel === 'function') updateLogoMarginLabel();
+  return changed;
 }
 
 /** Keep Lite headline/prompt text readable against bg / prompt boxes. */
@@ -9140,10 +9190,12 @@ function applySettings(settings, opts) {
   }
 
   ensureLiteMatchingTextAlign(s);
+  ensureLiteLogoPlacement(s);
   ensureLiteReadableTextColors({ skipRefresh: true });
   if (isLiteAppMode()) {
     if (typeof refreshTextOverlay === 'function') refreshTextOverlay();
     if (typeof refreshPromptTextOverlay === 'function') refreshPromptTextOverlay();
+    if (typeof refreshLogoOverlay === 'function') refreshLogoOverlay();
   }
 
   presetApplyInProgress = false;
