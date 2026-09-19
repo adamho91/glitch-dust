@@ -134,12 +134,25 @@
     if (status) status.textContent = 'All presets cleared · loaded defaults.';
   }
 
+  function syncLiteTextMirrors() {
+    [
+      ['overlayText', 'overlayTextCanvas'],
+      ['promptText', 'promptTextCanvas'],
+    ].forEach(([primaryId, mirrorId]) => {
+      const primary = document.getElementById(primaryId);
+      const mirror = document.getElementById(mirrorId);
+      if (!primary || !mirror) return;
+      if (mirror.value !== primary.value) mirror.value = primary.value;
+    });
+  }
+
   function syncLiteControlsFromSettings(settings) {
     if (!settings) return;
     const headline = document.getElementById('overlayText');
     const prompt = document.getElementById('promptText');
     if (headline && settings.text) headline.value = settings.text.content || '';
     if (prompt && settings.promptText) prompt.value = settings.promptText.content || '';
+    syncLiteTextMirrors();
     if (settings.text && document.getElementById('textEnabled')) {
       document.getElementById('textEnabled').checked = settings.text.enabled !== false;
     }
@@ -234,20 +247,42 @@
   }
 
   function wireLiteTextareas() {
-    ['overlayText', 'promptText'].forEach(id => {
-      const el = document.getElementById(id);
-      if (!el || el.dataset.liteWired === 'true') return;
-      el.dataset.liteWired = 'true';
-      el.addEventListener('input', () => {
-        if (id === 'overlayText') {
-          document.getElementById('textEnabled').checked = el.value.trim().length > 0;
-        } else {
-          document.getElementById('promptEnabled').checked = el.value.trim().length > 0;
-        }
-        drawFrame(performance.now());
-        schedulePresetAutosave();
+    const pairs = [
+      { primary: 'overlayText', mirror: 'overlayTextCanvas', enable: 'textEnabled' },
+      { primary: 'promptText', mirror: 'promptTextCanvas', enable: 'promptEnabled' },
+    ];
+    pairs.forEach(({ primary, mirror, enable }) => {
+      [primary, mirror].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el || el.dataset.liteWired === 'true') return;
+        el.dataset.liteWired = 'true';
+        el.addEventListener('input', () => {
+          const otherId = id === primary ? mirror : primary;
+          const other = document.getElementById(otherId);
+          if (other && other.value !== el.value) other.value = el.value;
+
+          const primaryEl = document.getElementById(primary);
+          const enableEl = document.getElementById(enable);
+          if (primaryEl && enableEl) {
+            enableEl.checked = primaryEl.value.trim().length > 0;
+          }
+
+          // Canvas mirrors don't fire the primary field's native handlers.
+          if (id === mirror) {
+            if (primary === 'overlayText' && typeof refreshTextOverlay === 'function') {
+              refreshTextOverlay();
+            }
+            if (primary === 'promptText' && typeof refreshPromptTextOverlay === 'function') {
+              refreshPromptTextOverlay();
+            }
+          }
+
+          if (typeof drawFrame === 'function') drawFrame(performance.now());
+          if (typeof schedulePresetAutosave === 'function') schedulePresetAutosave();
+        });
       });
     });
+    syncLiteTextMirrors();
   }
 
   function initLiteUi() {
@@ -265,6 +300,7 @@
     if (textTw) textTw.checked = false;
     if (promptTw) promptTw.checked = false;
     if (typeof ensureLiteReadableTextColors === 'function') ensureLiteReadableTextColors({ skipRefresh: true });
+    syncLiteTextMirrors();
     if (typeof refreshTextOverlay === 'function') refreshTextOverlay();
     if (typeof refreshPromptTextOverlay === 'function') refreshPromptTextOverlay();
     if (typeof drawFrame === 'function') drawFrame(performance.now());

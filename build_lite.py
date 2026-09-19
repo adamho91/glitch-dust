@@ -267,6 +267,23 @@ html = html.replace(
     1,
 )
 
+LITE_CANVAS_TEXT_DOCK = """    <div class="lite-canvas-text-dock" id="liteCanvasTextDock">
+      <div class="lite-canvas-text-label">Headline</div>
+      <textarea id="overlayTextCanvas" class="text-area" placeholder="Headline text…" spellcheck="false"></textarea>
+      <div class="lite-canvas-text-label">Prompt</div>
+      <textarea id="promptTextCanvas" class="text-area" placeholder="Caption / prompt…" spellcheck="false"></textarea>
+    </div>
+"""
+if '<div class="preview-wrap" id="previewWrap">' not in html:
+    raise SystemExit("Could not find preview wrap for lite canvas text dock")
+html = html.replace(
+    '<div class="preview-wrap" id="previewWrap">\n    <div class="canvas-text-panel lite-hide"',
+    '<div class="preview-wrap" id="previewWrap">\n' + LITE_CANVAS_TEXT_DOCK + '    <div class="canvas-text-panel lite-hide"',
+    1,
+)
+if 'id="overlayTextCanvas"' not in html or 'id="promptTextCanvas"' not in html:
+    raise SystemExit("lite build missing canvas headline/prompt text docks")
+
 # Remove duplicate textareas from hidden canvas panel (keep ids in sidebar only)
 import re
 panel_start = html.find('<div class="canvas-text-panel lite-hide"')

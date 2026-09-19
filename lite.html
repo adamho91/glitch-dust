@@ -1607,6 +1607,12 @@
 <main class="preview-panel">
   <p class="subtitle">1920×1080 · click preview to scrub · click again to play</p>
   <div class="preview-wrap" id="previewWrap">
+    <div class="lite-canvas-text-dock" id="liteCanvasTextDock">
+      <div class="lite-canvas-text-label">Headline</div>
+      <textarea id="overlayTextCanvas" class="text-area" placeholder="Headline text…" spellcheck="false"></textarea>
+      <div class="lite-canvas-text-label">Prompt</div>
+      <textarea id="promptTextCanvas" class="text-area" placeholder="Caption / prompt…" spellcheck="false"></textarea>
+    </div>
     <div class="canvas-text-panel lite-hide" id="canvasTextPanel">
       <div class="canvas-panel-section" data-panel-section>
         <div class="canvas-panel-head">
@@ -8277,6 +8283,7 @@ function initPreviewScrub() {
 
   wrap.addEventListener('click', e => {
     if (e.target.closest('.canvas-text-panel')) return;
+    if (e.target.closest('.lite-canvas-text-dock')) return;
     if (e.target.closest('.canvas-logo-panel')) return;
     if (e.target.closest('#status')) return;
     if (scrubDragStarted) {
@@ -8289,6 +8296,7 @@ function initPreviewScrub() {
 
   wrap.addEventListener('pointerdown', e => {
     if (e.target.closest('.canvas-text-panel')) return;
+    if (e.target.closest('.lite-canvas-text-dock')) return;
     if (e.target.closest('.canvas-logo-panel')) return;
     if (e.target.closest('#status')) return;
     if (!scrubMode) return;
@@ -8299,6 +8307,7 @@ function initPreviewScrub() {
 
   wrap.addEventListener('pointermove', e => {
     if (e.target.closest('.canvas-text-panel')) return;
+    if (e.target.closest('.lite-canvas-text-dock')) return;
     if (e.target.closest('.canvas-logo-panel')) return;
     if (e.target.closest('#status')) return;
     if (!scrubMode || !scrubPointerDown) return;

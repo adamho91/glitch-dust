@@ -8224,6 +8224,7 @@ function initPreviewScrub() {
 
   wrap.addEventListener('click', e => {
     if (e.target.closest('.canvas-text-panel')) return;
+    if (e.target.closest('.lite-canvas-text-dock')) return;
     if (e.target.closest('.canvas-logo-panel')) return;
     if (e.target.closest('#status')) return;
     if (scrubDragStarted) {
@@ -8236,6 +8237,7 @@ function initPreviewScrub() {
 
   wrap.addEventListener('pointerdown', e => {
     if (e.target.closest('.canvas-text-panel')) return;
+    if (e.target.closest('.lite-canvas-text-dock')) return;
     if (e.target.closest('.canvas-logo-panel')) return;
     if (e.target.closest('#status')) return;
     if (!scrubMode) return;
@@ -8246,6 +8248,7 @@ function initPreviewScrub() {
 
   wrap.addEventListener('pointermove', e => {
     if (e.target.closest('.canvas-text-panel')) return;
+    if (e.target.closest('.lite-canvas-text-dock')) return;
     if (e.target.closest('.canvas-logo-panel')) return;
     if (e.target.closest('#status')) return;
     if (!scrubMode || !scrubPointerDown) return;
