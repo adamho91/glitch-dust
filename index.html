@@ -2920,12 +2920,17 @@ function pickLiteLogoPin() {
   return 'bottom';
 }
 
-function ensureLiteLogoPlacement(settings) {
+function ensureLiteLogoPlacement(settings, opts) {
   if (!isLiteAppMode()) return false;
   if (!isLogoEnabled()) return false;
+  opts = opts || {};
+
+  // Respect manual pin picks. Only auto-park when match-text is on, or when forced (logo just enabled).
+  const matchEl = document.getElementById('logoPinMatchText');
+  const matchingText = !!(matchEl && matchEl.checked);
+  if (!opts.force && !matchingText) return false;
 
   let changed = false;
-  const matchEl = document.getElementById('logoPinMatchText');
   if (matchEl && matchEl.checked) {
     matchEl.checked = false;
     changed = true;

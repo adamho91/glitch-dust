@@ -164,9 +164,17 @@ body.lite-app .lite-logo-toggle {
   margin: 4px 0 8px;
 }
 
-body.lite-app .lite-logo-toggle label {
-  font-size: 12px;
-  color: #bbb;
+body.lite-app .lite-logo-block .lite-logo-pin {
+  margin-top: 8px;
+}
+
+body.lite-app .lite-logo-block .lite-logo-pin .pin-picker-label {
+  font-size: 11px;
+  color: #999;
+}
+
+body.lite-app .lite-logo-block .logo-pin-grid {
+  margin-top: 4px;
 }
 
 body.lite-app .action-panel {

@@ -1234,6 +1234,25 @@
     <button type="button" class="btn-inline" id="logoColorCycle" title="Cycle palette colors">Cycle</button>
   </div>
   <input type="color" id="logoColorDetail" value="#403700" class="lite-hide" hidden aria-hidden="true" tabindex="-1">
+  <div class="pin-picker lite-logo-pin">
+    <span class="pin-picker-label">Pin</span>
+    <input type="hidden" id="logoPin" value="bottom">
+    <div class="ctrl-check" style="margin-bottom:4px">
+      <input type="checkbox" id="logoPinMatchText">
+      <label for="logoPinMatchText">Match text pin</label>
+    </div>
+    <div class="pin-grid logo-pin-grid" id="logoPinGrid" role="radiogroup" aria-label="Logo pin position">
+      <button type="button" class="pin-btn" data-pin="top-left" title="Top left" aria-label="Top left"><svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.25"/><circle cx="4.5" cy="4.5" r="1.75" fill="currentColor"/></svg></button>
+      <button type="button" class="pin-btn" data-pin="top" title="Top center" aria-label="Top center"><svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.25"/><circle cx="8" cy="4.5" r="1.75" fill="currentColor"/></svg></button>
+      <button type="button" class="pin-btn" data-pin="top-right" title="Top right" aria-label="Top right"><svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.25"/><circle cx="11.5" cy="4.5" r="1.75" fill="currentColor"/></svg></button>
+      <button type="button" class="pin-btn" data-pin="left" title="Middle left" aria-label="Middle left"><svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.25"/><circle cx="4.5" cy="8" r="1.75" fill="currentColor"/></svg></button>
+      <button type="button" class="pin-btn" data-pin="center" title="Center" aria-label="Center"><svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.25"/><circle cx="8" cy="8" r="1.75" fill="currentColor"/></svg></button>
+      <button type="button" class="pin-btn" data-pin="right" title="Middle right" aria-label="Middle right"><svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.25"/><circle cx="11.5" cy="8" r="1.75" fill="currentColor"/></svg></button>
+      <button type="button" class="pin-btn" data-pin="bottom-left" title="Bottom left" aria-label="Bottom left"><svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.25"/><circle cx="4.5" cy="11.5" r="1.75" fill="currentColor"/></svg></button>
+      <button type="button" class="pin-btn active" data-pin="bottom" title="Bottom center" aria-label="Bottom center"><svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.25"/><circle cx="8" cy="11.5" r="1.75" fill="currentColor"/></svg></button>
+      <button type="button" class="pin-btn" data-pin="bottom-right" title="Bottom right" aria-label="Bottom right"><svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.25"/><circle cx="11.5" cy="11.5" r="1.75" fill="currentColor"/></svg></button>
+    </div>
+  </div>
   </div>
 
   <div class="lite-hide">
@@ -1834,25 +1853,6 @@
         <label>Height</label>
         <input type="range" id="logoSize" min="40" max="280" value="100" step="2">
         <span class="val" id="logoSizeV">100</span>
-      </div>
-      <div class="pin-picker">
-        <span class="pin-picker-label">Pin</span>
-        <input type="hidden" id="logoPin" value="bottom-left">
-        <div class="ctrl-check" style="margin-bottom:4px">
-          <input type="checkbox" id="logoPinMatchText" checked>
-          <label for="logoPinMatchText">Match text pin</label>
-        </div>
-        <div class="pin-grid logo-pin-grid" id="logoPinGrid" role="radiogroup" aria-label="Logo pin position">
-          <button type="button" class="pin-btn" data-pin="top-left" title="Top left" aria-label="Top left"><svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.25"/><circle cx="4.5" cy="4.5" r="1.75" fill="currentColor"/></svg></button>
-          <button type="button" class="pin-btn" data-pin="top" title="Top center" aria-label="Top center"><svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.25"/><circle cx="8" cy="4.5" r="1.75" fill="currentColor"/></svg></button>
-          <button type="button" class="pin-btn" data-pin="top-right" title="Top right" aria-label="Top right"><svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.25"/><circle cx="11.5" cy="4.5" r="1.75" fill="currentColor"/></svg></button>
-          <button type="button" class="pin-btn" data-pin="left" title="Middle left" aria-label="Middle left"><svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.25"/><circle cx="4.5" cy="8" r="1.75" fill="currentColor"/></svg></button>
-          <button type="button" class="pin-btn" data-pin="center" title="Center" aria-label="Center"><svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.25"/><circle cx="8" cy="8" r="1.75" fill="currentColor"/></svg></button>
-          <button type="button" class="pin-btn" data-pin="right" title="Middle right" aria-label="Middle right"><svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.25"/><circle cx="11.5" cy="8" r="1.75" fill="currentColor"/></svg></button>
-          <button type="button" class="pin-btn active" data-pin="bottom-left" title="Bottom left" aria-label="Bottom left"><svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.25"/><circle cx="4.5" cy="11.5" r="1.75" fill="currentColor"/></svg></button>
-          <button type="button" class="pin-btn" data-pin="bottom" title="Bottom center" aria-label="Bottom center"><svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.25"/><circle cx="8" cy="11.5" r="1.75" fill="currentColor"/></svg></button>
-          <button type="button" class="pin-btn" data-pin="bottom-right" title="Bottom right" aria-label="Bottom right"><svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.25"/><circle cx="11.5" cy="11.5" r="1.75" fill="currentColor"/></svg></button>
-        </div>
       </div>
       <div class="ctrl">
         <label>Margin</label>
@@ -2985,12 +2985,17 @@ function pickLiteLogoPin() {
   return 'bottom';
 }
 
-function ensureLiteLogoPlacement(settings) {
+function ensureLiteLogoPlacement(settings, opts) {
   if (!isLiteAppMode()) return false;
   if (!isLogoEnabled()) return false;
+  opts = opts || {};
+
+  // Respect manual pin picks. Only auto-park when match-text is on, or when forced (logo just enabled).
+  const matchEl = document.getElementById('logoPinMatchText');
+  const matchingText = !!(matchEl && matchEl.checked);
+  if (!opts.force && !matchingText) return false;
 
   let changed = false;
-  const matchEl = document.getElementById('logoPinMatchText');
   if (matchEl && matchEl.checked) {
     matchEl.checked = false;
     changed = true;

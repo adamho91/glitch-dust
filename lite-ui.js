@@ -205,7 +205,7 @@
     lite.addEventListener('change', () => {
       logo.checked = lite.checked;
       if (lite.checked && typeof ensureLiteLogoPlacement === 'function') {
-        ensureLiteLogoPlacement();
+        ensureLiteLogoPlacement(null, { force: true });
       }
       if (typeof refreshLogoOverlay === 'function') refreshLogoOverlay();
       if (typeof drawFrame === 'function') drawFrame(performance.now());

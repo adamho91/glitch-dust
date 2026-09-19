@@ -201,6 +201,25 @@ LITE_SIDEBAR_TEXT = """
     <button type="button" class="btn-inline" id="logoColorCycle" title="Cycle palette colors">Cycle</button>
   </div>
   <input type="color" id="logoColorDetail" value="#403700" class="lite-hide" hidden aria-hidden="true" tabindex="-1">
+  <div class="pin-picker lite-logo-pin">
+    <span class="pin-picker-label">Pin</span>
+    <input type="hidden" id="logoPin" value="bottom">
+    <div class="ctrl-check" style="margin-bottom:4px">
+      <input type="checkbox" id="logoPinMatchText">
+      <label for="logoPinMatchText">Match text pin</label>
+    </div>
+    <div class="pin-grid logo-pin-grid" id="logoPinGrid" role="radiogroup" aria-label="Logo pin position">
+      <button type="button" class="pin-btn" data-pin="top-left" title="Top left" aria-label="Top left"><svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.25"/><circle cx="4.5" cy="4.5" r="1.75" fill="currentColor"/></svg></button>
+      <button type="button" class="pin-btn" data-pin="top" title="Top center" aria-label="Top center"><svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.25"/><circle cx="8" cy="4.5" r="1.75" fill="currentColor"/></svg></button>
+      <button type="button" class="pin-btn" data-pin="top-right" title="Top right" aria-label="Top right"><svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.25"/><circle cx="11.5" cy="4.5" r="1.75" fill="currentColor"/></svg></button>
+      <button type="button" class="pin-btn" data-pin="left" title="Middle left" aria-label="Middle left"><svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.25"/><circle cx="4.5" cy="8" r="1.75" fill="currentColor"/></svg></button>
+      <button type="button" class="pin-btn" data-pin="center" title="Center" aria-label="Center"><svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.25"/><circle cx="8" cy="8" r="1.75" fill="currentColor"/></svg></button>
+      <button type="button" class="pin-btn" data-pin="right" title="Middle right" aria-label="Middle right"><svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.25"/><circle cx="11.5" cy="8" r="1.75" fill="currentColor"/></svg></button>
+      <button type="button" class="pin-btn" data-pin="bottom-left" title="Bottom left" aria-label="Bottom left"><svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.25"/><circle cx="4.5" cy="11.5" r="1.75" fill="currentColor"/></svg></button>
+      <button type="button" class="pin-btn active" data-pin="bottom" title="Bottom center" aria-label="Bottom center"><svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.25"/><circle cx="8" cy="11.5" r="1.75" fill="currentColor"/></svg></button>
+      <button type="button" class="pin-btn" data-pin="bottom-right" title="Bottom right" aria-label="Bottom right"><svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.25"/><circle cx="11.5" cy="11.5" r="1.75" fill="currentColor"/></svg></button>
+    </div>
+  </div>
   </div>
 
   <div class="lite-hide">
@@ -342,7 +361,30 @@ logo_panel = html[logo_start:logo_end]
 if LOGO_PALETTE_IN_PANEL not in logo_panel:
     raise SystemExit("Could not find logo palette block in canvas logo panel")
 logo_panel = logo_panel.replace(LOGO_PALETTE_IN_PANEL, "", 1)
+# Logo pin controls live in the lite sidebar — strip duplicates from the hidden panel
+logo_panel, pin_n = re.subn(
+    r'\s*<div class="pin-picker">\s*'
+    r'<span class="pin-picker-label">Pin</span>\s*'
+    r'<input type="hidden" id="logoPin"[^>]*>\s*'
+    r'<div class="ctrl-check"[^>]*>\s*'
+    r'<input type="checkbox" id="logoPinMatchText"[^>]*>\s*'
+    r'<label for="logoPinMatchText">[^<]*</label>\s*'
+    r'</div>\s*'
+    r'<div class="pin-grid logo-pin-grid" id="logoPinGrid"[^>]*>.*?</div>\s*'
+    r'</div>',
+    '',
+    logo_panel,
+    count=1,
+    flags=re.DOTALL,
+)
+if pin_n != 1:
+    raise SystemExit("Could not strip logo pin picker from canvas logo panel")
 html = html[:logo_start] + logo_panel + html[logo_end:]
+
+if html.count('id="logoPin"') != 1 or html.count('id="logoPinGrid"') != 1:
+    raise SystemExit("lite build must keep exactly one logo pin control")
+if 'lite-logo-pin' not in html:
+    raise SystemExit("lite build missing sidebar logo pin picker")
 
 if PROMPT_ALIGN_IN_PANEL in html:
     html = html.replace(PROMPT_ALIGN_IN_PANEL, "", 1)
