@@ -1547,6 +1547,11 @@
   </div>
 
   <div class="action-panel">
+    <div class="ctrl-check soft-glitch-toggle">
+      <input type="checkbox" id="softGlitchMode">
+      <label for="softGlitchMode">Soft Glitch Mode</label>
+    </div>
+    <div class="hint soft-glitch-hint">Plays at half speed · easier to read</div>
     <div class="btn-row action-play lite-play-row">
       <button class="primary" id="genBtn">Generate</button>
       <button id="animBtn">Pause</button>
@@ -1929,8 +1934,38 @@ let overlayPromptClearBBox = null;
 let overlayLogoClearBBox = null;
 let lastRenderProgress = 0.5;
 
+function isSoftGlitchMode() {
+  const el = document.getElementById('softGlitchMode');
+  return !!(el && el.checked);
+}
+
 function getAnimDurationMs() {
-  return parseFloat(document.getElementById('animDuration').value) * 1000;
+  const base = parseFloat(document.getElementById('animDuration').value) * 1000;
+  return isSoftGlitchMode() ? base * 2 : base;
+}
+
+function applySoftGlitchTiming() {
+  if (typeof cycleStart === 'undefined') return;
+  const progress = (typeof scrubMode !== 'undefined' && scrubMode)
+    ? scrubProgress
+    : (typeof lastRenderProgress === 'number' ? lastRenderProgress : 0);
+  cycleStart = performance.now() - clamp01(progress) * getAnimDurationMs();
+  if (typeof drawFrame === 'function') drawFrame(performance.now());
+}
+
+function initSoftGlitchMode() {
+  const el = document.getElementById('softGlitchMode');
+  if (!el || el.dataset.wired === 'true') return;
+  el.dataset.wired = 'true';
+  try {
+    el.checked = localStorage.getItem('glitchDustSoftGlitch') === '1';
+  } catch (_) {}
+  el.addEventListener('change', () => {
+    try {
+      localStorage.setItem('glitchDustSoftGlitch', el.checked ? '1' : '0');
+    } catch (_) {}
+    applySoftGlitchTiming();
+  });
 }
 
 function isBlanketNodeSpeedEnabled() {
@@ -11046,6 +11081,7 @@ updatePromptSpaceColorUi();
 initLogoStylePicker();
 initLogoPinPicker();
 loadLogoSvgAssets().catch(() => {});
+initSoftGlitchMode();
 beginCycle({ noiseSeed: getActivePreset().settings.noiseSeed, skipPresetSave: true });
 initPreviewScrub();
 initCanvasPanelToggles();

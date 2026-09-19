@@ -241,6 +241,11 @@ html = html[:custom_weights_pos] + LITE_SIDEBAR_TEXT + html[custom_weights_pos:]
 
 html = html.replace(
     '    <div class="btn-row action-play">',
+    '    <div class="ctrl-check soft-glitch-toggle">\n'
+    '      <input type="checkbox" id="softGlitchMode">\n'
+    '      <label for="softGlitchMode">Soft Glitch Mode</label>\n'
+    '    </div>\n'
+    '    <div class="hint soft-glitch-hint">Plays at half speed · easier to read</div>\n'
     '    <div class="btn-row action-play lite-play-row">',
     1,
 )
@@ -325,6 +330,8 @@ html = html.replace(
     1,
 )
 
+if 'softGlitchMode' not in html or 'Soft Glitch Mode' not in html:
+    raise SystemExit("lite build missing Soft Glitch Mode toggle")
 if 'id="overlayText"' not in html or 'id="promptText"' not in html:
     raise SystemExit("lite build missing overlayText/promptText in sidebar")
 if 'id="overlayTextStub"' not in html:

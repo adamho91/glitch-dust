@@ -173,6 +173,19 @@ body.lite-app .action-panel {
   margin-top: 12px;
 }
 
+body.lite-app .soft-glitch-toggle {
+  margin: 0 0 4px;
+}
+
+body.lite-app .soft-glitch-toggle label {
+  font-size: 12px;
+  color: #bbb;
+}
+
+body.lite-app .soft-glitch-hint {
+  margin: 0 0 10px;
+}
+
 body.lite-app .action-play button {
   flex: 1;
 }
