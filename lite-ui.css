@@ -205,6 +205,37 @@ body.lite-app .lite-canvas-text-dock {
   box-sizing: border-box;
 }
 
+body.lite-app .lite-canvas-export-bar {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin: 0 0 10px;
+}
+
+body.lite-app .lite-canvas-export-btn {
+  margin: 0;
+  padding: 7px 6px;
+  min-width: 0;
+  border: 1px solid #3a3a3a;
+  border-radius: 5px;
+  background: #222;
+  color: #ddd;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+body.lite-app .lite-canvas-export-btn:hover {
+  background: #2c2c2c;
+  border-color: #555;
+  color: #fff;
+}
+
+body.lite-app .lite-canvas-export-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
 body.lite-app .lite-canvas-text-label {
   font-size: 9px;
   letter-spacing: 0.08em;

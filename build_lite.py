@@ -268,6 +268,11 @@ html = html.replace(
 )
 
 LITE_CANVAS_TEXT_DOCK = """    <div class="lite-canvas-text-dock" id="liteCanvasTextDock">
+      <div class="lite-canvas-export-bar" role="group" aria-label="Quick export">
+        <button type="button" class="lite-canvas-export-btn" data-lite-export="pngExportBtn">PNG</button>
+        <button type="button" class="lite-canvas-export-btn" data-lite-export="mp4ExportBtn">MP4</button>
+        <button type="button" class="lite-canvas-export-btn" data-lite-export="gifExportBtn">GIF</button>
+      </div>
       <div class="lite-canvas-text-label">Headline</div>
       <textarea id="overlayTextCanvas" class="text-area" placeholder="Headline text…" spellcheck="false"></textarea>
       <div class="lite-canvas-text-label">Prompt</div>
@@ -283,6 +288,8 @@ html = html.replace(
 )
 if 'id="overlayTextCanvas"' not in html or 'id="promptTextCanvas"' not in html:
     raise SystemExit("lite build missing canvas headline/prompt text docks")
+if 'lite-canvas-export-bar' not in html or 'data-lite-export="pngExportBtn"' not in html:
+    raise SystemExit("lite build missing canvas export bar")
 
 # Remove duplicate textareas from hidden canvas panel (keep ids in sidebar only)
 import re

@@ -246,6 +246,22 @@
     apply();
   }
 
+  function wireLiteCanvasExportBar() {
+    const bar = document.getElementById('liteCanvasTextDock');
+    if (!bar || bar.dataset.exportWired === 'true') return;
+    bar.dataset.exportWired = 'true';
+    bar.querySelectorAll('[data-lite-export]').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.preventDefault();
+        e.stopPropagation();
+        const targetId = btn.getAttribute('data-lite-export');
+        const target = targetId && document.getElementById(targetId);
+        if (!target || target.disabled) return;
+        target.click();
+      });
+    });
+  }
+
   function wireLiteTextareas() {
     const pairs = [
       { primary: 'overlayText', mirror: 'overlayTextCanvas', enable: 'textEnabled' },
@@ -291,6 +307,7 @@
     renderLitePresetGrid();
     initLiteAspectRatios();
     wireLiteTextareas();
+    wireLiteCanvasExportBar();
     wireLiteOverlayWrap();
     wireLiteLogoToggle();
 
