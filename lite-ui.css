@@ -209,7 +209,7 @@ body.lite-app .lite-canvas-export-bar {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 6px;
-  margin: 0 0 10px;
+  margin: 0;
 }
 
 body.lite-app .lite-canvas-export-btn {
@@ -259,7 +259,7 @@ body.lite-app .lite-canvas-text-dock .text-area {
 
 body.lite-app .lite-canvas-text-dock #promptTextCanvas {
   min-height: 52px;
-  margin-bottom: 0;
+  margin-bottom: 10px;
 }
 
 body.lite-app .action-play button {
