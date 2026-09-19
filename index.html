@@ -2887,6 +2887,9 @@ function ensureLiteMatchingTextAlign(settings) {
   if (settings && settings.promptText) settings.promptText.align = align;
   return true;
 }
+
+/** Keep Lite headline/prompt text readable against bg / prompt boxes. */
+function ensureLiteReadableTextColors(opts) {
   if (!isLiteAppMode()) return false;
   opts = opts || {};
   let changed = false;
