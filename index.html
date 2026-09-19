@@ -3098,12 +3098,20 @@ function isVerticalMiddlePin(pin) {
   return pin === 'center' || pin === 'left' || pin === 'right';
 }
 
-/** When vertically centering with logo + prompt, stack headline+prompt+logo and center as one group. */
+/** Vertically middle pin + 2 or more of headline / prompt / logo → center them as one stack. */
+function shouldGroupOverlayStack() {
+  const middle = isVerticalMiddlePin(getTextPin())
+    || (isLogoEnabled() && isVerticalMiddlePin(getEffectiveLogoPin()));
+  if (!middle) return false;
+  const count = (isTextEnabled() ? 1 : 0)
+    + (isPromptTextEnabled() ? 1 : 0)
+    + (isLogoEnabled() ? 1 : 0);
+  return count >= 2;
+}
+
+/** @deprecated alias — grouping is no longer logo-only */
 function shouldGroupLogoWithPromptStack() {
-  if (!isLogoEnabled() || !isPromptTextEnabled()) return false;
-  // Text pin is the centering intent — Lite often parks the logo top/bottom, which used to skip grouping.
-  if (isVerticalMiddlePin(getTextPin())) return true;
-  return isVerticalMiddlePin(getEffectiveLogoPin());
+  return shouldGroupOverlayStack();
 }
 
 function groupStackHorizontalMode() {
@@ -3130,7 +3138,7 @@ function invalidateGroupedOverlayLayout() {
 
 function getGroupedOverlayStackLayout(canvasW, canvasH, opts) {
   opts = opts || {};
-  if (!shouldGroupLogoWithPromptStack()) return null;
+  if (!shouldGroupOverlayStack()) return null;
   if (groupedOverlayLayoutDepth > 0) return null;
 
   const cw = canvasW != null ? canvasW : W;
@@ -3145,12 +3153,13 @@ function getGroupedOverlayStackLayout(canvasW, canvasH, opts) {
     : (overlayLayoutFrame.promptVisible != null
       ? overlayLayoutFrame.promptVisible
       : (isPromptTextEnabled() ? getPromptTextRaw() : ''));
-  const logoH = getLogoHeight();
-  const logoPin = getEffectiveLogoPin();
+  const logoOn = isLogoEnabled();
+  const logoH = logoOn ? getLogoHeight() : 0;
+  const logoPin = logoOn ? getEffectiveLogoPin() : '';
   const textPin = getTextPin();
   const cacheKey = [
-    cw, ch, textPin, logoPin, logoH, getTextAlign(), getPromptAlign(),
-    headlineVisible, promptVisible, getLogoStyle(), getNodeSizePx(),
+    cw, ch, textPin, logoPin, logoOn ? logoH : 0, getTextAlign(), getPromptAlign(),
+    headlineVisible, promptVisible, logoOn ? getLogoStyle() : '', getNodeSizePx(),
   ].join('|');
   if (groupedOverlayLayoutCache && groupedOverlayLayoutCache.key === cacheKey) {
     return groupedOverlayLayoutCache.layout;
@@ -3159,7 +3168,7 @@ function getGroupedOverlayStackLayout(canvasW, canvasH, opts) {
   groupedOverlayLayoutDepth++;
   let layout = null;
   try {
-    const margin = Math.max(getTextMarginPx(), getLogoMarginPx());
+    const margin = Math.max(getTextMarginPx(), logoOn ? getLogoMarginPx() : 0);
     const gapTextPrompt = getPromptGapPx();
     const gapPromptLogo = Math.max(getPromptGapPx(), Math.round(getNodeSizePx() * 0.75));
     const hMode = groupStackHorizontalMode();
@@ -3184,7 +3193,7 @@ function getGroupedOverlayStackLayout(canvasW, canvasH, opts) {
       }
     }
 
-    if (promptVisible && String(promptVisible).trim()) {
+    if (isPromptTextEnabled() && promptVisible && String(promptVisible).trim()) {
       const pad = getPromptPadPx();
       const metrics = measurePromptBlockMetrics(
         wrapPromptLines(promptVisible, PROMPT_WRAP_CHARS),
@@ -3202,17 +3211,19 @@ function getGroupedOverlayStackLayout(canvasW, canvasH, opts) {
       });
     }
 
-    const style = getLogoStyle();
-    const view = getLogoViewSize(style);
-    const scale = logoH / view.h;
-    parts.push({
-      type: 'logo',
-      w: view.w * scale,
-      h: logoH,
-      scale,
-      localX: 0,
-      localY: 0,
-    });
+    if (logoOn) {
+      const style = getLogoStyle();
+      const view = getLogoViewSize(style);
+      const scale = logoH / view.h;
+      parts.push({
+        type: 'logo',
+        w: view.w * scale,
+        h: logoH,
+        scale,
+        localX: 0,
+        localY: 0,
+      });
+    }
 
     if (parts.length < 2) {
       layout = null;
