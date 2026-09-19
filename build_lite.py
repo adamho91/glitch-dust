@@ -20,6 +20,7 @@ html = html.replace(
 )
 
 old_header = """<aside class="sidebar">
+<div class="sidebar-scroll">
 <div class="app-brand-wrap">
   <img class="app-brand" src="assets/app-brand.svg" alt="fal Glitch Dust" width="562" height="175">
 </div>
@@ -29,6 +30,7 @@ old_header = """<aside class="sidebar">
   <div class="preset-bar">"""
 
 new_header = """<aside class="sidebar">
+<div class="sidebar-scroll">
 <div class="app-brand-wrap">
   <img class="app-brand" src="assets/app-brand.svg" alt="fal Glitch Dust" width="562" height="175">
 </div>
@@ -53,8 +55,8 @@ html = html.replace(old_header, new_header, 1)
 
 # Close lite-hide after old preset hint, reopen for grid through distribution
 html = html.replace(
-    '  <div class="hint">Built-in Default loads on first visit · edits auto-save to the active preset · ⇧1/2/3 switch pages</div>\n\n  <div class="sect">Canvas Size</div>',
-    '  <div class="hint">Built-in Default loads on first visit · edits auto-save to the active preset · ⇧1/2/3 switch pages</div>\n  </div>\n\n  <div class="sect">Aspect ratio</div>\n  <div class="lite-canvas-size">',
+    '  <div class="hint">Built-in Default loads on first visit · edits auto-save to the active preset · ⇧1/2/3/4 switch pages</div>\n\n  <div class="sect">Canvas Size</div>',
+    '  <div class="hint">Built-in Default loads on first visit · edits auto-save to the active preset · ⇧1/2/3/4 switch pages</div>\n  </div>\n\n  <div class="sect">Aspect ratio</div>\n  <div class="lite-canvas-size">',
     1,
 )
 
@@ -152,6 +154,10 @@ LITE_SIDEBAR_TEXT = """
   <div class="lite-text-block">
   <div class="sect">Headline</div>
   <textarea id="overlayText" class="text-area" placeholder="Headline text…" spellcheck="false"></textarea>
+  <div class="ctrl-check lite-typewriter-toggle">
+    <input type="checkbox" id="textTypewriter" checked>
+    <label for="textTypewriter">Typewriter</label>
+  </div>
   <div class="ctrl lite-wrap-row">
     <label>Wrap</label>
     <select id="liteOverlayWrap">
@@ -165,6 +171,10 @@ LITE_SIDEBAR_TEXT = """
   <div class="lite-text-block">
   <div class="sect">Prompt</div>
   <textarea id="promptText" class="text-area" placeholder="Caption / prompt…" spellcheck="false" style="min-height:52px"></textarea>
+  <div class="ctrl-check lite-typewriter-toggle">
+    <input type="checkbox" id="promptTypewriter" checked>
+    <label for="promptTypewriter">Typewriter</label>
+  </div>
   <div class="pin-picker lite-prompt-align">
     <span class="pin-picker-label">Align</span>
     <input type="hidden" id="promptAlign" value="left">
@@ -273,6 +283,25 @@ panel = re.sub(
     count=1,
     flags=re.DOTALL,
 )
+# Typewriter controls live in the lite sidebar — strip duplicates from the hidden panel
+panel = re.sub(
+    r'\s*<div class="ctrl-check">\s*'
+    r'<input type="checkbox" id="textTypewriter"[^>]*>\s*'
+    r'<label for="textTypewriter">[^<]*</label>\s*'
+    r'</div>',
+    '',
+    panel,
+    count=1,
+)
+panel = re.sub(
+    r'\s*<div class="ctrl-check">\s*'
+    r'<input type="checkbox" id="promptTypewriter"[^>]*>\s*'
+    r'<label for="promptTypewriter">[^<]*</label>\s*'
+    r'</div>',
+    '',
+    panel,
+    count=1,
+)
 html = html[:panel_start] + panel + html[panel_end:]
 
 logo_start = html.find('<div class="canvas-logo-panel lite-hide')
@@ -300,6 +329,10 @@ if 'id="overlayText"' not in html or 'id="promptText"' not in html:
     raise SystemExit("lite build missing overlayText/promptText in sidebar")
 if 'id="overlayTextStub"' not in html:
     raise SystemExit("lite build missing canvas textarea stubs")
+if html.count('id="textTypewriter"') != 1 or html.count('id="promptTypewriter"') != 1:
+    raise SystemExit("lite build must keep exactly one textTypewriter and promptTypewriter control")
+if 'lite-typewriter-toggle' not in html:
+    raise SystemExit("lite build missing sidebar typewriter toggles")
 if 'id="promptAlignGrid"' not in html or html.count('id="promptAlignGrid"') != 1:
     raise SystemExit("lite build missing or duplicate prompt align picker")
 if 'id="logoColorCycle"' not in html or html.count('id="logoColorCycle"') != 1:
