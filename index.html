@@ -1888,7 +1888,7 @@ function isSoftGlitchMode() {
 
 function getAnimDurationMs() {
   const base = parseFloat(document.getElementById('animDuration').value) * 1000;
-  return isSoftGlitchMode() ? base * 4 : base;
+  return isSoftGlitchMode() ? base * 6 : base;
 }
 
 function applySoftGlitchTiming() {

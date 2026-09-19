@@ -245,7 +245,7 @@ html = html.replace(
     '      <input type="checkbox" id="softGlitchMode">\n'
     '      <label for="softGlitchMode">Soft Glitch Mode</label>\n'
     '    </div>\n'
-    '    <div class="hint soft-glitch-hint">Plays at 1/4 speed · easier to read</div>\n'
+    '    <div class="hint soft-glitch-hint">Plays at 1/6 speed · easier to read</div>\n'
     '    <div class="btn-row action-play lite-play-row">',
     1,
 )
