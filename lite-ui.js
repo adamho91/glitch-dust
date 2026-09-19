@@ -146,6 +146,13 @@
     if (settings.promptText && document.getElementById('promptEnabled')) {
       document.getElementById('promptEnabled').checked = settings.promptText.enabled === true;
     }
+    // Lite defaults to static text — typewriter stays off unless the user turns it on.
+    if (settings.text) settings.text.typewriter = false;
+    if (settings.promptText) settings.promptText.typewriter = false;
+    const textTw = document.getElementById('textTypewriter');
+    const promptTw = document.getElementById('promptTypewriter');
+    if (textTw) textTw.checked = false;
+    if (promptTw) promptTw.checked = false;
     const liteLogo = document.getElementById('liteLogoEnabled');
     const logo = document.getElementById('logoEnabled');
     if (liteLogo && logo) {
@@ -248,6 +255,15 @@
     wireLiteTextareas();
     wireLiteOverlayWrap();
     wireLiteLogoToggle();
+
+    // Keep headline/prompt fully visible after the initial preset apply.
+    const textTw = document.getElementById('textTypewriter');
+    const promptTw = document.getElementById('promptTypewriter');
+    if (textTw) textTw.checked = false;
+    if (promptTw) promptTw.checked = false;
+    if (typeof refreshTextOverlay === 'function') refreshTextOverlay();
+    if (typeof refreshPromptTextOverlay === 'function') refreshPromptTextOverlay();
+    if (typeof drawFrame === 'function') drawFrame(performance.now());
 
     const importBtn = document.getElementById('litePresetImport');
     const exportBtn = document.getElementById('litePresetExport');

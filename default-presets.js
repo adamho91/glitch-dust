@@ -1,7 +1,7 @@
 // Generated from default-presets.json — do not edit by hand.
 const DEFAULT_PRESET_STORE = {
   "version": 1,
-  "builtinDefaultsRev": 9,
+  "builtinDefaultsRev": 10,
   "activeId": "user-1783394033441",
   "presets": [
     {
@@ -141,7 +141,7 @@ const DEFAULT_PRESET_STORE = {
         "text": {
           "content": "",
           "enabled": true,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 100,
           "clearPattern": true,
@@ -157,7 +157,7 @@ const DEFAULT_PRESET_STORE = {
         "promptText": {
           "content": "",
           "enabled": false,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 395,
           "fontSize": 50,
@@ -326,7 +326,7 @@ const DEFAULT_PRESET_STORE = {
         "text": {
           "content": "",
           "enabled": true,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 100,
           "clearPattern": true,
@@ -342,7 +342,7 @@ const DEFAULT_PRESET_STORE = {
         "promptText": {
           "content": "",
           "enabled": false,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 395,
           "fontSize": 50,
@@ -697,7 +697,7 @@ const DEFAULT_PRESET_STORE = {
         "text": {
           "content": "A headline should be like this length-ish",
           "enabled": false,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 100,
           "clearPattern": true,
@@ -713,7 +713,7 @@ const DEFAULT_PRESET_STORE = {
         "promptText": {
           "content": "Product Release",
           "enabled": false,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 395,
           "fontSize": 50,
@@ -898,7 +898,7 @@ const DEFAULT_PRESET_STORE = {
         "promptText": {
           "content": "Title Here",
           "enabled": false,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 395,
           "fontSize": 50,
@@ -1068,7 +1068,7 @@ const DEFAULT_PRESET_STORE = {
         "text": {
           "content": "",
           "enabled": true,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 100,
           "clearPattern": true,
@@ -1084,7 +1084,7 @@ const DEFAULT_PRESET_STORE = {
         "promptText": {
           "content": "",
           "enabled": false,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 395,
           "fontSize": 50,
@@ -1254,7 +1254,7 @@ const DEFAULT_PRESET_STORE = {
         "text": {
           "content": "A headline here that says this or that",
           "enabled": false,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 100,
           "clearPattern": true,
@@ -1270,7 +1270,7 @@ const DEFAULT_PRESET_STORE = {
         "promptText": {
           "content": "",
           "enabled": false,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 395,
           "fontSize": 50,
@@ -1441,7 +1441,7 @@ const DEFAULT_PRESET_STORE = {
         "text": {
           "content": "",
           "enabled": true,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 100,
           "clearPattern": true,
@@ -1457,7 +1457,7 @@ const DEFAULT_PRESET_STORE = {
         "promptText": {
           "content": "",
           "enabled": false,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 395,
           "fontSize": 50,
@@ -1628,7 +1628,7 @@ const DEFAULT_PRESET_STORE = {
         "text": {
           "content": "",
           "enabled": true,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 100,
           "clearPattern": true,
@@ -1644,7 +1644,7 @@ const DEFAULT_PRESET_STORE = {
         "promptText": {
           "content": "",
           "enabled": false,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 395,
           "fontSize": 50,
@@ -1829,7 +1829,7 @@ const DEFAULT_PRESET_STORE = {
         "promptText": {
           "content": "",
           "enabled": false,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 395,
           "fontSize": 50,
@@ -1998,7 +1998,7 @@ const DEFAULT_PRESET_STORE = {
         "text": {
           "content": "",
           "enabled": true,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 100,
           "clearPattern": true,
@@ -2014,7 +2014,7 @@ const DEFAULT_PRESET_STORE = {
         "promptText": {
           "content": "",
           "enabled": false,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 395,
           "fontSize": 50,
@@ -2369,7 +2369,7 @@ const DEFAULT_PRESET_STORE = {
         "text": {
           "content": "A headline should be like this length-ish",
           "enabled": true,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 100,
           "clearPattern": true,
@@ -2385,7 +2385,7 @@ const DEFAULT_PRESET_STORE = {
         "promptText": {
           "content": "Product Release",
           "enabled": true,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 395,
           "fontSize": 50,
@@ -2570,7 +2570,7 @@ const DEFAULT_PRESET_STORE = {
         "promptText": {
           "content": "Title Here",
           "enabled": true,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 395,
           "fontSize": 50,
@@ -2756,7 +2756,7 @@ const DEFAULT_PRESET_STORE = {
         "promptText": {
           "content": "",
           "enabled": false,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 395,
           "fontSize": 50,
@@ -2926,7 +2926,7 @@ const DEFAULT_PRESET_STORE = {
         "text": {
           "content": "A headline here that says this or that",
           "enabled": true,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 100,
           "clearPattern": true,
@@ -2942,7 +2942,7 @@ const DEFAULT_PRESET_STORE = {
         "promptText": {
           "content": "",
           "enabled": true,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 395,
           "fontSize": 50,
@@ -3486,7 +3486,7 @@ const DEFAULT_PRESET_STORE = {
         "text": {
           "content": "Big Text",
           "enabled": true,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 100,
           "clearPattern": true,
@@ -3502,7 +3502,7 @@ const DEFAULT_PRESET_STORE = {
         "promptText": {
           "content": "",
           "enabled": false,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 395,
           "fontSize": 50,
@@ -3688,7 +3688,7 @@ const DEFAULT_PRESET_STORE = {
         "promptText": {
           "content": "Testing here",
           "enabled": true,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 395,
           "fontSize": 50,
@@ -4050,7 +4050,7 @@ const BUILTIN_DEFAULT_SETTINGS = {
   "text": {
     "content": "",
     "enabled": true,
-    "typewriter": true,
+    "typewriter": false,
     "unit": "chars",
     "revealSpeed": 100,
     "clearPattern": true,
@@ -4066,7 +4066,7 @@ const BUILTIN_DEFAULT_SETTINGS = {
   "promptText": {
     "content": "",
     "enabled": false,
-    "typewriter": true,
+    "typewriter": false,
     "unit": "chars",
     "revealSpeed": 395,
     "fontSize": 50,
@@ -4231,7 +4231,7 @@ const BUILTIN_TRANSITION_SETTINGS = {
   "text": {
     "content": "",
     "enabled": true,
-    "typewriter": true,
+    "typewriter": false,
     "unit": "chars",
     "revealSpeed": 100,
     "clearPattern": true,
@@ -4247,7 +4247,7 @@ const BUILTIN_TRANSITION_SETTINGS = {
   "promptText": {
     "content": "",
     "enabled": false,
-    "typewriter": true,
+    "typewriter": false,
     "unit": "chars",
     "revealSpeed": 395,
     "fontSize": 50,

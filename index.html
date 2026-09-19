@@ -1540,7 +1540,7 @@
       <button type="button" class="panel-more-toggle" data-more-toggle aria-expanded="false">Show more options</button>
       <div class="panel-more-options" data-more-options>
       <div class="ctrl-check">
-        <input type="checkbox" id="textTypewriter" checked>
+        <input type="checkbox" id="textTypewriter">
         <label for="textTypewriter">Reveal in / out (no fade)</label>
       </div>
       <div class="ctrl">
@@ -1630,7 +1630,7 @@
       <button type="button" class="panel-more-toggle" data-more-toggle aria-expanded="false">Show more options</button>
       <div class="panel-more-options" data-more-options>
       <div class="ctrl-check">
-        <input type="checkbox" id="promptTypewriter" checked>
+        <input type="checkbox" id="promptTypewriter">
         <label for="promptTypewriter">Reveal in / out (no fade)</label>
       </div>
       <div class="ctrl">
@@ -8392,7 +8392,7 @@ function applyTextSettings(text) {
   const t = text || {};
   document.getElementById('overlayText').value = t.content != null ? t.content : '';
   document.getElementById('textEnabled').checked = t.enabled !== false;
-  document.getElementById('textTypewriter').checked = t.typewriter !== false;
+  document.getElementById('textTypewriter').checked = t.typewriter === true;
   document.getElementById('textUnit').value = t.unit === 'words' ? 'words' : 'chars';
   if (t.revealSpeed != null) {
     document.getElementById('textRevealSpeed').value = t.revealSpeed;
@@ -8424,7 +8424,7 @@ function applyPromptTextSettings(prompt) {
   const p = prompt || {};
   document.getElementById('promptText').value = p.content != null ? p.content : '';
   document.getElementById('promptEnabled').checked = p.enabled === true;
-  document.getElementById('promptTypewriter').checked = p.typewriter !== false;
+  document.getElementById('promptTypewriter').checked = p.typewriter === true;
   document.getElementById('promptUnit').value = p.unit === 'words' ? 'words' : 'chars';
   if (p.revealSpeed != null) {
     document.getElementById('promptRevealSpeed').value = p.revealSpeed;
@@ -8495,7 +8495,7 @@ function applyLogoSettings(logo) {
 const DEFAULT_TEXT_SETTINGS = {
   content: '',
   enabled: true,
-  typewriter: true,
+  typewriter: false,
   unit: 'chars',
   revealSpeed: 100,
   clearPattern: true,
@@ -8512,7 +8512,7 @@ const DEFAULT_TEXT_SETTINGS = {
 const DEFAULT_PROMPT_SETTINGS = {
   content: '',
   enabled: false,
-  typewriter: true,
+  typewriter: false,
   unit: 'chars',
   revealSpeed: 100,
   fontSize: 36,
@@ -8547,7 +8547,7 @@ const DEFAULT_LOGO_SETTINGS = {
 const PRESET_STORAGE_KEY = 'falGlitchDustPresets_v1';
 const BUILTIN_DEFAULT_ID = 'builtin-default';
 const BUILTIN_TRANSITION_ID = 'builtin-transition';
-const BUILTIN_DEFAULTS_REV = 9;
+const BUILTIN_DEFAULTS_REV = 10;
 let presetStore = null;
 let presetApplyInProgress = false;
 let presetAutosaveTimer = null;

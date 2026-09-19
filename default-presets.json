@@ -141,7 +141,7 @@
         "text": {
           "content": "",
           "enabled": true,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 100,
           "clearPattern": true,
@@ -157,7 +157,7 @@
         "promptText": {
           "content": "",
           "enabled": false,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 395,
           "fontSize": 50,
@@ -326,7 +326,7 @@
         "text": {
           "content": "",
           "enabled": true,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 100,
           "clearPattern": true,
@@ -342,7 +342,7 @@
         "promptText": {
           "content": "",
           "enabled": false,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 395,
           "fontSize": 50,
@@ -697,7 +697,7 @@
         "text": {
           "content": "A headline should be like this length-ish",
           "enabled": false,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 100,
           "clearPattern": true,
@@ -713,7 +713,7 @@
         "promptText": {
           "content": "Product Release",
           "enabled": false,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 395,
           "fontSize": 50,
@@ -898,7 +898,7 @@
         "promptText": {
           "content": "Title Here",
           "enabled": false,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 395,
           "fontSize": 50,
@@ -1068,7 +1068,7 @@
         "text": {
           "content": "",
           "enabled": true,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 100,
           "clearPattern": true,
@@ -1084,7 +1084,7 @@
         "promptText": {
           "content": "",
           "enabled": false,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 395,
           "fontSize": 50,
@@ -1254,7 +1254,7 @@
         "text": {
           "content": "A headline here that says this or that",
           "enabled": false,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 100,
           "clearPattern": true,
@@ -1270,7 +1270,7 @@
         "promptText": {
           "content": "",
           "enabled": false,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 395,
           "fontSize": 50,
@@ -1441,7 +1441,7 @@
         "text": {
           "content": "",
           "enabled": true,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 100,
           "clearPattern": true,
@@ -1457,7 +1457,7 @@
         "promptText": {
           "content": "",
           "enabled": false,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 395,
           "fontSize": 50,
@@ -1628,7 +1628,7 @@
         "text": {
           "content": "",
           "enabled": true,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 100,
           "clearPattern": true,
@@ -1644,7 +1644,7 @@
         "promptText": {
           "content": "",
           "enabled": false,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 395,
           "fontSize": 50,
@@ -1829,7 +1829,7 @@
         "promptText": {
           "content": "",
           "enabled": false,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 395,
           "fontSize": 50,
@@ -1998,7 +1998,7 @@
         "text": {
           "content": "",
           "enabled": true,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 100,
           "clearPattern": true,
@@ -2014,7 +2014,7 @@
         "promptText": {
           "content": "",
           "enabled": false,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 395,
           "fontSize": 50,
@@ -2369,7 +2369,7 @@
         "text": {
           "content": "A headline should be like this length-ish",
           "enabled": true,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 100,
           "clearPattern": true,
@@ -2385,7 +2385,7 @@
         "promptText": {
           "content": "Product Release",
           "enabled": true,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 395,
           "fontSize": 50,
@@ -2570,7 +2570,7 @@
         "promptText": {
           "content": "Title Here",
           "enabled": true,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 395,
           "fontSize": 50,
@@ -2756,7 +2756,7 @@
         "promptText": {
           "content": "",
           "enabled": false,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 395,
           "fontSize": 50,
@@ -2926,7 +2926,7 @@
         "text": {
           "content": "A headline here that says this or that",
           "enabled": true,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 100,
           "clearPattern": true,
@@ -2942,7 +2942,7 @@
         "promptText": {
           "content": "",
           "enabled": true,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 395,
           "fontSize": 50,
@@ -3486,7 +3486,7 @@
         "text": {
           "content": "Big Text",
           "enabled": true,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 100,
           "clearPattern": true,
@@ -3502,7 +3502,7 @@
         "promptText": {
           "content": "",
           "enabled": false,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 395,
           "fontSize": 50,
@@ -3688,7 +3688,7 @@
         "promptText": {
           "content": "Testing here",
           "enabled": true,
-          "typewriter": true,
+          "typewriter": false,
           "unit": "chars",
           "revealSpeed": 395,
           "fontSize": 50,

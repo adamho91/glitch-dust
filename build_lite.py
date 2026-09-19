@@ -155,7 +155,7 @@ LITE_SIDEBAR_TEXT = """
   <div class="sect">Headline</div>
   <textarea id="overlayText" class="text-area" placeholder="Headline text…" spellcheck="false"></textarea>
   <div class="ctrl-check lite-typewriter-toggle">
-    <input type="checkbox" id="textTypewriter" checked>
+    <input type="checkbox" id="textTypewriter">
     <label for="textTypewriter">Typewriter</label>
   </div>
   <div class="ctrl lite-wrap-row">
@@ -172,7 +172,7 @@ LITE_SIDEBAR_TEXT = """
   <div class="sect">Prompt</div>
   <textarea id="promptText" class="text-area" placeholder="Caption / prompt…" spellcheck="false" style="min-height:52px"></textarea>
   <div class="ctrl-check lite-typewriter-toggle">
-    <input type="checkbox" id="promptTypewriter" checked>
+    <input type="checkbox" id="promptTypewriter">
     <label for="promptTypewriter">Typewriter</label>
   </div>
   <div class="pin-picker lite-prompt-align">
