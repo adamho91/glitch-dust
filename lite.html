@@ -2637,12 +2637,17 @@ function updateLogoColorUi() {
 }
 
 function getLogoPlacement(canvasW, canvasH, logoH, style, pin) {
+  const grouped = getGroupedOverlayStackLayout(canvasW, canvasH);
+  if (grouped && grouped.logo) {
+    return { x: grouped.logo.tx, y: grouped.logo.ty, scale: grouped.logo.scale };
+  }
   const margin = getLogoMarginPx();
   const view = getLogoViewSize(style || getLogoStyle());
-  const scale = logoH / view.h;
+  const scale = (logoH != null ? logoH : getLogoHeight()) / view.h;
   const logoW = view.w * scale;
   const logoPin = normalizeLogoPin(pin != null ? pin : getEffectiveLogoPin());
-  const local = { x: 0, y: 0, width: logoW, height: logoH };
+  const h = logoH != null ? logoH : getLogoHeight();
+  const local = { x: 0, y: 0, width: logoW, height: h };
   const { tx, ty } = pinOffsetFromBBox(local, logoPin, margin, canvasW, canvasH);
   return { x: tx, y: ty, scale };
 }
@@ -2854,6 +2859,7 @@ function invalidateOverlayLayout() {
   overlayClearBBox = null;
   overlayPromptClearBBox = null;
   overlayLogoClearBBox = null;
+  invalidateGroupedOverlayLayout();
 }
 
 function invalidateTextLayout() {
@@ -3151,6 +3157,165 @@ function getPromptRevealSpeed() {
 
 function getPromptGapPx() {
   return getNodeSizePx() / 2;
+}
+
+function isVerticalMiddlePin(pin) {
+  return pin === 'center' || pin === 'left' || pin === 'right';
+}
+
+/** When logo is vertically centered and prompt exists, stack headline+prompt+logo and center as one group. */
+function shouldGroupLogoWithPromptStack() {
+  if (!isLogoEnabled() || !isPromptTextEnabled()) return false;
+  return isVerticalMiddlePin(getEffectiveLogoPin());
+}
+
+function groupStackHorizontalMode() {
+  const pin = getEffectiveLogoPin();
+  if (pin === 'left') return 'left';
+  if (pin === 'right') return 'right';
+  return 'center';
+}
+
+function placeGroupItemX(itemW, canvasW, margin, mode) {
+  if (mode === 'left') return margin;
+  if (mode === 'right') return canvasW - margin - itemW;
+  return (canvasW - itemW) / 2;
+}
+
+let groupedOverlayLayoutCache = null;
+let groupedOverlayLayoutDepth = 0;
+let overlayLayoutFrame = { headlineVisible: null, promptVisible: null };
+
+function invalidateGroupedOverlayLayout() {
+  groupedOverlayLayoutCache = null;
+}
+
+function getGroupedOverlayStackLayout(canvasW, canvasH, opts) {
+  opts = opts || {};
+  if (!shouldGroupLogoWithPromptStack()) return null;
+  if (groupedOverlayLayoutDepth > 0) return null;
+
+  const cw = canvasW != null ? canvasW : W;
+  const ch = canvasH != null ? canvasH : H;
+  const headlineVisible = opts.headlineVisible != null
+    ? opts.headlineVisible
+    : (overlayLayoutFrame.headlineVisible != null
+      ? overlayLayoutFrame.headlineVisible
+      : (isTextEnabled() ? getOverlayTextRaw() : ''));
+  const promptVisible = opts.promptVisible != null
+    ? opts.promptVisible
+    : (overlayLayoutFrame.promptVisible != null
+      ? overlayLayoutFrame.promptVisible
+      : (isPromptTextEnabled() ? getPromptTextRaw() : ''));
+  const logoH = getLogoHeight();
+  const logoPin = getEffectiveLogoPin();
+  const cacheKey = [
+    cw, ch, logoPin, logoH, getTextAlign(), getPromptAlign(),
+    headlineVisible, promptVisible, getLogoStyle(), getNodeSizePx(),
+  ].join('|');
+  if (groupedOverlayLayoutCache && groupedOverlayLayoutCache.key === cacheKey) {
+    return groupedOverlayLayoutCache.layout;
+  }
+
+  groupedOverlayLayoutDepth++;
+  let layout = null;
+  try {
+    const margin = Math.max(getTextMarginPx(), getLogoMarginPx());
+    const gapTextPrompt = getPromptGapPx();
+    const gapPromptLogo = Math.max(getPromptGapPx(), Math.round(getNodeSizePx() * 0.75));
+    const hMode = groupStackHorizontalMode();
+    const parts = [];
+
+    if (isTextEnabled() && headlineVisible && String(headlineVisible).trim()) {
+      const node = buildOverlayTextNodes(headlineVisible, {
+        opacity: 1,
+        skipPlacement: true,
+        canvasW: cw,
+        canvasH: ch,
+      });
+      const box = measureOverlayNodeBBox(node);
+      if (box && isFinite(box.width) && isFinite(box.height) && box.height > 0) {
+        parts.push({
+          type: 'headline',
+          w: box.width,
+          h: box.height,
+          localX: box.x,
+          localY: box.y,
+        });
+      }
+    }
+
+    if (promptVisible && String(promptVisible).trim()) {
+      const pad = getPromptPadPx();
+      const metrics = measurePromptBlockMetrics(
+        wrapPromptLines(promptVisible, PROMPT_WRAP_CHARS),
+        getPromptFontSize(),
+        getPromptFontWeight(),
+        pad,
+        getPromptLayoutOpts()
+      );
+      parts.push({
+        type: 'prompt',
+        w: metrics.width,
+        h: metrics.height,
+        localX: 0,
+        localY: 0,
+      });
+    }
+
+    const style = getLogoStyle();
+    const view = getLogoViewSize(style);
+    const scale = logoH / view.h;
+    parts.push({
+      type: 'logo',
+      w: view.w * scale,
+      h: logoH,
+      scale,
+      localX: 0,
+      localY: 0,
+    });
+
+    if (parts.length < 2) {
+      layout = null;
+    } else {
+      let stackH = 0;
+      parts.forEach((part, index) => {
+        if (index > 0) {
+          const prev = parts[index - 1];
+          stackH += (prev.type === 'prompt' && part.type === 'logo')
+            ? gapPromptLogo
+            : gapTextPrompt;
+        }
+        stackH += part.h;
+      });
+
+      let cursorY = (ch - stackH) / 2;
+      layout = { headline: null, prompt: null, logo: null };
+      parts.forEach((part, index) => {
+        if (index > 0) {
+          const prev = parts[index - 1];
+          cursorY += prev.h;
+          cursorY += (prev.type === 'prompt' && part.type === 'logo')
+            ? gapPromptLogo
+            : gapTextPrompt;
+        }
+        const targetX = placeGroupItemX(part.w, cw, margin, hMode);
+        const entry = {
+          tx: targetX - part.localX,
+          ty: cursorY - part.localY,
+          w: part.w,
+          h: part.h,
+        };
+        if (part.scale != null) entry.scale = part.scale;
+        layout[part.type] = entry;
+      });
+    }
+  } finally {
+    groupedOverlayLayoutDepth--;
+  }
+
+  groupedOverlayLayoutCache = { key: cacheKey, layout };
+  return layout;
 }
 
 function isPromptLineWrapOffsetEnabled() {
@@ -3536,9 +3701,13 @@ function measureHeadlineBlockBBox(visibleText, opts) {
 }
 
 function getPromptPlacement(frameW, frameH, headlineText, headlineOpts, canvasW, canvasH) {
-  const align = getPromptAlign();
   const cw = canvasW != null ? canvasW : W;
   const ch = canvasH != null ? canvasH : H;
+  const grouped = getGroupedOverlayStackLayout(cw, ch);
+  if (grouped && grouped.prompt) {
+    return { tx: grouped.prompt.tx, ty: grouped.prompt.ty };
+  }
+  const align = getPromptAlign();
   if (headlineText) {
     const bbox = measureHeadlineBlockBBox(headlineText, headlineOpts);
     if (bbox && isFinite(bbox.width) && isFinite(bbox.height)) {
@@ -4060,12 +4229,23 @@ function buildOverlayTextNodes(visibleText, opts) {
   const group = document.createElementNS(SVG_NS, 'g');
   group.appendChild(textEl);
 
+  if (opts.skipPlacement) {
+    return group;
+  }
+
   const margin = opts.marginPx != null ? opts.marginPx : getTextMarginPx();
   const pin = opts.pin || getTextPin();
   const bbox = measureOverlayNodeBBox(group);
-  if (bbox && isFinite(bbox.width) && isFinite(bbox.height)) {
-    const { tx, ty } = pinOffsetFromBBox(bbox, pin, margin, canvasW, canvasH);
-    group.setAttribute('transform', 'translate(' + tx + ',' + ty + ')');
+  if (opts.fixedPlacement) {
+    group.setAttribute('transform', 'translate(' + opts.fixedPlacement.tx + ',' + opts.fixedPlacement.ty + ')');
+  } else if (bbox && isFinite(bbox.width) && isFinite(bbox.height)) {
+    const grouped = getGroupedOverlayStackLayout(canvasW, canvasH, { headlineVisible: visibleText });
+    if (grouped && grouped.headline) {
+      group.setAttribute('transform', 'translate(' + grouped.headline.tx + ',' + grouped.headline.ty + ')');
+    } else {
+      const { tx, ty } = pinOffsetFromBBox(bbox, pin, margin, canvasW, canvasH);
+      group.setAttribute('transform', 'translate(' + tx + ',' + ty + ')');
+    }
   }
 
   return group;
@@ -7647,6 +7827,9 @@ function updateMedianPreview() {
   });
 
   root.replaceChildren(frag);
+  invalidateGroupedOverlayLayout();
+  overlayLayoutFrame.headlineVisible = isTextEnabled() ? (medianTw.visible || '') : '';
+  overlayLayoutFrame.promptVisible = isPromptTextEnabled() ? (medianPromptTw.visible || '') : '';
   renderMedianOverlayText();
   renderMedianPromptText();
   renderMedianOverlayLogo();
@@ -8220,6 +8403,12 @@ function renderFrameContent(loopProgress, sampleTs, ts, opts) {
     if (v('staccato') > 0 && ts >= nextBeatAt) fireStaccatoBeat(ts);
     drawClusterFrame(ts);
   }
+
+  const textTw = getTypewriterState(textProgress);
+  const promptTw = getPromptTypewriterState(textProgress, sampleTs);
+  invalidateGroupedOverlayLayout();
+  overlayLayoutFrame.headlineVisible = isTextEnabled() ? (textTw.visible || '') : '';
+  overlayLayoutFrame.promptVisible = isPromptTextEnabled() ? (promptTw.visible || '') : '';
 
   renderOverlayText(textProgress);
   renderPromptText(textProgress, sampleTs);
