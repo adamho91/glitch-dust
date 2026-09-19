@@ -2301,6 +2301,9 @@ function setTextAlign(align) {
   document.querySelectorAll('#textAlignGrid .pin-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.align === value);
   });
+  if (isLiteAppMode()) {
+    setPromptAlign(value);
+  }
 }
 
 function initTextAlignPicker() {
@@ -2308,6 +2311,7 @@ function initTextAlignPicker() {
     btn.onclick = () => {
       setTextAlign(btn.dataset.align);
       refreshTextOverlay();
+      if (isLiteAppMode()) refreshPromptTextOverlay();
       if (isLogoPinMatchText()) refreshLogoOverlay();
     };
   });
@@ -2936,8 +2940,18 @@ function isLiteAppMode() {
   return typeof GLITCH_DUST_LITE !== 'undefined' && !!GLITCH_DUST_LITE;
 }
 
-/** Keep Lite headline/prompt text readable against bg / prompt boxes. */
-function ensureLiteReadableTextColors(opts) {
+/** Keep Lite prompt alignment matched to headline by default. */
+function ensureLiteMatchingTextAlign(settings) {
+  if (!isLiteAppMode()) return false;
+  const align = getTextAlign();
+  if (getPromptAlign() === align) {
+    if (settings && settings.promptText) settings.promptText.align = align;
+    return false;
+  }
+  setPromptAlign(align);
+  if (settings && settings.promptText) settings.promptText.align = align;
+  return true;
+}
   if (!isLiteAppMode()) return false;
   opts = opts || {};
   let changed = false;
@@ -9169,6 +9183,7 @@ function applySettings(settings, opts) {
     document.getElementById('presetName').value = preset.name;
   }
 
+  ensureLiteMatchingTextAlign(s);
   ensureLiteReadableTextColors({ skipRefresh: true });
 
   presetApplyInProgress = false;

@@ -181,6 +181,9 @@
       }
       if (typeof updateNodeMediaUi === 'function') updateNodeMediaUi();
     }
+    if (typeof ensureLiteMatchingTextAlign === 'function') {
+      ensureLiteMatchingTextAlign(settings);
+    }
     if (typeof ensureLiteReadableTextColors === 'function') {
       ensureLiteReadableTextColors();
     }
@@ -316,6 +319,7 @@
     const promptTw = document.getElementById('promptTypewriter');
     if (textTw) textTw.checked = false;
     if (promptTw) promptTw.checked = false;
+    if (typeof ensureLiteMatchingTextAlign === 'function') ensureLiteMatchingTextAlign();
     if (typeof ensureLiteReadableTextColors === 'function') ensureLiteReadableTextColors({ skipRefresh: true });
     syncLiteTextMirrors();
     if (typeof refreshTextOverlay === 'function') refreshTextOverlay();
