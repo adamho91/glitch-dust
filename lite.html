@@ -2264,6 +2264,7 @@ function setTextPin(pin) {
   document.querySelectorAll('#textPinGrid .pin-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.pin === value);
   });
+  if (isLiteAppMode()) ensureLiteMatchingTextAlign();
 }
 
 function initTextPinPicker() {
@@ -2271,6 +2272,7 @@ function initTextPinPicker() {
     btn.onclick = () => {
       setTextPin(btn.dataset.pin);
       refreshTextOverlay();
+      if (isLiteAppMode()) refreshPromptTextOverlay();
       if (isLogoPinMatchText()) refreshLogoOverlay();
     };
   });
@@ -2301,17 +2303,17 @@ function setTextAlign(align) {
   document.querySelectorAll('#textAlignGrid .pin-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.align === value);
   });
-  if (isLiteAppMode()) {
-    setPromptAlign(value);
-  }
 }
 
 function initTextAlignPicker() {
   document.querySelectorAll('#textAlignGrid .pin-btn').forEach(btn => {
     btn.onclick = () => {
       setTextAlign(btn.dataset.align);
+      if (isLiteAppMode()) {
+        ensureLiteMatchingTextAlign();
+        refreshPromptTextOverlay();
+      }
       refreshTextOverlay();
-      if (isLiteAppMode()) refreshPromptTextOverlay();
       if (isLogoPinMatchText()) refreshLogoOverlay();
     };
   });
@@ -2940,15 +2942,32 @@ function isLiteAppMode() {
   return typeof GLITCH_DUST_LITE !== 'undefined' && !!GLITCH_DUST_LITE;
 }
 
-/** Keep Lite prompt alignment matched to headline by default. */
+function alignFromTextPin(pin) {
+  const p = pin || getTextPin();
+  if (p === 'left' || p.endsWith('-left')) return 'left';
+  if (p === 'right' || p.endsWith('-right')) return 'right';
+  return 'center';
+}
+
+/** Keep Lite headline + prompt alignment matched to the headline pin. */
 function ensureLiteMatchingTextAlign(settings) {
   if (!isLiteAppMode()) return false;
-  const align = getTextAlign();
-  if (getPromptAlign() === align) {
+  const align = alignFromTextPin(getTextPin());
+  const textChanged = getTextAlign() !== align;
+  const promptChanged = getPromptAlign() !== align;
+  if (!textChanged && !promptChanged) {
+    if (settings && settings.text) settings.text.align = align;
     if (settings && settings.promptText) settings.promptText.align = align;
     return false;
   }
+  // Avoid recursive prompt sync from setTextAlign while we set both explicitly.
+  const textHidden = document.getElementById('textAlign');
+  if (textHidden) textHidden.value = align;
+  document.querySelectorAll('#textAlignGrid .pin-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.align === align);
+  });
   setPromptAlign(align);
+  if (settings && settings.text) settings.text.align = align;
   if (settings && settings.promptText) settings.promptText.align = align;
   return true;
 }
@@ -9188,6 +9207,10 @@ function applySettings(settings, opts) {
 
   ensureLiteMatchingTextAlign(s);
   ensureLiteReadableTextColors({ skipRefresh: true });
+  if (isLiteAppMode()) {
+    if (typeof refreshTextOverlay === 'function') refreshTextOverlay();
+    if (typeof refreshPromptTextOverlay === 'function') refreshPromptTextOverlay();
+  }
 
   presetApplyInProgress = false;
   syncDialSliders();
