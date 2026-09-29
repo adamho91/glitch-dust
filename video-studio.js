@@ -35,6 +35,8 @@ import {
 } from "./video-core.mjs?v=28";
 
 const $ = (id) => document.getElementById(id);
+const TOOL_TAB_KEY = "fal-video-tool-tab";
+const TOOL_TABS = ["design", "type", "media"];
 const assets = new Map(),
   removedAssets = new Map(),
   videoInstances = new Map(),
@@ -2010,14 +2012,33 @@ for (const [layout, label] of LAYOUTS) {
   };
   $("templates").append(b);
 }
+function selectToolTab(name, { persist = true } = {}) {
+  const tabName = TOOL_TABS.includes(name) ? name : "design";
+  document.querySelectorAll("[data-tab]").forEach((b) => {
+    const active = b.dataset.tab === tabName;
+    b.setAttribute("aria-selected", active);
+    const panel = $("panel-" + b.dataset.tab);
+    if (panel) panel.hidden = !active;
+  });
+  if (persist) {
+    try {
+      localStorage.setItem(TOOL_TAB_KEY, tabName);
+    } catch {
+      /* private mode / blocked storage */
+    }
+  }
+}
+function restoreToolTab() {
+  let saved = "design";
+  try {
+    saved = localStorage.getItem(TOOL_TAB_KEY) || "design";
+  } catch {
+    /* ignore */
+  }
+  selectToolTab(saved, { persist: false });
+}
 for (const tab of document.querySelectorAll("[data-tab]")) {
-  tab.onclick = () => {
-    document.querySelectorAll("[data-tab]").forEach((b) => {
-      const active = b === tab;
-      b.setAttribute("aria-selected", active);
-      $("panel-" + b.dataset.tab).hidden = !active;
-    });
-  };
+  tab.onclick = () => selectToolTab(tab.dataset.tab);
   tab.onkeydown = (e) => {
     if (!["ArrowLeft", "ArrowRight"].includes(e.key)) return;
     e.preventDefault();
@@ -2808,6 +2829,7 @@ async function init() {
   ready = true;
   setBusy(false);
   refreshDustPresets();
+  restoreToolTab();
   syncAll();
   requestAnimationFrame(tick);
 }
