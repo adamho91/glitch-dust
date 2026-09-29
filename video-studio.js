@@ -568,6 +568,7 @@ function renderTimeline() {
     ruler.append(label);
   }
   const names = { cut: "Cut", fade: "Dissolve", wipe: "Wipe", slide: "Slide" };
+  const transitionKeys = ["cut", "fade", "wipe", "slide"];
   g.segments.forEach((segment, i) => {
     const card = $("sceneTrack").children[i];
     if (card) {
@@ -575,25 +576,75 @@ function renderTimeline() {
       card.classList.toggle("compact", segment.width < 100);
     }
     if (!i) return;
-    const name = segment.mediaFlow ? "Media flow" : names[project.scenes[i].transition];
-    const marker = document.createElement("button");
+    const currentKey = project.scenes[i].transition || "fade";
+    const name = segment.mediaFlow ? "Media flow" : names[currentKey] || "Dissolve";
+    const marker = document.createElement("div");
     marker.className = "transition-marker";
     marker.style.left = `${segment.left}px`;
-    marker.textContent = segment.transition ? "◆" : "│";
-    if (segment.width > 120) {
-      const label = document.createElement("span");
-      label.textContent = name;
-      marker.append(label);
-    }
-    marker.title = `${name} · ${clock(segment.start)}${segment.transition ? ` · ${segment.transition.toFixed(2)}s` : ""}`;
-    marker.setAttribute(
-      "aria-label",
-      `${name} into scene ${i + 1} at ${clock(segment.start)}`,
-    );
-    marker.onclick = () => {
+
+    const seek = document.createElement("button");
+    seek.type = "button";
+    seek.className = "transition-seek";
+    seek.textContent = segment.transition ? "◆" : "│";
+    seek.title = `Seek to ${clock(segment.start)}`;
+    seek.setAttribute("aria-label", `Seek to transition into scene ${i + 1}`);
+    seek.onclick = (e) => {
+      e.stopPropagation();
       seekTimeline(segment.start);
       revealPlayhead();
     };
+    marker.append(seek);
+
+    if (segment.mediaFlow) {
+      const label = document.createElement("button");
+      label.type = "button";
+      label.className = "transition-label";
+      label.textContent = name;
+      label.title =
+        "Media flow is on — click to switch to a Cut / Dissolve / Wipe / Slide";
+      label.onclick = (e) => {
+        e.stopPropagation();
+        checkpoint();
+        stop();
+        project.scenes[i].mediaFlow = false;
+        if (!project.scenes[i].transition || project.scenes[i].transition === "cut")
+          project.scenes[i].transition = "fade";
+        selected = i;
+        seekTimeline(segment.start);
+        changed({ controls: true });
+        status(`Media flow off · transition into scene ${i + 1}: ${names[project.scenes[i].transition]}`);
+      };
+      marker.append(label);
+    } else {
+      const select = document.createElement("select");
+      select.className = "transition-picker";
+      for (const key of transitionKeys) {
+        const opt = document.createElement("option");
+        opt.value = key;
+        opt.textContent = names[key];
+        select.append(opt);
+      }
+      select.value = transitionKeys.includes(currentKey) ? currentKey : "fade";
+      select.title = `Change transition · ${clock(segment.start)}${
+        segment.transition ? ` · ${segment.transition.toFixed(2)}s` : ""
+      }`;
+      select.setAttribute(
+        "aria-label",
+        `Transition into scene ${i + 1} at ${clock(segment.start)}`,
+      );
+      select.onclick = (e) => e.stopPropagation();
+      select.onchange = () => {
+        checkpoint();
+        stop();
+        project.scenes[i].transition = select.value;
+        selected = i;
+        seekTimeline(segment.start);
+        changed({ controls: true });
+        status(`Transition into scene ${i + 1}: ${names[select.value]}`);
+      };
+      marker.append(select);
+    }
+
     transitions.append(marker);
     if (segment.transition) {
       const span = document.createElement("div");
@@ -1023,41 +1074,83 @@ function guessMediaKind(file) {
 
 async function decodeAnimatedGif(blob) {
   if (typeof ImageDecoder === "undefined") return null;
+  let decoder;
   try {
-    const decoder = new ImageDecoder({
+    decoder = new ImageDecoder({
       data: await blob.arrayBuffer(),
       type: "image/gif",
     });
+    if (decoder.tracks?.ready) await decoder.tracks.ready;
+    // Prefer a completed decode so frameCount is reliable.
+    try {
+      await decoder.decode({ frameIndex: 0 });
+    } catch (_) {}
     const track = decoder.tracks.selectedTrack;
-    if (!track || track.frameCount < 2) {
+    const count = track?.frameCount || 0;
+    if (!track || count < 2) {
       decoder.close?.();
       return null;
     }
     const frames = [];
     let totalUs = 0;
-    for (let i = 0; i < track.frameCount; i++) {
+    const composite = document.createElement("canvas");
+    const cctx = composite.getContext("2d", { willReadFrequently: true });
+    for (let i = 0; i < count; i++) {
       const { image } = await decoder.decode({ frameIndex: i });
-      const delayUs = Math.max(20000, Number(image.duration) || 100000);
-      const canvas = document.createElement("canvas");
-      canvas.width = image.displayWidth || image.codedWidth;
-      canvas.height = image.displayHeight || image.codedHeight;
-      canvas.getContext("2d").drawImage(image, 0, 0);
+      const fw = image.displayWidth || image.codedWidth;
+      const fh = image.displayHeight || image.codedHeight;
+      if (!composite.width) {
+        composite.width = fw;
+        composite.height = fh;
+      }
+      // ImageDecoder yields display frames; still composite for disposal-safe copies.
+      cctx.drawImage(image, 0, 0);
+      const delayUs = Math.max(
+        20000,
+        Number(image.duration) > 0 ? Number(image.duration) : 100000,
+      );
       image.close();
-      frames.push({ canvas, delayMs: delayUs / 1000, startMs: totalUs / 1000 });
+      const frameCanvas = document.createElement("canvas");
+      frameCanvas.width = composite.width;
+      frameCanvas.height = composite.height;
+      frameCanvas.getContext("2d").drawImage(composite, 0, 0);
+      frames.push({
+        canvas: frameCanvas,
+        delayMs: delayUs / 1000,
+        startMs: totalUs / 1000,
+      });
       totalUs += delayUs;
     }
     decoder.close?.();
     if (frames.length < 2) return null;
-    return { frames, duration: totalUs / 1e6 };
-  } catch {
+    return { frames, duration: Math.max(totalUs / 1e6, 0.05) };
+  } catch (e) {
+    try {
+      decoder?.close?.();
+    } catch (_) {}
+    console.warn("GIF decode failed, using live img fallback:", e);
     return null;
   }
 }
 
+function attachLiveGif(img) {
+  let host = document.getElementById("gifAnimHost");
+  if (!host) {
+    host = document.createElement("div");
+    host.id = "gifAnimHost";
+    host.setAttribute("aria-hidden", "true");
+    host.style.cssText =
+      "position:fixed;left:-99999px;top:0;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none";
+    document.body.appendChild(host);
+  }
+  host.appendChild(img);
+}
+
 function gifFrameAt(asset, timeSec) {
+  if (asset?.liveGif && asset.element) return asset.element;
   if (!asset?.frames?.length) return asset?.element || null;
   const loop = Math.max(asset.duration || 0.1, 0.1);
-  const ms = ((timeSec % loop) + loop) % loop * 1000;
+  const ms = ((((timeSec % loop) + loop) % loop) * 1000);
   let frame = asset.frames[0];
   for (const f of asset.frames) {
     if (f.startMs <= ms) frame = f;
@@ -1076,8 +1169,14 @@ function syncGifAssets(globalTime) {
     const elapsed = mediaElapsed(project, index, local);
     for (const id of sceneMediaIds(scene)) {
       const asset = assets.get(id);
-      if (asset?.kind !== "gif" || !asset.frames?.length) continue;
-      const t = mediaTime(scene, elapsed, asset.duration);
+      if (!asset || (asset.kind !== "gif" && !asset.liveGif)) continue;
+      if (asset.liveGif) {
+        // Browser advances the GIF in real time while the <img> is in the DOM.
+        asset.frameElement = asset.element;
+        continue;
+      }
+      if (!asset.frames?.length) continue;
+      const t = mediaTime(scene, elapsed, asset.duration || 1);
       asset.frameElement = gifFrameAt(asset, t);
     }
   }
@@ -1104,9 +1203,35 @@ async function loadAsset(
         frameElement: animated.frames[0].canvas,
         frames: animated.frames,
         duration: animated.duration,
+        liveGif: false,
       };
     }
-    kind = "image";
+    // Fallback: keep a live <img> so the GIF still animates while playing.
+    const url = URL.createObjectURL(blob);
+    const el = document.createElement("img");
+    try {
+      const loaded = eventReady(el, "load");
+      el.src = url;
+      el.decoding = "sync";
+      await loaded;
+      if (!el.naturalWidth) throw Error("This GIF could not be decoded.");
+      attachLiveGif(el);
+      return {
+        id,
+        name,
+        kind: "gif",
+        blob,
+        url,
+        element: el,
+        frameElement: el,
+        frames: null,
+        duration: 5,
+        liveGif: true,
+      };
+    } catch (e) {
+      URL.revokeObjectURL(url);
+      throw e;
+    }
   }
   const url = URL.createObjectURL(blob),
     el = document.createElement(kind === "video" ? "video" : "img");

@@ -687,7 +687,21 @@ input.scrubber[type="range"] {
 .transition-marker {
   position: absolute;
   top: 0;
-  transform: translateX(-50%);
+  /* Keep the diamond centered on the cut; picker hangs to the right. */
+  transform: translateX(-12px);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  color: #c8ff66;
+  background: transparent;
+  pointer-events: auto;
+  z-index: 2;
+  font-size: 14px;
+}
+.transition-seek {
   width: 24px;
   height: 24px;
   padding: 0;
@@ -695,19 +709,52 @@ input.scrubber[type="range"] {
   border-radius: 2px;
   color: #c8ff66;
   background: #242b1c;
-  pointer-events: auto;
-  z-index: 2;
   font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
 }
-.transition-marker:hover {
+.transition-seek:hover {
   background: #3a4726;
 }
-.transition-marker span {
-  position: absolute;
-  left: 28px;
-  top: 4px;
-  font-size: 12px;
+.transition-picker,
+.transition-label {
+  appearance: none;
+  -webkit-appearance: none;
+  height: 22px;
+  margin: 0;
+  padding: 0 18px 0 6px;
+  border: 0;
+  border-radius: 2px;
+  background: #242b1c
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath fill='%23bbb' d='M0 0l4 5 4-5z'/%3E%3C/svg%3E")
+    no-repeat right 5px center;
   color: #bbb;
+  font: inherit;
+  font-size: 12px;
+  line-height: 22px;
+  cursor: pointer;
+  max-width: 92px;
+}
+.transition-label {
+  padding-right: 6px;
+  background-image: none;
+  color: #9ab87a;
+}
+.transition-picker:hover,
+.transition-label:hover {
+  background-color: #3a4726;
+  color: #e8e8e8;
+}
+.transition-picker:focus-visible,
+.transition-label:focus-visible,
+.transition-seek:focus-visible {
+  outline: 1px solid #c8ff66;
+  outline-offset: 1px;
+}
+.transition-picker option {
+  background: #1a1a1a;
+  color: #e8e8e8;
 }
 .transition-span {
   position: absolute;
