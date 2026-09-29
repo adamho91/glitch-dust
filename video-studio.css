@@ -447,6 +447,86 @@ main {
   width: auto;
   height: auto;
 }
+.present-hud {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.72));
+  color: #ddd;
+  pointer-events: none;
+}
+.present-hud[hidden] {
+  display: none !important;
+}
+.present-hud-left,
+.present-hud-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  pointer-events: auto;
+}
+.present-hints {
+  font-size: 11px;
+  color: #888;
+}
+#presentLabel {
+  font-size: 13px;
+  font-weight: 560;
+  color: #eee;
+  letter-spacing: 0.02em;
+}
+.present-hud button {
+  background: #2a2a2a;
+  border: 1px solid #444;
+  color: #ddd;
+  border-radius: 5px;
+  padding: 7px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.present-hud button:hover {
+  background: #3a3a3a;
+  color: #fff;
+}
+#presentPlay {
+  min-width: 40px;
+}
+body.presenting {
+  overflow: hidden;
+  background: #000;
+}
+body.presenting .studio {
+  grid-template-columns: 1fr;
+  min-height: 100dvh;
+  height: 100dvh;
+}
+body.presenting .sidebar,
+body.presenting .topbar,
+body.presenting .canvas-toolbar,
+body.presenting .transport,
+body.presenting .timeline,
+body.presenting .app-pages,
+body.presenting #mediaSelection,
+body.presenting #mediaDragHint {
+  display: none !important;
+}
+body.presenting main {
+  height: 100dvh;
+}
+body.presenting .stage-wrap {
+  margin: 0;
+  border-radius: 0;
+  flex: 1;
+  min-height: 0;
+  background: #000;
+}
 .transport {
   display: flex;
   align-items: center;

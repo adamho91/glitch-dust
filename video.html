@@ -7,11 +7,11 @@
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="ui-theme.css" />
     <link rel="stylesheet" href="app-nav.css" />
-    <link rel="stylesheet" href="video-studio.css?v=28" />
+    <link rel="stylesheet" href="video-studio.css?v=29" />
     <script src="app-nav.js?v=color-viz-1" defer></script>
     <script src="fal-palette.js"></script>
     <script src="default-presets.js"></script>
-    <script src="video-studio.js?v=28" type="module"></script>
+    <script src="video-studio.js?v=29" type="module"></script>
   </head>
   <body>
     <div class="studio" id="studio">
@@ -596,6 +596,12 @@
               title="Copy the selected slide as editable SVG"
             >
               Copy SVG</button
+            ><button
+              id="presentMode"
+              type="button"
+              title="Present (P)"
+            >
+              Present</button
             ><button id="export" class="primary">Export ↗</button>
           </div>
         </header>
@@ -634,6 +640,18 @@
           ></canvas>
           <div id="mediaSelection" hidden aria-hidden="true"></div>
           <div id="mediaDragHint" hidden>Delete to remove · drag outside to remove</div>
+          <div class="present-hud" id="presentHud" hidden>
+            <div class="present-hud-left">
+              <span id="presentLabel">Scene 1 / 1</span>
+              <span class="present-hints"
+                >Space play · ← → scenes · Esc exit</span
+              >
+            </div>
+            <div class="present-hud-right">
+              <button type="button" id="presentPlay" aria-label="Play">▶</button>
+              <button type="button" id="exitPresent">Exit</button>
+            </div>
+          </div>
         </div>
         <div class="transport">
           <span class="micro preview-note"></span>

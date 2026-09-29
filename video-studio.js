@@ -42,6 +42,7 @@ const assets = new Map(),
 const canvas = $("preview"),
   transitionCanvas = document.createElement("canvas");
 let mediaRegions = [], mediaSelection = null, mediaDrag = null;
+let presenting = false;
 const paletteList = [2, 3, 4, 5].flatMap((n) =>
   getGroupedTonalPresets(n).flatMap((g) => g.presets),
 );
@@ -392,6 +393,10 @@ function stop() {
   playing = false;
   $("play").textContent = "▶";
   $("play").setAttribute("aria-label", "Play");
+  if ($("presentPlay")) {
+    $("presentPlay").textContent = "▶";
+    $("presentPlay").setAttribute("aria-label", "Play");
+  }
   for (const a of videoInstances.values()) a.element.pause();
 }
 function togglePlay() {
@@ -405,6 +410,10 @@ function togglePlay() {
   lastTick = performance.now();
   $("play").textContent = "Ⅱ";
   $("play").setAttribute("aria-label", "Pause");
+  if ($("presentPlay")) {
+    $("presentPlay").textContent = "Ⅱ";
+    $("presentPlay").setAttribute("aria-label", "Pause");
+  }
 }
 function syncPreviewMedia() {
   const at = transitionAt(project, time),
@@ -452,6 +461,7 @@ function tick(now) {
         selected = at.index;
         syncControls();
         highlightCards();
+        if (presenting) updatePresentHud();
       }
     }
     syncPreviewMedia();
@@ -464,11 +474,13 @@ function selectScene(index) {
   stop();
   selected = index;
   time = sceneStart(project, index) + Math.min(0.9, current().duration * 0.5);
+  if (presenting) time = sceneStart(project, index);
   syncControls();
   highlightCards();
   syncPreviewMedia();
   draw();
   revealPlayhead();
+  if (presenting) updatePresentHud();
 }
 function seekTimeline(next) {
   stop();
@@ -476,6 +488,54 @@ function seekTimeline(next) {
   selected = locate(project, time).index;
   syncControls();
   highlightCards();
+  syncPreviewMedia();
+  draw();
+  if (presenting) updatePresentHud();
+}
+function updatePresentHud() {
+  if (!presenting || !$("presentLabel")) return;
+  $("presentLabel").textContent =
+    `Scene ${selected + 1} / ${project.scenes.length}`;
+}
+function enterPresentMode() {
+  if (busy || presenting) return;
+  clearMediaSelection();
+  presenting = true;
+  document.body.classList.add("presenting");
+  $("presentHud").hidden = false;
+  $("presentMode").setAttribute("aria-pressed", "true");
+  time = sceneStart(project, selected);
+  updatePresentHud();
+  fitCanvas();
+  syncPreviewMedia();
+  draw();
+  canvas.focus({ preventScroll: true });
+  status("Present mode · Space play · ← → scenes · Esc exit");
+  if (document.documentElement.requestFullscreen) {
+    document.documentElement.requestFullscreen().catch(() => {});
+  }
+}
+function exitPresentMode() {
+  if (!presenting) return;
+  presenting = false;
+  document.body.classList.remove("presenting");
+  $("presentHud").hidden = true;
+  $("presentMode").setAttribute("aria-pressed", "false");
+  if (document.fullscreenElement) {
+    document.exitFullscreen().catch(() => {});
+  }
+  fitCanvas();
+  draw();
+  status("Exited present mode.");
+}
+function presentGoScene(delta) {
+  if (!presenting || !project.scenes.length) return;
+  const next = clamp(selected + delta, 0, project.scenes.length - 1);
+  selected = next;
+  time = sceneStart(project, selected);
+  syncControls();
+  highlightCards();
+  updatePresentHud();
   syncPreviewMedia();
   draw();
 }
@@ -1911,6 +1971,12 @@ $("reseed").onclick = () => {
   changed({ controls: true });
 };
 $("play").onclick = togglePlay;
+$("presentPlay").onclick = togglePlay;
+$("presentMode").onclick = () => {
+  if (presenting) exitPresentMode();
+  else enterPresentMode();
+};
+$("exitPresent").onclick = () => exitPresentMode();
 $("restart").onclick = () => {
   stop();
   time = 0;
@@ -1918,6 +1984,7 @@ $("restart").onclick = () => {
   syncControls();
   highlightCards();
   draw();
+  if (presenting) updatePresentHud();
 };
 $("scrub").oninput = () => {
   seekTimeline(Number($("scrub").value));
@@ -2443,7 +2510,12 @@ document.addEventListener("keydown", (e) => {
   if (busy) return;
   const typing =
     e.target.matches("input,textarea,select") || e.target.isContentEditable;
-  if ($("exportDialog").open || $("chartDialog").open || $("svgDialog").open)
+  if (
+    $("exportDialog").open ||
+    $("chartDialog").open ||
+    $("svgDialog").open ||
+    $("mediaPlaceDialog")?.open
+  )
     return;
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
     e.preventDefault();
@@ -2451,6 +2523,51 @@ document.addEventListener("keydown", (e) => {
     return;
   }
   if (typing) return;
+
+  if (presenting) {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      exitPresentMode();
+      return;
+    }
+    if (e.code === "Space") {
+      e.preventDefault();
+      togglePlay();
+      return;
+    }
+    if (e.key === "ArrowRight" || e.key === "PageDown") {
+      e.preventDefault();
+      presentGoScene(1);
+      return;
+    }
+    if (e.key === "ArrowLeft" || e.key === "PageUp") {
+      e.preventDefault();
+      presentGoScene(-1);
+      return;
+    }
+    if (e.key === "Home") {
+      e.preventDefault();
+      selected = 0;
+      time = sceneStart(project, 0);
+      syncControls();
+      highlightCards();
+      updatePresentHud();
+      draw();
+      return;
+    }
+    if (e.key === "End") {
+      e.preventDefault();
+      selected = project.scenes.length - 1;
+      time = sceneStart(project, selected);
+      syncControls();
+      highlightCards();
+      updatePresentHud();
+      draw();
+      return;
+    }
+    return;
+  }
+
   if (e.key === "Escape" && mediaSelection) {
     e.preventDefault();
     clearMediaSelection();
@@ -2460,6 +2577,11 @@ document.addEventListener("keydown", (e) => {
       mediaSelection?.sceneId === current().id) {
     e.preventDefault();
     removeSceneMedia();
+    return;
+  }
+  if (!e.metaKey && !e.ctrlKey && !e.altKey && e.key.toLowerCase() === "p") {
+    e.preventDefault();
+    enterPresentMode();
     return;
   }
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
