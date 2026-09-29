@@ -7,11 +7,11 @@
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="ui-theme.css" />
     <link rel="stylesheet" href="app-nav.css" />
-    <link rel="stylesheet" href="video-studio.css?v=25" />
+    <link rel="stylesheet" href="video-studio.css?v=26" />
     <script src="app-nav.js?v=color-viz-1" defer></script>
     <script src="fal-palette.js"></script>
     <script src="default-presets.js"></script>
-    <script src="video-studio.js?v=25" type="module"></script>
+    <script src="video-studio.js?v=26" type="module"></script>
   </head>
   <body>
     <div class="studio" id="studio">
@@ -764,6 +764,10 @@
         <button type="button" class="media-place-option" data-place="stack">
           <strong>Stacked</strong>
           <small>Two frames stacked on one slide. Extra assets become their own slides after.</small>
+        </button>
+        <button type="button" class="media-place-option" data-place="grid">
+          <strong>Aspect grid</strong>
+          <small>Keep each file’s aspect ratio, packed into the pad/gap grid on one slide (up to 9).</small>
         </button>
         <button type="button" class="media-place-option" data-place="library">
           <strong>Library only</strong>

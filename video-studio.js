@@ -1,11 +1,11 @@
-import {isComparison,MEDIA_FIELDS,secondaryMediaScene,resolveSceneAsset} from './video-media-layouts.mjs?v=24';
+import {isComparison,MEDIA_FIELDS,MEDIA_GRID_MAX,secondaryMediaScene,resolveSceneAsset} from './video-media-layouts.mjs?v=26';
 import { createSvgContext } from "./video-svg.mjs?v=24";
 import { suggestChart, CHART_PALETTES } from "./video-chart-import.mjs?v=24";
 import {
   EXTRA_LAYOUTS,
   DEFAULT_DATA,
   parseDataRows,
-} from "./video-layouts.mjs?v=24";
+} from "./video-layouts.mjs?v=26";
 import { timelineGeometry } from "./video-timeline.mjs?v=24";
 import { SWISS_DATA_LIMITS } from "./video-swiss.mjs?v=24";
 import {
@@ -32,7 +32,7 @@ import {
   renderScene,
   renderFrame,
   outputSize,
-} from "./video-core.mjs?v=24";
+} from "./video-core.mjs?v=26";
 
 const $ = (id) => document.getElementById(id);
 const assets = new Map(),
@@ -916,6 +916,12 @@ function deleteLibraryMedia(id) {
   for (const scene of project.scenes) {
     if (scene.mediaId === id) scene.mediaId = null;
     if (scene.mediaIdB === id) scene.mediaIdB = null;
+    if (Array.isArray(scene.mediaIds)) {
+      scene.mediaIds = scene.mediaIds.filter((mid) => mid !== id);
+      if (scene.mediaIds[0]) scene.mediaId = scene.mediaIds[0];
+      if (scene.mediaIds[1]) scene.mediaIdB = scene.mediaIds[1];
+      else if (scene.mediaIdB === id) scene.mediaIdB = null;
+    }
   }
   for (const [sceneId, instance] of videoInstances) {
     if (instance.assetId === id) {
@@ -980,6 +986,26 @@ function createMediaCompareScene(a, b, layout, overrides = {}) {
     duration: Math.max(mediaDurationFor(a), b ? mediaDurationFor(b) : 0),
     mediaLabelA: "A",
     mediaLabelB: "B",
+    ...overrides,
+  });
+}
+
+function createMediaGridScene(assetList, overrides = {}) {
+  const list = assetList.slice(0, MEDIA_GRID_MAX);
+  const ids = list.map((a) => a.id);
+  return createScene({
+    ...mediaSceneBase(),
+    layout: "media-grid",
+    mediaIds: ids,
+    mediaId: ids[0] || null,
+    mediaIdB: ids[1] || null,
+    mediaFit: "adapt",
+    mediaFitB: "adapt",
+    mediaZoom: 100,
+    mediaX: 50,
+    mediaY: 50,
+    mediaDim: 0,
+    duration: Math.max(...list.map(mediaDurationFor), 5),
     ...overrides,
   });
 }
@@ -1077,6 +1103,21 @@ function applyMediaPlacement(mode) {
       }
       time = sceneStart(project, selected) + Math.min(0.9, current().duration * 0.5);
     }
+  } else if (mode === "grid") {
+    const take = list.slice(0, MEDIA_GRID_MAX);
+    const rest = list.slice(MEDIA_GRID_MAX);
+    const grid = createMediaGridScene(take);
+    project.scenes.splice(selected + 1, 0, grid);
+    selected++;
+    const room = Math.max(0, 100 - project.scenes.length);
+    if (rest.length && room > 0) {
+      const extras = rest.slice(0, room).map((a) => createMediaFrameScene(a));
+      project.scenes.splice(selected + 1, 0, ...extras);
+      message = `Aspect grid with ${take.length} · ${extras.length} more as new slides. Dust is off.`;
+    } else {
+      message = `Aspect grid with ${take.length} on one slide. Dust is off.`;
+    }
+    time = sceneStart(project, selected) + Math.min(0.9, current().duration * 0.5);
   }
 
   clearMediaSelection();

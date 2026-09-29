@@ -1,10 +1,10 @@
-import {isComparison,resolveSceneAsset} from './video-media-layouts.mjs?v=24';
+import {isComparison,resolveSceneAsset} from './video-media-layouts.mjs?v=26';
 import { pixelAlignedRect } from "./video-pixel-grid.mjs?v=24";
 import {
   EXTRA_LAYOUTS,
   DEFAULT_DATA,
   renderExtraLayout,
-} from "./video-layouts.mjs?v=24";
+} from "./video-layouts.mjs?v=26";
 import { diffusionNodes } from "./video-diffusion.mjs?v=24";
 import {
   measureTextZones,
@@ -92,6 +92,7 @@ export const DEFAULTS = {
   footer: false,
   mediaId: null,
   mediaIdB: null,
+  mediaIds: [],
   mediaLabelA: "Before",
   mediaLabelB: "After",
   mediaFitB: "cover",
@@ -275,6 +276,15 @@ export function normalizeProject(input) {
         if (typeof raw[k] === "boolean") s[k] = raw[k];
       if (typeof raw.mediaId === "string") s.mediaId = raw.mediaId;
       if (typeof raw.mediaIdB === "string") s.mediaIdB = raw.mediaIdB;
+      if (Array.isArray(raw.mediaIds)) {
+        s.mediaIds = raw.mediaIds
+          .filter((id) => typeof id === "string" && id)
+          .slice(0, 9);
+        if (s.mediaIds.length) {
+          s.mediaId = s.mediaIds[0];
+          s.mediaIdB = s.mediaIds[1] || s.mediaIdB;
+        }
+      }
       if (typeof raw.id === "string" && !ids.has(raw.id)) s.id = raw.id;
       s.font = "Focal Upright";
       s.footer = false;
