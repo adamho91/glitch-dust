@@ -1,4 +1,4 @@
-import {isComparison,resolveSceneAsset} from './video-media-layouts.mjs?v=28';
+import {isComparison,resolveSceneAsset} from './video-media-layouts.mjs?v=29';
 import { pixelAlignedRect } from "./video-pixel-grid.mjs?v=24";
 import {
   EXTRA_LAYOUTS,

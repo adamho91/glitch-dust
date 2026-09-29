@@ -43,9 +43,9 @@ export function resolveSceneAsset(assets, scene) {
 }
 
 function assetAspect(asset) {
-  const el = asset?.element;
-  const w = el?.videoWidth || el?.naturalWidth || 0;
-  const h = el?.videoHeight || el?.naturalHeight || 0;
+  const el = asset?.frameElement || asset?.element;
+  const w = el?.videoWidth || el?.naturalWidth || el?.width || 0;
+  const h = el?.videoHeight || el?.naturalHeight || el?.height || 0;
   if (w > 0 && h > 0) return w / h;
   return 1;
 }

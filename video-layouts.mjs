@@ -1,4 +1,4 @@
-import {MEDIA_TEMPLATES,renderMediaTemplate} from './video-media-layouts.mjs?v=28';
+import {MEDIA_TEMPLATES,renderMediaTemplate} from './video-media-layouts.mjs?v=29';
 // Data and editorial layouts use the same Focal text and square primitives as the editor.
 import { easeOutQuad as ease } from "./video-motion.mjs?v=24";
 import { SWISS_LAYOUTS, renderSwissLayout } from "./video-swiss.mjs?v=24";

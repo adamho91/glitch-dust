@@ -1,4 +1,4 @@
-import {isComparison,MEDIA_FIELDS,MEDIA_GRID_MAX,sceneMediaIds,secondaryMediaScene,resolveSceneAsset} from './video-media-layouts.mjs?v=28';
+import {isComparison,MEDIA_FIELDS,MEDIA_GRID_MAX,sceneMediaIds,secondaryMediaScene,resolveSceneAsset} from './video-media-layouts.mjs?v=29';
 import { createSvgContext } from "./video-svg.mjs?v=24";
 import { suggestChart, CHART_PALETTES } from "./video-chart-import.mjs?v=24";
 import {
@@ -1076,44 +1076,35 @@ async function decodeAnimatedGif(blob) {
   if (typeof ImageDecoder === "undefined") return null;
   let decoder;
   try {
+    const buffer = await blob.arrayBuffer();
     decoder = new ImageDecoder({
-      data: await blob.arrayBuffer(),
-      type: "image/gif",
+      data: buffer,
+      type: blob.type || "image/gif",
+      preferAnimation: true,
     });
-    if (decoder.tracks?.ready) await decoder.tracks.ready;
-    // Prefer a completed decode so frameCount is reliable.
-    try {
-      await decoder.decode({ frameIndex: 0 });
-    } catch (_) {}
+    await decoder.tracks.ready;
+    // Wait until the full GIF is parsed so frameCount is final.
+    if (decoder.completed) await decoder.completed;
     const track = decoder.tracks.selectedTrack;
     const count = track?.frameCount || 0;
-    if (!track || count < 2) {
+    if (!track || count < 2 || track.animated === false) {
       decoder.close?.();
       return null;
     }
     const frames = [];
     let totalUs = 0;
-    const composite = document.createElement("canvas");
-    const cctx = composite.getContext("2d", { willReadFrequently: true });
     for (let i = 0; i < count; i++) {
       const { image } = await decoder.decode({ frameIndex: i });
-      const fw = image.displayWidth || image.codedWidth;
-      const fh = image.displayHeight || image.codedHeight;
-      if (!composite.width) {
-        composite.width = fw;
-        composite.height = fh;
-      }
-      // ImageDecoder yields display frames; still composite for disposal-safe copies.
-      cctx.drawImage(image, 0, 0);
+      const frameCanvas = document.createElement("canvas");
+      frameCanvas.width = image.displayWidth || image.codedWidth;
+      frameCanvas.height = image.displayHeight || image.codedHeight;
+      // ImageDecoder returns fully composited display frames.
+      frameCanvas.getContext("2d").drawImage(image, 0, 0);
       const delayUs = Math.max(
         20000,
         Number(image.duration) > 0 ? Number(image.duration) : 100000,
       );
       image.close();
-      const frameCanvas = document.createElement("canvas");
-      frameCanvas.width = composite.width;
-      frameCanvas.height = composite.height;
-      frameCanvas.getContext("2d").drawImage(composite, 0, 0);
       frames.push({
         canvas: frameCanvas,
         delayMs: delayUs / 1000,
@@ -1139,10 +1130,13 @@ function attachLiveGif(img) {
     host = document.createElement("div");
     host.id = "gifAnimHost";
     host.setAttribute("aria-hidden", "true");
+    // Keep a tiny on-screen footprint so the browser keeps advancing frames
+    // (opacity:0 / far offscreen often freezes animated GIFs).
     host.style.cssText =
-      "position:fixed;left:-99999px;top:0;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none";
+      "position:fixed;left:0;top:0;width:2px;height:2px;overflow:hidden;opacity:0.01;pointer-events:none;z-index:-1";
     document.body.appendChild(host);
   }
+  img.style.cssText = "display:block;width:2px;height:2px";
   host.appendChild(img);
 }
 
@@ -1159,10 +1153,35 @@ function gifFrameAt(asset, timeSec) {
   return frame.canvas;
 }
 
+/** Re-decode GIFs that landed on the live-img fallback or lost frames after restore. */
+function ensureGifFrames(asset) {
+  if (!asset || asset.kind !== "gif" || asset.frames?.length || asset._gifDecoding)
+    return;
+  if (!asset.blob) return;
+  asset._gifDecoding = true;
+  decodeAnimatedGif(asset.blob)
+    .then((animated) => {
+      if (!animated || !assets.has(asset.id)) return;
+      asset.frames = animated.frames;
+      asset.duration = animated.duration;
+      asset.element = animated.frames[0].canvas;
+      asset.frameElement = animated.frames[0].canvas;
+      asset.liveGif = false;
+    })
+    .catch(() => {})
+    .finally(() => {
+      asset._gifDecoding = false;
+    });
+}
+
 function syncGifAssets(globalTime) {
   const at = locate(project, globalTime);
   const scenes = [at.scene];
   if (at.index > 0 && at.blend < 1) scenes.unshift(project.scenes[at.index - 1]);
+  // Preview / Present: advance GIFs on wall-clock so they keep looping even
+  // when the timeline is paused (Present often sits on one scene).
+  // Export sets busy=true and passes the timeline time for deterministic frames.
+  const wallSec = performance.now() / 1000;
   for (const scene of scenes) {
     const index = project.scenes.findIndex((s) => s.id === scene.id);
     const local = Math.max(0, globalTime - sceneStart(project, index));
@@ -1170,13 +1189,14 @@ function syncGifAssets(globalTime) {
     for (const id of sceneMediaIds(scene)) {
       const asset = assets.get(id);
       if (!asset || (asset.kind !== "gif" && !asset.liveGif)) continue;
-      if (asset.liveGif) {
-        // Browser advances the GIF in real time while the <img> is in the DOM.
+      ensureGifFrames(asset);
+      if (asset.liveGif || !asset.frames?.length) {
         asset.frameElement = asset.element;
         continue;
       }
-      if (!asset.frames?.length) continue;
-      const t = mediaTime(scene, elapsed, asset.duration || 1);
+      const t = busy
+        ? mediaTime({ ...scene, mediaLoop: true }, elapsed, asset.duration || 1)
+        : wallSec;
       asset.frameElement = gifFrameAt(asset, t);
     }
   }
