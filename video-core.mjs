@@ -1,10 +1,10 @@
-import {isComparison,resolveSceneAsset} from './video-media-layouts.mjs?v=26';
+import {isComparison,resolveSceneAsset} from './video-media-layouts.mjs?v=28';
 import { pixelAlignedRect } from "./video-pixel-grid.mjs?v=24";
 import {
   EXTRA_LAYOUTS,
   DEFAULT_DATA,
   renderExtraLayout,
-} from "./video-layouts.mjs?v=26";
+} from "./video-layouts.mjs?v=28";
 import { diffusionNodes } from "./video-diffusion.mjs?v=24";
 import {
   measureTextZones,
@@ -431,9 +431,9 @@ export function mediaGeometry(s, rect, iw, ih) {
 }
 function media(ctx, s, asset, rect) {
   if (s.mediaMotion) return;
-  const el = asset?.element;
-  const iw = el?.videoWidth || el?.naturalWidth;
-  const ih = el?.videoHeight || el?.naturalHeight;
+  const el = asset?.frameElement || asset?.element;
+  const iw = el?.videoWidth || el?.naturalWidth || el?.width;
+  const ih = el?.videoHeight || el?.naturalHeight || el?.height;
   const geometry = iw && ih ? mediaGeometry(s, rect, iw, ih) : null;
   if (s.collectMediaGeometry) {
     if (geometry) s.collectMediaGeometry(geometry);
@@ -442,7 +442,7 @@ function media(ctx, s, asset, rect) {
   paintMedia(ctx, s, asset, geometry, rect);
 }
 function paintMedia(ctx, s, asset, geometry, rect = geometry.frame) {
-  const el = asset?.element;
+  const el = asset?.frameElement || asset?.element;
   const [x, y, w, h] = geometry?.frame || rect;
   ctx.save();
   ctx.beginPath();
@@ -912,8 +912,9 @@ export function renderScene(ctx, s, t, w, h, asset, index = 0) {
 // Query the real layout renderer so media flow also follows adapted frames and two-crop layouts.
 const mediaGeometryCache = new Map();
 function sceneMediaGeometry(ctx, scene, w, h, asset) {
-  const el = asset?.element;
-  const iw = el?.videoWidth || el?.naturalWidth, ih = el?.videoHeight || el?.naturalHeight;
+  const el = asset?.frameElement || asset?.element;
+  const iw = el?.videoWidth || el?.naturalWidth || el?.width,
+    ih = el?.videoHeight || el?.naturalHeight || el?.height;
   if (!iw || !ih) return [];
   const key = JSON.stringify([scene, w, h, iw, ih]);
   if (mediaGeometryCache.has(key)) return mediaGeometryCache.get(key);

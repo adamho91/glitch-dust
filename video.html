@@ -7,11 +7,11 @@
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="ui-theme.css" />
     <link rel="stylesheet" href="app-nav.css" />
-    <link rel="stylesheet" href="video-studio.css?v=27" />
+    <link rel="stylesheet" href="video-studio.css?v=28" />
     <script src="app-nav.js?v=color-viz-1" defer></script>
     <script src="fal-palette.js"></script>
     <script src="default-presets.js"></script>
-    <script src="video-studio.js?v=27" type="module"></script>
+    <script src="video-studio.js?v=28" type="module"></script>
   </head>
   <body>
     <div class="studio" id="studio">
@@ -504,18 +504,19 @@
             </div>
             <button class="dropzone" id="uploadMedia">
               <span>＋</span><strong>Drop something good here</strong
-              ><small>Images & video · or click to browse</small>
+              ><small>PNG, JPG, GIF, MP4, WebM · or click to browse</small>
             </button>
             <input
               id="mediaInput"
               type="file"
-              accept="image/*,video/*"
+              accept="image/*,video/*,.gif,.mp4,.webm,.mov,.m4v"
               multiple
               hidden
             />
             <p class="help">
-              Click an asset to place it in this scene. Media stays on this
-              device. Video clips play without audio.
+              Click an asset to place it in this scene. Animated GIFs and video
+              play with the timeline. Media stays on this device. Clips export
+              without audio.
             </p>
             <label class="field" id="mediaSlotField" hidden>Place / edit media<select id="mediaSlot"><option value="primary">A · First media</option><option value="secondary">B · Second media</option></select></label>
 
@@ -792,6 +793,7 @@
       <label class="field"
         >Output<select id="exportFormat">
           <option value="mp4">MP4 video · H.264</option>
+          <option value="gif">GIF · Animated</option>
           <option value="png">PNG · Current frame</option>
           <option value="jpeg">JPG · Current frame</option>
           <option value="svg">SVG · Selected slide</option>
@@ -808,13 +810,15 @@
           >Frame rate<select id="fps">
             <option value="30">30 fps</option>
             <option value="24">24 fps</option>
+            <option value="15">15 fps · GIF friendly</option>
             <option value="60">60 fps</option>
           </select></label
         >
       </div>
       <p class="export-detail" id="exportDetail"></p>
       <p class="help">
-        Video exports are silent. Media is included in saved project files.
+        MP4 and GIF exports are silent. Animated GIF media and video media are
+        included. Saved projects store media on this device.
       </p>
       <progress id="exportProgress" max="1" value="0" hidden></progress>
       <p id="exportStatus" role="status" aria-live="polite"></p>

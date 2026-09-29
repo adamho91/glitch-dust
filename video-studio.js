@@ -1,11 +1,11 @@
-import {isComparison,MEDIA_FIELDS,MEDIA_GRID_MAX,sceneMediaIds,secondaryMediaScene,resolveSceneAsset} from './video-media-layouts.mjs?v=26';
+import {isComparison,MEDIA_FIELDS,MEDIA_GRID_MAX,sceneMediaIds,secondaryMediaScene,resolveSceneAsset} from './video-media-layouts.mjs?v=28';
 import { createSvgContext } from "./video-svg.mjs?v=24";
 import { suggestChart, CHART_PALETTES } from "./video-chart-import.mjs?v=24";
 import {
   EXTRA_LAYOUTS,
   DEFAULT_DATA,
   parseDataRows,
-} from "./video-layouts.mjs?v=26";
+} from "./video-layouts.mjs?v=28";
 import { timelineGeometry } from "./video-timeline.mjs?v=24";
 import { SWISS_DATA_LIMITS } from "./video-swiss.mjs?v=24";
 import {
@@ -32,7 +32,7 @@ import {
   renderScene,
   renderFrame,
   outputSize,
-} from "./video-core.mjs?v=26";
+} from "./video-core.mjs?v=28";
 
 const $ = (id) => document.getElementById(id);
 const assets = new Map(),
@@ -374,6 +374,7 @@ function renderAssets() {
 function draw() {
   // Consecutive scenes share a video element when their clip settings continue playback.
   mediaRegions = [];
+  syncGifAssets(time);
   renderFrame(canvas, project, time, renderAssets(), transitionCanvas,
     (rect) => mediaRegions.push(rect));
   updateMediaSelection();
@@ -808,43 +809,12 @@ function eventReady(el, event, timeout = 15000) {
       fail = () =>
         finish(
           Error(
-            "This media format could not be decoded. Try a PNG, JPG, or H.264 MP4.",
+            "This media format could not be decoded. Try a PNG, JPG, GIF, or H.264 MP4 / WebM.",
           ),
         );
     el.addEventListener(event, ok, { once: true });
     el.addEventListener("error", fail, { once: true });
   });
-}
-async function loadAsset(
-  blob,
-  name,
-  id = crypto.randomUUID(),
-  kind = blob.type.startsWith("video/") ? "video" : "image",
-) {
-  const url = URL.createObjectURL(blob),
-    el = document.createElement(kind === "video" ? "video" : "img");
-  try {
-    if (kind === "video") {
-      el.muted = true;
-      el.playsInline = true;
-      el.preload = "auto";
-      const loaded = eventReady(el, "loadeddata");
-      el.src = url;
-      el.load();
-      await loaded;
-      if (!Number.isFinite(el.duration) || !el.videoWidth)
-        throw Error("This video has no playable video track.");
-    } else {
-      const loaded = eventReady(el, "load");
-      el.src = url;
-      await loaded;
-      if (!el.naturalWidth) throw Error("This image could not be decoded.");
-    }
-    return { id, name, kind, blob, url, element: el };
-  } catch (e) {
-    URL.revokeObjectURL(url);
-    throw e;
-  }
 }
 function releaseAsset(a) {
   if (a.element?.tagName === "VIDEO") {
@@ -876,14 +846,24 @@ function buildLibrary() {
     b.className = "media-item";
     b.dataset.id = a.id;
     b.title = "Use " + a.name;
-    const el = a.element.cloneNode();
-    el.removeAttribute("autoplay");
-    if (a.kind === "video") {
-      el.muted = true;
-      el.preload = "metadata";
+    let el;
+    if (a.kind === "gif" && a.frames?.[0]?.canvas) {
+      const src = a.frames[0].canvas;
+      el = document.createElement("canvas");
+      el.width = src.width;
+      el.height = src.height;
+      el.getContext("2d").drawImage(src, 0, 0);
+    } else {
+      el = a.element.cloneNode();
+      el.removeAttribute("autoplay");
+      if (a.kind === "video") {
+        el.muted = true;
+        el.preload = "metadata";
+      }
     }
     const name = document.createElement("span");
-    name.textContent = (a.kind === "video" ? "▶ " : "") + a.name;
+    name.textContent =
+      (a.kind === "video" ? "▶ " : a.kind === "gif" ? "GIF " : "") + a.name;
     b.append(el, name);
     b.onclick = () => {
       if (busy) return;
@@ -963,9 +943,135 @@ function mediaSceneBase() {
 }
 
 function mediaDurationFor(asset) {
-  return asset.kind === "video"
-    ? clamp(asset.element.duration, 0.5, 60)
-    : 5;
+  if (asset.kind === "video")
+    return clamp(asset.element.duration, 0.5, 60);
+  if (asset.kind === "gif" && asset.duration > 0.05)
+    return clamp(asset.duration, 0.5, 60);
+  return 5;
+}
+
+function guessMediaKind(file) {
+  const type = (file.type || "").toLowerCase();
+  const name = (file.name || "").toLowerCase();
+  if (type.startsWith("video/") || /\.(mp4|webm|mov|m4v|ogv)$/.test(name))
+    return "video";
+  if (type === "image/gif" || name.endsWith(".gif")) return "gif";
+  if (type.startsWith("image/") || /\.(png|jpe?g|webp|avif|bmp|svg)$/.test(name))
+    return "image";
+  return null;
+}
+
+async function decodeAnimatedGif(blob) {
+  if (typeof ImageDecoder === "undefined") return null;
+  try {
+    const decoder = new ImageDecoder({
+      data: await blob.arrayBuffer(),
+      type: "image/gif",
+    });
+    const track = decoder.tracks.selectedTrack;
+    if (!track || track.frameCount < 2) {
+      decoder.close?.();
+      return null;
+    }
+    const frames = [];
+    let totalUs = 0;
+    for (let i = 0; i < track.frameCount; i++) {
+      const { image } = await decoder.decode({ frameIndex: i });
+      const delayUs = Math.max(20000, Number(image.duration) || 100000);
+      const canvas = document.createElement("canvas");
+      canvas.width = image.displayWidth || image.codedWidth;
+      canvas.height = image.displayHeight || image.codedHeight;
+      canvas.getContext("2d").drawImage(image, 0, 0);
+      image.close();
+      frames.push({ canvas, delayMs: delayUs / 1000, startMs: totalUs / 1000 });
+      totalUs += delayUs;
+    }
+    decoder.close?.();
+    if (frames.length < 2) return null;
+    return { frames, duration: totalUs / 1e6 };
+  } catch {
+    return null;
+  }
+}
+
+function gifFrameAt(asset, timeSec) {
+  if (!asset?.frames?.length) return asset?.element || null;
+  const loop = Math.max(asset.duration || 0.1, 0.1);
+  const ms = ((timeSec % loop) + loop) % loop * 1000;
+  let frame = asset.frames[0];
+  for (const f of asset.frames) {
+    if (f.startMs <= ms) frame = f;
+    else break;
+  }
+  return frame.canvas;
+}
+
+function syncGifAssets(globalTime) {
+  const at = locate(project, globalTime);
+  const scenes = [at.scene];
+  if (at.index > 0 && at.blend < 1) scenes.unshift(project.scenes[at.index - 1]);
+  for (const scene of scenes) {
+    const index = project.scenes.findIndex((s) => s.id === scene.id);
+    const local = Math.max(0, globalTime - sceneStart(project, index));
+    const elapsed = mediaElapsed(project, index, local);
+    for (const id of sceneMediaIds(scene)) {
+      const asset = assets.get(id);
+      if (asset?.kind !== "gif" || !asset.frames?.length) continue;
+      const t = mediaTime(scene, elapsed, asset.duration);
+      asset.frameElement = gifFrameAt(asset, t);
+    }
+  }
+}
+
+async function loadAsset(
+  blob,
+  name,
+  id = crypto.randomUUID(),
+  kind = guessMediaKind({ type: blob.type, name }) ||
+    (blob.type.startsWith("video/") ? "video" : "image"),
+) {
+  if (kind === "gif") {
+    const animated = await decodeAnimatedGif(blob);
+    if (animated) {
+      const url = URL.createObjectURL(blob);
+      return {
+        id,
+        name,
+        kind: "gif",
+        blob,
+        url,
+        element: animated.frames[0].canvas,
+        frameElement: animated.frames[0].canvas,
+        frames: animated.frames,
+        duration: animated.duration,
+      };
+    }
+    kind = "image";
+  }
+  const url = URL.createObjectURL(blob),
+    el = document.createElement(kind === "video" ? "video" : "img");
+  try {
+    if (kind === "video") {
+      el.muted = true;
+      el.playsInline = true;
+      el.preload = "auto";
+      const loaded = eventReady(el, "loadeddata");
+      el.src = url;
+      el.load();
+      await loaded;
+      if (!Number.isFinite(el.duration) || !el.videoWidth)
+        throw Error("This video has no playable video track.");
+    } else {
+      const loaded = eventReady(el, "load");
+      el.src = url;
+      await loaded;
+      if (!el.naturalWidth) throw Error("This image could not be decoded.");
+    }
+    return { id, name, kind, blob, url, element: el };
+  } catch (e) {
+    URL.revokeObjectURL(url);
+    throw e;
+  }
 }
 
 function createMediaFrameScene(asset, overrides = {}) {
@@ -1135,13 +1241,14 @@ async function importMedia(files) {
   setBusy(true);
   try {
     for (const f of files) {
-      if (!/^(image|video)\//.test(f.type)) {
-        status("Skipped " + f.name + " — choose an image or video.");
+      const kind = guessMediaKind(f);
+      if (!kind) {
+        status("Skipped " + f.name + " — use PNG, JPG, GIF, MP4, or WebM.");
         continue;
       }
       try {
         status("Loading " + f.name + "…");
-        const a = await loadAsset(f, f.name);
+        const a = await loadAsset(f, f.name, undefined, kind);
         assets.set(a.id, a);
         loaded.push(a);
         await persistAsset(a);
@@ -1288,7 +1395,7 @@ async function openProject(file) {
     }
     if (
       next.scenes.some(
-        (s) => [s.mediaId,s.mediaIdB].some(id => id && !staged.some((a) => a.id === id)),
+        (s) => sceneMediaIds(s).some(id => id && !staged.some((a) => a.id === id)),
       )
     )
       throw Error("This project is missing embedded media.");
@@ -1348,6 +1455,7 @@ async function seekVideo(s, local) {
 }
 async function prepareFrame(t) {
   const at = transitionAt(project, t);
+  syncGifAssets(t);
   await seekVideo(at.scene, at.local);
   if (isComparison(at.scene.layout)) await seekVideo(secondaryMediaScene(at.scene), at.local);
   if (at.blend < 1 && (!at.sharedMedia ||
@@ -1362,12 +1470,12 @@ function exportInfo() {
     [w, h] = outputSize(project.format, Number($("resolution").value));
   $("exportDetail").textContent =
     `${w} × ${h} px · ` +
-    (type === "mp4"
+    (type === "mp4" || type === "gif"
       ? `${duration(project).toFixed(1)} seconds · ${$("fps").value} fps`
       : type === "svg"
         ? `Slide ${selected + 1} · Editable shapes and Focal text`
         : `Frame at ${clock(time)}`);
-  $("fpsField").hidden = type !== "mp4";
+  $("fpsField").hidden = type !== "mp4" && type !== "gif";
   $("startExport").textContent =
     "Export " + (type === "jpeg" ? "JPG" : type.toUpperCase()) + " ↗";
 }
@@ -1467,9 +1575,57 @@ async function exportMovie(out) {
     if (encoder.state !== "closed") encoder.close();
   }
 }
+async function loadGifenc() {
+  try {
+    return await import("./vendor/gifenc.mjs");
+  } catch (e) {
+    throw Error(
+      "GIF export needs vendor/gifenc.mjs next to this page (or open in Chrome online).",
+    );
+  }
+}
+async function exportGif(out) {
+  const fps = Math.min(30, Number($("fps").value) || 15);
+  const frames = Math.ceil(duration(project) * fps);
+  const mod = await loadGifenc();
+  const GIFEncoder = mod.GIFEncoder || mod.default;
+  const { quantize, applyPalette } = mod;
+  if (!GIFEncoder || !quantize || !applyPalette)
+    throw Error("gifenc exports missing.");
+  const gif = GIFEncoder();
+  const w = out.width;
+  const h = out.height;
+  const delay = Math.max(20, Math.round(1000 / fps));
+  const layer = document.createElement("canvas");
+  const ctx = out.getContext("2d", { willReadFrequently: true });
+  for (let i = 0; i < frames; i++) {
+    if (cancelled) throw Error("Export cancelled.");
+    const t = i / fps;
+    await prepareFrame(t);
+    renderFrame(out, project, t, renderAssets(), layer);
+    const { data } = ctx.getImageData(0, 0, w, h);
+    const palette = quantize(data, 256);
+    const index = applyPalette(data, palette);
+    gif.writeFrame(index, w, h, {
+      palette,
+      delay,
+      ...(i === 0 ? { first: true } : null),
+    });
+    if (i % 2 === 0) {
+      $("exportProgress").value = (i + 1) / frames;
+      $("exportStatus").textContent =
+        `Encoding GIF · ${i + 1} of ${frames} · ${Math.round(((i + 1) / frames) * 100)}%`;
+      await new Promise((r) => setTimeout(r, 0));
+    }
+  }
+  gif.finish();
+  const bytes = gif.bytes();
+  if (!bytes?.byteLength) throw Error("GIF output empty.");
+  return new Blob([bytes], { type: "image/gif" });
+}
 async function runExport() {
   if (busy) return;
-  if (project.scenes.some((s) => [s.mediaId,s.mediaIdB].some(id => id && !assets.has(id)))) {
+  if (project.scenes.some((s) => sceneMediaIds(s).some((id) => id && !assets.has(id)))) {
     $("exportStatus").textContent =
       "Some scene media is missing. Restore it by opening a saved project file, or remove it from the scene.";
     return;
@@ -1491,20 +1647,31 @@ async function runExport() {
       ),
     );
     const out = document.createElement("canvas");
-    [out.width, out.height] = outputSize(
+    let [ow, oh] = outputSize(
       project.format,
       Number($("resolution").value),
     );
     const type = $("exportFormat").value;
+    // Keep GIFs lighter — cap longest edge at 1080.
+    if (type === "gif") {
+      const cap = 1080;
+      const scale = Math.min(1, cap / Math.max(ow, oh));
+      ow = Math.max(2, Math.round(ow * scale / 2) * 2);
+      oh = Math.max(2, Math.round(oh * scale / 2) * 2);
+    }
+    out.width = ow;
+    out.height = oh;
     let blob;
     $("exportStatus").textContent = "Preparing frames…";
     if (type === "mp4") blob = await exportMovie(out);
+    else if (type === "gif") blob = await exportGif(out);
     else if (type === "svg")
       blob = new Blob([await slideSvg(out.width, out.height)], {
         type: "image/svg+xml",
       });
     else {
       await prepareFrame(time);
+      syncGifAssets(time);
       renderFrame(
         out,
         project,
@@ -1520,7 +1687,7 @@ async function runExport() {
     download(
       blob,
       fileName() +
-        (type === "mp4" ? "" : "-" + time.toFixed(2) + "s") +
+        (type === "mp4" || type === "gif" ? "" : "-" + time.toFixed(2) + "s") +
         "." +
         (type === "jpeg" ? "jpg" : type),
     );
