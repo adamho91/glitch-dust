@@ -10,6 +10,7 @@
   const SECRET_PAGES = [
     { id: 'artifact', key: '5', label: 'Artifact', href: 'artifact.html' },
     { id: 'video', key: '6', label: 'Video', href: 'video.html' },
+    { id: 'color-visualizer', key: '7', label: 'Color Visualizer', href: 'color-visualizer.html' },
   ];
 
   const ALL_PAGES = PAGES.concat(SECRET_PAGES);
@@ -21,6 +22,7 @@
     if (file === 'typer.html') return 'typer';
     if (file === 'artifact.html') return 'artifact';
     if (file === 'video.html') return 'video';
+    if (file === 'color-visualizer.html') return 'color-visualizer';
     return 'editor';
   }
 
