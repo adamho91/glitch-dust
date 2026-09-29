@@ -447,6 +447,49 @@ main {
   width: auto;
   height: auto;
 }
+.gif-overlay-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  overflow: hidden;
+}
+.gif-overlay {
+  position: absolute;
+  overflow: hidden;
+  pointer-events: none;
+}
+.gif-overlay img {
+  position: absolute;
+  display: block;
+  max-width: none;
+  pointer-events: none;
+}
+.gif-overlay-dim {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  pointer-events: none;
+}
+.present-svg-host {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  background: #000;
+  overflow: hidden;
+}
+.present-svg-host svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+body.presenting #preview,
+body.presenting #gifOverlayLayer {
+  display: none !important;
+}
+body.presenting #presentSvgHost {
+  display: block;
+}
 .present-hud {
   position: absolute;
   left: 0;

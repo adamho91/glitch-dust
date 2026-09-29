@@ -129,14 +129,28 @@ export function createSvgContext(width, height, measurementContext) {
     drawImage(image, ...args) {
       const iw = image.videoWidth || image.naturalWidth || image.width,
         ih = image.videoHeight || image.naturalHeight || image.height;
-      const raster = document.createElement("canvas");
-      raster.width = iw;
-      raster.height = ih;
-      raster.getContext("2d").drawImage(image, 0, 0, iw, ih);
       let x, y, w, h;
       if (args.length === 2) [x, y, w, h] = [...args, iw, ih];
       else if (args.length === 4) [x, y, w, h] = args;
       else throw Error("This media crop cannot be exported as SVG.");
+      // Keep live <img> hrefs (animated GIFs play inside SVG). Rasterize video/canvas.
+      const liveSrc =
+        image?.tagName === "IMG" &&
+        typeof image.src === "string" &&
+        image.src &&
+        !image.src.startsWith("data:image/png")
+          ? image.src
+          : null;
+      if (liveSrc) {
+        append(
+          `<image x="${num(x)}" y="${num(y)}" width="${num(w)}" height="${num(h)}" preserveAspectRatio="none" href="${esc(liveSrc)}" opacity="${num(ctx.globalAlpha)}" transform="${transform()}"/>`,
+        );
+        return;
+      }
+      const raster = document.createElement("canvas");
+      raster.width = iw;
+      raster.height = ih;
+      raster.getContext("2d").drawImage(image, 0, 0, iw, ih);
       append(
         `<image x="${num(x)}" y="${num(y)}" width="${num(w)}" height="${num(h)}" preserveAspectRatio="none" href="${raster.toDataURL("image/png")}" opacity="${num(ctx.globalAlpha)}" transform="${transform()}"/>`,
       );

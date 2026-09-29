@@ -7,11 +7,11 @@
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="ui-theme.css" />
     <link rel="stylesheet" href="app-nav.css" />
-    <link rel="stylesheet" href="video-studio.css?v=31" />
+    <link rel="stylesheet" href="video-studio.css?v=34" />
     <script src="app-nav.js?v=color-viz-1" defer></script>
     <script src="fal-palette.js"></script>
     <script src="default-presets.js"></script>
-    <script src="video-studio.js?v=32" type="module"></script>
+    <script src="video-studio.js?v=34" type="module"></script>
   </head>
   <body>
     <div class="studio" id="studio">
@@ -638,6 +638,13 @@
             aria-describedby="mediaDragHint"
             tabindex="0"
           ></canvas>
+          <div id="gifOverlayLayer" class="gif-overlay-layer" hidden></div>
+          <div
+            id="presentSvgHost"
+            class="present-svg-host"
+            hidden
+            aria-label="Presented slide"
+          ></div>
           <div id="mediaSelection" hidden aria-hidden="true"></div>
           <div id="mediaDragHint" hidden>Delete to remove · drag outside to remove</div>
           <div class="present-hud" id="presentHud" hidden>

@@ -458,10 +458,31 @@ function paintMedia(ctx, s, asset, geometry, rect = geometry.frame) {
         s.onMediaBounds({x: left * m.a + m.e, y: top * m.d + m.f,
           width: (right - left) * m.a, height: (bottom - top) * m.d, ...(s.mediaSlot ? {slot:s.mediaSlot} : {})});
       }
-      ctx.drawImage(el, ...geometry.image);
-      ctx.fillStyle = `rgba(0,0,0,${s.mediaDim / 100})`;
-      // Darken the placed media, never the unused space around a fitted image.
-      ctx.fillRect(...geometry.image);
+      // Animated GIFs: canvas.drawImage stays on frame 0 in Chromium. Hand off to
+      // an HTML overlay (or SVG <image href>) via collectGifOverlay instead.
+      const gifOverlay =
+        s.collectGifOverlay &&
+        asset &&
+        (asset.kind === "gif" ||
+          asset.liveGif ||
+          asset.previewImg ||
+          (typeof asset.name === "string" &&
+            asset.name.toLowerCase().endsWith(".gif")));
+      if (gifOverlay) {
+        s.collectGifOverlay({
+          asset,
+          frame: geometry.frame,
+          image: geometry.image,
+          dim: s.mediaDim || 0,
+        });
+        ctx.fillStyle = `rgba(0,0,0,${(s.mediaDim || 0) / 100})`;
+        ctx.fillRect(...geometry.image);
+      } else {
+        ctx.drawImage(el, ...geometry.image);
+        ctx.fillStyle = `rgba(0,0,0,${s.mediaDim / 100})`;
+        // Darken the placed media, never the unused space around a fitted image.
+        ctx.fillRect(...geometry.image);
+      }
     }
   } else {
     ctx.fillStyle = s.accent;
@@ -932,15 +953,21 @@ export function interpolateMediaGeometry(from, to, progress) {
   return {frame: from.frame.map((n, i) => mix(n, to.frame[i])),
     image: from.image.map((n, i) => mix(n, to.image[i]))};
 }
-export function renderFrame(canvas, p, time, assets, newLayer, onMediaBounds) {
+export function renderFrame(canvas, p, time, assets, newLayer, onMediaBounds, collectGifOverlay) {
   const ctx = canvas.getContext("2d"),
     [w, h] = FORMATS[p.format],
     at = transitionAt(p, time);
-  let activeScene = onMediaBounds ? {...at.scene, onMediaBounds} : at.scene;
+  const withHooks = (scene) => {
+    let next = scene;
+    if (onMediaBounds) next = { ...next, onMediaBounds };
+    if (collectGifOverlay) next = { ...next, collectGifOverlay };
+    return next;
+  };
+  let activeScene = withHooks(at.scene);
   ctx.save();
   ctx.scale(canvas.width / w, canvas.height / h);
   if (at.blend < 1) {
-    let prev = p.scenes[at.index - 1];
+    let prev = withHooks(p.scenes[at.index - 1]);
     const blend = easeInOutQuad(at.blend);
     const previousAsset = resolveSceneAsset(assets, prev);
     const activeAsset = resolveSceneAsset(assets, at.scene);

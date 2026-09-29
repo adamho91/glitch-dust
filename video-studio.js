@@ -1,5 +1,5 @@
 import {isComparison,MEDIA_FIELDS,MEDIA_GRID_MAX,sceneMediaIds,secondaryMediaScene,resolveSceneAsset} from './video-media-layouts.mjs?v=29';
-import { createSvgContext } from "./video-svg.mjs?v=24";
+import { createSvgContext } from "./video-svg.mjs?v=25";
 import { suggestChart, CHART_PALETTES } from "./video-chart-import.mjs?v=24";
 import {
   EXTRA_LAYOUTS,
@@ -32,7 +32,7 @@ import {
   renderScene,
   renderFrame,
   outputSize,
-} from "./video-core.mjs?v=28";
+} from "./video-core.mjs?v=29";
 
 const $ = (id) => document.getElementById(id);
 const TOOL_TAB_KEY = "fal-video-tool-tab";
@@ -44,7 +44,10 @@ const assets = new Map(),
 const canvas = $("preview"),
   transitionCanvas = document.createElement("canvas");
 let mediaRegions = [], mediaSelection = null, mediaDrag = null;
+let gifOverlayPlans = [];
 let presenting = false;
+let presentSvgSceneId = null;
+let presentSvgBusy = false;
 const paletteList = [2, 3, 4, 5].flatMap((n) =>
   getGroupedTonalPresets(n).flatMap((g) => g.presets),
 );
@@ -63,6 +66,7 @@ let past = [],
   saveChain = Promise.resolve(),
   ready = false,
   dirty = false;
+let embeddedFocal;
 const unsavedAssets = new Set();
 const current = () => project.scenes[selected];
 let dustPresets = [];
@@ -335,6 +339,8 @@ function fitCanvas() {
     f = Math.min((r.width - 24) / w, (r.height - 24) / h);
   canvas.style.width = Math.max(1, w * f) + "px";
   canvas.style.height = Math.max(1, h * f) + "px";
+  if (presenting) fitPresentSvg($("presentSvgHost"), w, h);
+  else updateGifOverlays();
 }
 new ResizeObserver(fitCanvas).observe($("stageWrap"));
 function clock(t) {
@@ -374,12 +380,98 @@ function renderAssets() {
   }
   return map;
 }
+function updateGifOverlays() {
+  const layer = $("gifOverlayLayer");
+  if (!layer) return;
+  if (presenting || busy) {
+    layer.replaceChildren();
+    layer.hidden = true;
+    return;
+  }
+  layer.hidden = false;
+  const bounds = canvas.getBoundingClientRect();
+  const stage = $("stageWrap").getBoundingClientRect();
+  if (!bounds.width || !bounds.height) return;
+  const scaleX = bounds.width / canvas.width;
+  const scaleY = bounds.height / canvas.height;
+  const ox = bounds.left - stage.left;
+  const oy = bounds.top - stage.top;
+  const used = new Set();
+  for (const plan of gifOverlayPlans) {
+    const asset = plan.asset;
+    if (!isGifAsset(asset)) continue;
+    ensurePreviewGif(asset);
+    const src = asset.url || asset.previewImg?.src;
+    if (!src || !plan.frame || !plan.image) continue;
+    used.add(asset.id);
+    let wrap = layer.querySelector(`[data-gif="${asset.id}"]`);
+    if (!wrap) {
+      wrap = document.createElement("div");
+      wrap.dataset.gif = asset.id;
+      wrap.className = "gif-overlay";
+      const img = document.createElement("img");
+      img.alt = "";
+      img.draggable = false;
+      wrap.append(img);
+      if (plan.dim > 0) {
+        const dim = document.createElement("div");
+        dim.className = "gif-overlay-dim";
+        wrap.append(dim);
+      }
+      layer.append(wrap);
+    }
+    const img = wrap.querySelector("img");
+    if (img.src !== src) img.src = src;
+    let dimEl = wrap.querySelector(".gif-overlay-dim");
+    if (plan.dim > 0) {
+      if (!dimEl) {
+        dimEl = document.createElement("div");
+        dimEl.className = "gif-overlay-dim";
+        wrap.append(dimEl);
+      }
+      dimEl.style.opacity = String(plan.dim / 100);
+    } else if (dimEl) dimEl.remove();
+    const [fx, fy, fw, fh] = plan.frame;
+    const [ix, iy, iw, ih] = plan.image;
+    Object.assign(wrap.style, {
+      left: `${ox + fx * scaleX}px`,
+      top: `${oy + fy * scaleY}px`,
+      width: `${fw * scaleX}px`,
+      height: `${fh * scaleY}px`,
+    });
+    Object.assign(img.style, {
+      left: `${(ix - fx) * scaleX}px`,
+      top: `${(iy - fy) * scaleY}px`,
+      width: `${iw * scaleX}px`,
+      height: `${ih * scaleY}px`,
+    });
+  }
+  for (const el of [...layer.children]) {
+    if (!used.has(el.dataset.gif)) el.remove();
+  }
+}
+
 function draw() {
   // Consecutive scenes share a video element when their clip settings continue playback.
   mediaRegions = [];
+  gifOverlayPlans = [];
   syncGifAssets(time);
-  renderFrame(canvas, project, time, renderAssets(), transitionCanvas,
-    (rect) => mediaRegions.push(rect));
+  if (presenting) {
+    $("gifOverlayLayer").replaceChildren();
+    $("gifOverlayLayer").hidden = true;
+    schedulePresentSvg();
+  } else {
+    renderFrame(
+      canvas,
+      project,
+      time,
+      renderAssets(),
+      transitionCanvas,
+      (rect) => mediaRegions.push(rect),
+      (plan) => gifOverlayPlans.push(plan),
+    );
+    updateGifOverlays();
+  }
   updateMediaSelection();
   $("timecode").textContent = clock(time) + " / " + clock(duration(project));
   $("scrub").max = duration(project);
@@ -499,19 +591,118 @@ function updatePresentHud() {
   $("presentLabel").textContent =
     `Scene ${selected + 1} / ${project.scenes.length}`;
 }
+async function buildSceneSvg(scene, index, local, w, h) {
+  await document.fonts.load(`${scene.weight} 48px "Focal Upright"`);
+  await seekVideo(scene, local);
+  if (isComparison(scene.layout))
+    await seekVideo(secondaryMediaScene(scene), local);
+  if (embeddedFocal === undefined) {
+    try {
+      const response = await fetch("Focal-Upright-VF_wght.ttf");
+      if (!response.ok) throw Error("Font unavailable");
+      embeddedFocal = await toDataUrl(await response.blob());
+    } catch {
+      embeddedFocal = "";
+    }
+  }
+  // Prefer live <img> so animated GIFs stay animated inside SVG <image href>.
+  for (const id of sceneMediaIds(scene)) {
+    const asset = assets.get(id);
+    if (isGifAsset(asset)) {
+      const live = ensurePreviewGif(asset);
+      if (live) asset.frameElement = live;
+    }
+  }
+  const measurement = document.createElement("canvas");
+  const recorder = createSvgContext(w, h, measurement.getContext("2d"));
+  const asset = resolveSceneAsset(renderAssets(), scene);
+  renderScene(
+    recorder.context,
+    {
+      ...scene,
+      animation: "none",
+      promptReveal: false,
+      collectGifOverlay: undefined,
+    },
+    local,
+    w,
+    h,
+    asset,
+    index,
+  );
+  return recorder.serialize(
+    scene.title || `Slide ${index + 1}`,
+    embeddedFocal,
+  );
+}
+function fitPresentSvg(host, w, h) {
+  host.style.aspectRatio = `${w} / ${h}`;
+  const stage = $("stageWrap").getBoundingClientRect();
+  const scale = Math.min(stage.width / w, stage.height / h);
+  host.style.width = `${Math.max(1, w * scale)}px`;
+  host.style.height = `${Math.max(1, h * scale)}px`;
+  const svg = host.querySelector("svg");
+  if (svg) {
+    svg.removeAttribute("width");
+    svg.removeAttribute("height");
+    svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+    svg.style.width = "100%";
+    svg.style.height = "100%";
+    svg.style.display = "block";
+  }
+}
+async function schedulePresentSvg(force = false) {
+  if (!presenting) return;
+  const at = locate(project, time);
+  const key = `${at.scene.id}:${project.format}`;
+  if (!force && key === presentSvgSceneId && $("presentSvgHost").childElementCount)
+    return;
+  if (presentSvgBusy) {
+    presentSvgBusy = "queued";
+    return;
+  }
+  presentSvgBusy = true;
+  presentSvgSceneId = key;
+  const host = $("presentSvgHost");
+  try {
+    const [w, h] = FORMATS[project.format];
+    const markup = await buildSceneSvg(at.scene, at.index, at.local, w, h);
+    if (!presenting) return;
+    host.innerHTML = markup;
+    fitPresentSvg(host, w, h);
+  } catch (e) {
+    console.warn("Present SVG failed:", e);
+    status("Present SVG failed — showing canvas fallback.");
+    host.replaceChildren();
+    renderFrame(
+      canvas,
+      project,
+      time,
+      renderAssets(),
+      transitionCanvas,
+      () => {},
+    );
+  } finally {
+    const again = presentSvgBusy === "queued";
+    presentSvgBusy = false;
+    if (again && presenting) schedulePresentSvg(true);
+  }
+}
 function enterPresentMode() {
   if (busy || presenting) return;
   clearMediaSelection();
   presenting = true;
+  presentSvgSceneId = null;
   document.body.classList.add("presenting");
   $("presentHud").hidden = false;
+  $("presentSvgHost").hidden = false;
   $("presentMode").setAttribute("aria-pressed", "true");
   time = sceneStart(project, selected);
   updatePresentHud();
   fitCanvas();
   syncPreviewMedia();
   draw();
-  canvas.focus({ preventScroll: true });
+  $("presentSvgHost").focus?.({ preventScroll: true });
   status("Present mode · Space play · ← → scenes · Esc exit");
   if (document.documentElement.requestFullscreen) {
     document.documentElement.requestFullscreen().catch(() => {});
@@ -520,8 +711,11 @@ function enterPresentMode() {
 function exitPresentMode() {
   if (!presenting) return;
   presenting = false;
+  presentSvgSceneId = null;
   document.body.classList.remove("presenting");
   $("presentHud").hidden = true;
+  $("presentSvgHost").hidden = true;
+  $("presentSvgHost").replaceChildren();
   $("presentMode").setAttribute("aria-pressed", "false");
   if (document.fullscreenElement) {
     document.exitFullscreen().catch(() => {});
@@ -535,6 +729,7 @@ function presentGoScene(delta) {
   const next = clamp(selected + delta, 0, project.scenes.length - 1);
   selected = next;
   time = sceneStart(project, selected);
+  presentSvgSceneId = null;
   syncControls();
   highlightCards();
   updatePresentHud();
@@ -960,7 +1155,16 @@ function buildLibrary() {
     b.dataset.id = a.id;
     b.title = "Use " + a.name;
     let el;
-    if (a.kind === "gif" && a.frames?.[0]?.canvas) {
+    if (isGifAsset(a)) {
+      // Live <img> so the library thumb animates like the canvas preview.
+      el = document.createElement("img");
+      el.alt = "";
+      el.src = a.url || a.previewImg?.src || "";
+      if (!el.src && a.blob) {
+        a.url = URL.createObjectURL(a.blob);
+        el.src = a.url;
+      }
+    } else if (a.kind === "gif" && a.frames?.[0]?.canvas) {
       const src = a.frames[0].canvas;
       el = document.createElement("canvas");
       el.width = src.width;
@@ -1132,19 +1336,50 @@ function attachLiveGif(img) {
     host = document.createElement("div");
     host.id = "gifAnimHost";
     host.setAttribute("aria-hidden", "true");
-    // Keep a tiny on-screen footprint so the browser keeps advancing frames
-    // (opacity:0 / far offscreen often freezes animated GIFs).
+    // Tiny on-screen clip host — browsers often freeze GIFs that are
+    // display:none, opacity:0, or far off-screen.
     host.style.cssText =
-      "position:fixed;left:0;top:0;width:2px;height:2px;overflow:hidden;opacity:0.01;pointer-events:none;z-index:-1";
+      "position:fixed;left:0;top:0;width:2px;height:2px;overflow:hidden;opacity:0.02;pointer-events:none;z-index:-1";
     document.body.appendChild(host);
   }
-  img.style.cssText = "display:block;width:2px;height:2px";
-  host.appendChild(img);
+  // Keep intrinsic size; host clips. Resizing the <img> can stall animation.
+  img.style.cssText = "display:block;position:absolute;left:0;top:0;border:0";
+  if (img.parentNode !== host) host.appendChild(img);
+}
+
+function isGifAsset(asset) {
+  if (!asset) return false;
+  if (asset.kind === "gif" || asset.liveGif) return true;
+  const name = (asset.name || "").toLowerCase();
+  const type = (asset.blob?.type || "").toLowerCase();
+  return type === "image/gif" || name.endsWith(".gif");
+}
+
+/** Live <img> the browser actually animates — used for canvas preview. */
+function ensurePreviewGif(asset) {
+  if (!asset) return null;
+  if (asset.previewImg) {
+    attachLiveGif(asset.previewImg);
+    return asset.previewImg;
+  }
+  if (asset.liveGif && asset.element?.tagName === "IMG") {
+    asset.previewImg = asset.element;
+    attachLiveGif(asset.previewImg);
+    return asset.previewImg;
+  }
+  if (!asset.url && asset.blob) asset.url = URL.createObjectURL(asset.blob);
+  if (!asset.url) return null;
+  const img = document.createElement("img");
+  img.alt = "";
+  img.decoding = "async";
+  img.src = asset.url;
+  attachLiveGif(img);
+  asset.previewImg = img;
+  return img;
 }
 
 function gifFrameAt(asset, timeSec) {
-  if (asset?.liveGif && asset.element) return asset.element;
-  if (!asset?.frames?.length) return asset?.element || null;
+  if (!asset?.frames?.length) return asset?.previewImg || asset?.element || null;
   const loop = Math.max(asset.duration || 0.1, 0.1);
   const ms = ((((timeSec % loop) + loop) % loop) * 1000);
   let frame = asset.frames[0];
@@ -1155,9 +1390,9 @@ function gifFrameAt(asset, timeSec) {
   return frame.canvas;
 }
 
-/** Re-decode GIFs that landed on the live-img fallback or lost frames after restore. */
+/** Decode frames for export; preview prefers the live <img>. */
 function ensureGifFrames(asset) {
-  if (!asset || asset.kind !== "gif" || asset.frames?.length || asset._gifDecoding)
+  if (!asset || !isGifAsset(asset) || asset.frames?.length || asset._gifDecoding)
     return;
   if (!asset.blob) return;
   asset._gifDecoding = true;
@@ -1166,9 +1401,13 @@ function ensureGifFrames(asset) {
       if (!animated || !assets.has(asset.id)) return;
       asset.frames = animated.frames;
       asset.duration = animated.duration;
-      asset.element = animated.frames[0].canvas;
-      asset.frameElement = animated.frames[0].canvas;
-      asset.liveGif = false;
+      asset.kind = "gif";
+      // Keep preview on the live img; canvases are for export / scrubbing.
+      if (!asset.previewImg) {
+        asset.element = animated.frames[0].canvas;
+        asset.frameElement = animated.frames[0].canvas;
+      }
+      asset.liveGif = Boolean(asset.previewImg);
     })
     .catch(() => {})
     .finally(() => {
@@ -1180,9 +1419,6 @@ function syncGifAssets(globalTime) {
   const at = locate(project, globalTime);
   const scenes = [at.scene];
   if (at.index > 0 && at.blend < 1) scenes.unshift(project.scenes[at.index - 1]);
-  // Preview / Present: advance GIFs on wall-clock so they keep looping even
-  // when the timeline is paused (Present often sits on one scene).
-  // Export sets busy=true and passes the timeline time for deterministic frames.
   const wallSec = performance.now() / 1000;
   for (const scene of scenes) {
     const index = project.scenes.findIndex((s) => s.id === scene.id);
@@ -1190,16 +1426,26 @@ function syncGifAssets(globalTime) {
     const elapsed = mediaElapsed(project, index, local);
     for (const id of sceneMediaIds(scene)) {
       const asset = assets.get(id);
-      if (!asset || (asset.kind !== "gif" && !asset.liveGif)) continue;
-      ensureGifFrames(asset);
-      if (asset.liveGif || !asset.frames?.length) {
-        asset.frameElement = asset.element;
-        continue;
+      if (!isGifAsset(asset)) continue;
+      // Canvas preview: always draw the live animating <img> (same as the
+      // library thumb). Decoded frames are only reliable for export.
+      if (!busy) {
+        const live = ensurePreviewGif(asset);
+        if (live) {
+          asset.frameElement = live;
+          continue;
+        }
       }
-      const t = busy
-        ? mediaTime({ ...scene, mediaLoop: true }, elapsed, asset.duration || 1)
-        : wallSec;
-      asset.frameElement = gifFrameAt(asset, t);
+      ensureGifFrames(asset);
+      if (asset.frames?.length) {
+        const t = busy
+          ? mediaTime({ ...scene, mediaLoop: true }, elapsed, asset.duration || 1)
+          : wallSec;
+        asset.frameElement = gifFrameAt(asset, t);
+      } else {
+        asset.frameElement =
+          ensurePreviewGif(asset) || asset.element || null;
+      }
     }
   }
 }
@@ -1212,48 +1458,49 @@ async function loadAsset(
     (blob.type.startsWith("video/") ? "video" : "image"),
 ) {
   if (kind === "gif") {
-    const animated = await decodeAnimatedGif(blob);
-    if (animated) {
-      const url = URL.createObjectURL(blob);
-      return {
-        id,
-        name,
-        kind: "gif",
-        blob,
-        url,
-        element: animated.frames[0].canvas,
-        frameElement: animated.frames[0].canvas,
-        frames: animated.frames,
-        duration: animated.duration,
-        liveGif: false,
-      };
-    }
-    // Fallback: keep a live <img> so the GIF still animates while playing.
     const url = URL.createObjectURL(blob);
-    const el = document.createElement("img");
+    const preview = document.createElement("img");
     try {
-      const loaded = eventReady(el, "load");
-      el.src = url;
-      el.decoding = "sync";
+      const loaded = eventReady(preview, "load");
+      preview.src = url;
+      preview.alt = "";
+      preview.decoding = "async";
       await loaded;
-      if (!el.naturalWidth) throw Error("This GIF could not be decoded.");
-      attachLiveGif(el);
-      return {
-        id,
-        name,
-        kind: "gif",
-        blob,
-        url,
-        element: el,
-        frameElement: el,
-        frames: null,
-        duration: 5,
-        liveGif: true,
-      };
+      if (!preview.naturalWidth) throw Error("This GIF could not be decoded.");
+      attachLiveGif(preview);
     } catch (e) {
       URL.revokeObjectURL(url);
       throw e;
     }
+    const animated = await decodeAnimatedGif(blob);
+    if (animated) {
+      return {
+        id,
+        name,
+        kind: "gif",
+        blob,
+        url,
+        element: preview,
+        frameElement: preview,
+        previewImg: preview,
+        frames: animated.frames,
+        duration: animated.duration,
+        liveGif: true,
+      };
+    }
+    return {
+      id,
+      name,
+      kind: "gif",
+      blob,
+      url,
+      element: preview,
+      frameElement: preview,
+      previewImg: preview,
+      frames: null,
+      duration: 5,
+      liveGif: true,
+    };
   }
   const url = URL.createObjectURL(blob),
     el = document.createElement(kind === "video" ? "video" : "img");
@@ -1274,7 +1521,16 @@ async function loadAsset(
       await loaded;
       if (!el.naturalWidth) throw Error("This image could not be decoded.");
     }
-    return { id, name, kind, blob, url, element: el };
+    const asset = { id, name, kind, blob, url, element: el };
+    // If a .gif slipped through as "image", still animate it on the canvas.
+    if (isGifAsset(asset)) {
+      asset.kind = "gif";
+      asset.liveGif = true;
+      asset.previewImg = el;
+      asset.frameElement = el;
+      attachLiveGif(el);
+    }
+    return asset;
   } catch (e) {
     URL.revokeObjectURL(url);
     throw e;
@@ -2368,40 +2624,12 @@ $("projectInput").onchange = async () => {
   $("projectInput").value = "";
 };
 
-let embeddedFocal;
+let lastSvg = "";
 async function slideSvg(w, h) {
   const scene = structuredClone(current());
   const local = Math.max(0, time - sceneStart(project, selected));
-  await document.fonts.load(`${scene.weight} 48px "Focal Upright"`);
-  await seekVideo(scene, local);
-  if(isComparison(scene.layout)) await seekVideo(secondaryMediaScene(scene),local);
-  if (embeddedFocal === undefined) {
-    try {
-      const response = await fetch("Focal-Upright-VF_wght.ttf");
-      if (!response.ok) throw Error("Font unavailable");
-      embeddedFocal = await toDataUrl(await response.blob());
-    } catch {
-      embeddedFocal = "";
-    }
-  }
-  const measurement = document.createElement("canvas");
-  const recorder = createSvgContext(w, h, measurement.getContext("2d"));
-  const asset = resolveSceneAsset(renderAssets(), scene);
-  renderScene(
-    recorder.context,
-    { ...scene, animation: "none", promptReveal: false },
-    local,
-    w,
-    h,
-    asset,
-    selected,
-  );
-  return recorder.serialize(
-    scene.title || `Slide ${selected + 1}`,
-    embeddedFocal,
-  );
+  return buildSceneSvg(scene, selected, local, w, h);
 }
-let lastSvg = "";
 $("copySvg").onclick = async () => {
   if (busy) return;
   stop();
