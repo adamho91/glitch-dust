@@ -3,6 +3,9 @@
   const SLIDE_STRONG = 4.5;
   const SLIDE_AVG = 3.2;
 
+  // Hidden from the visualizer (weak / noisy for slide reference).
+  const HIDDEN_PRESET_IDS = new Set(['2-x', '2-g']);
+
   const state = {
     count: 2,
     family: 'all',
@@ -169,10 +172,12 @@
   }
 
   function filteredPresets() {
-    let list = allPresetsForCount(state.count).map(p => ({
-      ...p,
-      analysis: analyzePreset(p),
-    }));
+    let list = allPresetsForCount(state.count)
+      .filter(p => !HIDDEN_PRESET_IDS.has(String(p.id || '').toLowerCase()))
+      .map(p => ({
+        ...p,
+        analysis: analyzePreset(p),
+      }));
     if (state.family !== 'all') {
       list = list.filter(p => p.group === state.family);
     }

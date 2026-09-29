@@ -7,11 +7,11 @@
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="ui-theme.css" />
     <link rel="stylesheet" href="app-nav.css" />
-    <link rel="stylesheet" href="video-studio.css?v=24" />
-    <script src="app-nav.js?v=hidden-video-2" defer></script>
+    <link rel="stylesheet" href="video-studio.css?v=25" />
+    <script src="app-nav.js?v=color-viz-1" defer></script>
     <script src="fal-palette.js"></script>
     <script src="default-presets.js"></script>
-    <script src="video-studio.js?v=24" type="module"></script>
+    <script src="video-studio.js?v=25" type="module"></script>
   </head>
   <body>
     <div class="studio" id="studio">
@@ -521,7 +521,7 @@
 
             <div id="mediaLibrary" class="media-library"></div>
             <button id="sequenceMedia" class="wide subtle sequence-media">
-              ＋ Build scenes from all media
+              Place media in slides…
             </button>
             <div class="section-title">Selected scene media</div>
             <div class="micro" id="selectedMedia">No media selected</div>
@@ -738,6 +738,39 @@
       accept=".json,application/json"
       hidden
     />
+    <dialog id="mediaPlaceDialog" aria-labelledby="mediaPlaceTitle">
+      <div class="dialog-heading">
+        <span class="micro"></span
+        ><button id="closeMediaPlace" aria-label="Close">✕</button>
+      </div>
+      <h1 id="mediaPlaceTitle">Place media</h1>
+      <p class="help" id="mediaPlaceHelp">
+        Choose how these assets should land in the film. Glitch dust turns off on
+        media slides — you can turn it back on in Pattern.
+      </p>
+      <div class="media-place-options" id="mediaPlaceOptions">
+        <button type="button" class="media-place-option" data-place="same">
+          <strong>This slide</strong>
+          <small>Put the first asset on the current scene. With two, fill A and B on a side-by-side layout.</small>
+        </button>
+        <button type="button" class="media-place-option" data-place="sequence">
+          <strong>New slides · one each</strong>
+          <small>Create a sequential scene for every asset, after the current slide.</small>
+        </button>
+        <button type="button" class="media-place-option" data-place="side">
+          <strong>Side by side</strong>
+          <small>Before / after on one slide. Extra assets become their own slides after.</small>
+        </button>
+        <button type="button" class="media-place-option" data-place="stack">
+          <strong>Stacked</strong>
+          <small>Two frames stacked on one slide. Extra assets become their own slides after.</small>
+        </button>
+        <button type="button" class="media-place-option" data-place="library">
+          <strong>Library only</strong>
+          <small>Keep them in Your material — place later by clicking a card.</small>
+        </button>
+      </div>
+    </dialog>
     <dialog id="exportDialog" aria-labelledby="exportTitle">
       <div class="dialog-heading">
         <span class="micro"></span

@@ -888,9 +888,12 @@ function buildLibrary() {
       if (busy) return;
       stop();
       checkpoint();
+      disableDustForMedia(current());
       current()[selectedMediaKey()] = a.id;
+      if (selectedMediaKey() === "mediaId") current().mediaDim = 0;
+      else current().mediaDimB = 0;
       changed({ controls: true });
-      status(a.name + " added to this scene.");
+      status(a.name + " added to this scene. Dust is off.");
     };
     const remove = document.createElement("button");
     remove.className = "media-delete";
@@ -927,6 +930,162 @@ function deleteLibraryMedia(id) {
   changed({controls: true});
   status(a.name + " deleted from the project. Undo to restore it.");
 }
+function disableDustForMedia(scene) {
+  if (!scene) return;
+  scene.pattern = "none";
+  scene.patternExplicit = true;
+}
+
+function mediaSceneBase() {
+  const s = current();
+  return {
+    bg: s.bg,
+    fg: s.fg,
+    accent: s.accent,
+    colors: [...s.colors],
+    paletteId: s.paletteId,
+    title: "",
+    eyebrow: "",
+    body: "",
+    footer: false,
+    mediaDim: 0,
+    pattern: "none",
+    patternExplicit: true,
+    transition: "fade",
+  };
+}
+
+function mediaDurationFor(asset) {
+  return asset.kind === "video"
+    ? clamp(asset.element.duration, 0.5, 60)
+    : 5;
+}
+
+function createMediaFrameScene(asset, overrides = {}) {
+  return createScene({
+    ...mediaSceneBase(),
+    layout: "frame",
+    mediaId: asset.id,
+    duration: mediaDurationFor(asset),
+    ...overrides,
+  });
+}
+
+function createMediaCompareScene(a, b, layout, overrides = {}) {
+  return createScene({
+    ...mediaSceneBase(),
+    layout,
+    mediaId: a.id,
+    mediaIdB: b?.id || null,
+    duration: Math.max(mediaDurationFor(a), b ? mediaDurationFor(b) : 0),
+    mediaLabelA: "A",
+    mediaLabelB: "B",
+    ...overrides,
+  });
+}
+
+let pendingPlaceAssets = [];
+
+function openMediaPlaceDialog(assetList) {
+  const list = (assetList || []).filter(Boolean);
+  if (!list.length) return;
+  pendingPlaceAssets = list;
+  const n = list.length;
+  $("mediaPlaceHelp").textContent =
+    n === 1
+      ? `Place “${list[0].name}”. Glitch dust turns off on media slides — turn it back on in Pattern anytime.`
+      : `Place ${n} assets. Glitch dust turns off on media slides — turn it back on in Pattern anytime.`;
+  $("mediaPlaceDialog").showModal();
+}
+
+function closeMediaPlaceDialog() {
+  pendingPlaceAssets = [];
+  if ($("mediaPlaceDialog").open) $("mediaPlaceDialog").close();
+}
+
+function applyMediaPlacement(mode) {
+  const list = pendingPlaceAssets.slice();
+  if (!list.length) {
+    closeMediaPlaceDialog();
+    return;
+  }
+  checkpoint();
+  stop();
+  const space = Math.max(0, 100 - project.scenes.length);
+  let message = "";
+
+  if (mode === "library") {
+    message = `Kept ${list.length} asset${list.length === 1 ? "" : "s"} in Your material. Click a card to place one.`;
+  } else if (mode === "same") {
+    const scene = current();
+    disableDustForMedia(scene);
+    if (list.length >= 2) {
+      setSceneLayout(scene, "compare-side");
+      scene.mediaId = list[0].id;
+      scene.mediaIdB = list[1].id;
+      scene.mediaDim = 0;
+      scene.mediaDimB = 0;
+      scene.mediaLabelA = scene.mediaLabelA || "A";
+      scene.mediaLabelB = scene.mediaLabelB || "B";
+      scene.duration = Math.max(mediaDurationFor(list[0]), mediaDurationFor(list[1]));
+      const rest = list.slice(2);
+      if (rest.length && space > 0) {
+        const extras = rest.slice(0, space).map((a) => createMediaFrameScene(a));
+        project.scenes.splice(selected + 1, 0, ...extras);
+        message = `Side by side on this slide · ${extras.length} more as new slides.`;
+      } else {
+        message = "Side by side on this slide. Dust is off.";
+      }
+    } else {
+      scene.mediaId = list[0].id;
+      scene.mediaDim = 0;
+      message = `${list[0].name} on this slide. Dust is off.`;
+    }
+  } else if (mode === "sequence") {
+    const take = list.slice(0, Math.max(1, space || (project.scenes.length < 100 ? 1 : 0)));
+    if (!take.length) {
+      status("Projects support up to 100 scenes.");
+      closeMediaPlaceDialog();
+      return;
+    }
+    const scenes = take.map((a) => createMediaFrameScene(a));
+    project.scenes.splice(selected + 1, 0, ...scenes);
+    selected++;
+    time = sceneStart(project, selected) + Math.min(0.9, current().duration * 0.5);
+    message = `Created ${scenes.length} media slide${scenes.length === 1 ? "" : "s"}. Dust is off.`;
+  } else if (mode === "side" || mode === "stack") {
+    const layout = mode === "stack" ? "compare-stack" : "compare-side";
+    if (list.length < 2) {
+      const scene = current();
+      disableDustForMedia(scene);
+      setSceneLayout(scene, layout);
+      scene.mediaId = list[0].id;
+      scene.mediaDim = 0;
+      message = `${list[0].name} on a ${mode === "stack" ? "stacked" : "side-by-side"} slide. Add a second asset for B.`;
+    } else {
+      const compare = createMediaCompareScene(list[0], list[1], layout);
+      project.scenes.splice(selected + 1, 0, compare);
+      selected++;
+      const rest = list.slice(2);
+      const room = Math.max(0, 100 - project.scenes.length);
+      if (rest.length && room > 0) {
+        const extras = rest.slice(0, room).map((a) => createMediaFrameScene(a));
+        project.scenes.splice(selected + 1, 0, ...extras);
+        message = `${mode === "stack" ? "Stacked" : "Side by side"} pair + ${extras.length} follow-up slide${extras.length === 1 ? "" : "s"}. Dust is off.`;
+      } else {
+        message = `${mode === "stack" ? "Stacked" : "Side by side"} on a new slide. Dust is off.`;
+      }
+      time = sceneStart(project, selected) + Math.min(0.9, current().duration * 0.5);
+    }
+  }
+
+  clearMediaSelection();
+  changed({ controls: true });
+  renderThumbnails();
+  closeMediaPlaceDialog();
+  status(message);
+}
+
 async function importMedia(files) {
   if (busy) return;
   stop();
@@ -949,14 +1108,20 @@ async function importMedia(files) {
       }
     }
     if (loaded.length) {
-      checkpoint();
-      current()[selectedMediaKey()] = loaded[0].id;
-      if (isComparison(current().layout) && mediaSlot === 'primary' && loaded[1]) current().mediaIdB=loaded[1].id;
       buildLibrary();
-      changed({ controls: true });
-      status(
-        `Added ${loaded.length} asset${loaded.length === 1 ? "" : "s"}. Click any asset to place it in a scene.`,
-      );
+      if (loaded.length === 1) {
+        checkpoint();
+        const scene = current();
+        disableDustForMedia(scene);
+        scene[selectedMediaKey()] = loaded[0].id;
+        if (selectedMediaKey() === "mediaId") scene.mediaDim = 0;
+        else scene.mediaDimB = 0;
+        changed({ controls: true });
+        status(`${loaded[0].name} on this slide. Dust is off — turn Pattern back on anytime.`);
+      } else {
+        openMediaPlaceDialog(loaded);
+        status(`Added ${loaded.length} assets. Choose how to place them.`);
+      }
     }
   } finally {
     setBusy(false);
@@ -1587,42 +1752,16 @@ for (const id of ["uploadMedia", "stageWrap"]) {
 }
 $("sequenceMedia").onclick = () => {
   if (!assets.size) return;
-  checkpoint();
-  stop();
-  const space = 100 - project.scenes.length;
-  const list = [...assets.values()].slice(0, space);
-  if (!list.length) {
-    status("Projects support up to 100 scenes.");
-    return;
-  }
-  const scenes = list.map((a) =>
-    createScene({
-      bg: current().bg,
-      fg: current().fg,
-      accent: current().accent,
-      colors: [...current().colors],
-      paletteId: current().paletteId,
-      layout: "frame",
-      mediaId: a.id,
-      title: "",
-      eyebrow: "",
-      body: "",
-      pattern: "none",
-      footer: false,
-      mediaDim: 0,
-      duration: a.kind === "video" ? clamp(a.element.duration, 0.5, 60) : 5,
-      transition: "fade",
-    }),
-  );
-  project.scenes.splice(selected + 1, 0, ...scenes);
-  selected++;
-  time =
-    sceneStart(project, selected) + Math.min(0.9, current().duration * 0.5);
-  changed({ controls: true });
-  renderThumbnails();
-  status(
-    `Created ${scenes.length} media scenes. Add headlines in the Type tab.`,
-  );
+  openMediaPlaceDialog([...assets.values()]);
+};
+$("closeMediaPlace").onclick = () => closeMediaPlaceDialog();
+$("mediaPlaceDialog").addEventListener("cancel", () => {
+  pendingPlaceAssets = [];
+});
+$("mediaPlaceOptions").onclick = (e) => {
+  const btn = e.target.closest("[data-place]");
+  if (!btn) return;
+  applyMediaPlacement(btn.dataset.place);
 };
 $("mediaSlot").onchange = () => {mediaSlot=$("mediaSlot").value;clearMediaSelection();syncControls();};
 function removeSceneMedia() {

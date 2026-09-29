@@ -792,6 +792,41 @@ input.scrubber[type="range"] {
 .sequence-media {
   margin-top: 12px;
 }
+.media-place-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+.media-place-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 12px 14px;
+  border-radius: 6px;
+  border: 1px solid #3a3a3a;
+  background: #262626;
+  color: #ddd;
+  cursor: pointer;
+  font: inherit;
+}
+.media-place-option:hover {
+  border-color: #555;
+  background: #2e2e2e;
+}
+.media-place-option strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 560;
+  color: #eee;
+  margin-bottom: 4px;
+}
+.media-place-option small {
+  display: block;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #888;
+}
 dialog {
   background: #202020;
   border: 1px solid #444;
