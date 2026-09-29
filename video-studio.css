@@ -404,6 +404,12 @@ main {
   font-size: 12px;
   gap: 12px;
 }
+.canvas-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 .toolbar-divider {
   display: none;
 }

@@ -7,11 +7,11 @@
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="ui-theme.css" />
     <link rel="stylesheet" href="app-nav.css" />
-    <link rel="stylesheet" href="video-studio.css?v=26" />
+    <link rel="stylesheet" href="video-studio.css?v=27" />
     <script src="app-nav.js?v=color-viz-1" defer></script>
     <script src="fal-palette.js"></script>
     <script src="default-presets.js"></script>
-    <script src="video-studio.js?v=26" type="module"></script>
+    <script src="video-studio.js?v=27" type="module"></script>
   </head>
   <body>
     <div class="studio" id="studio">
@@ -604,7 +604,14 @@
             ><span class="toolbar-divider"></span
             ><span id="dimensions">1920 × 1080</span>
           </div>
-          <button id="removePreviewMedia" hidden>Remove media</button>
+          <div class="canvas-toolbar-actions">
+            <button id="aspectRatioMedia" hidden type="button">
+              Aspect Ratio Media
+            </button>
+            <button id="removePreviewMedia" hidden type="button">
+              Remove media
+            </button>
+          </div>
           <label class="format-label"
             >Format
             <select id="format" aria-label="Canvas format">

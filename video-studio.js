@@ -1,4 +1,4 @@
-import {isComparison,MEDIA_FIELDS,MEDIA_GRID_MAX,secondaryMediaScene,resolveSceneAsset} from './video-media-layouts.mjs?v=26';
+import {isComparison,MEDIA_FIELDS,MEDIA_GRID_MAX,sceneMediaIds,secondaryMediaScene,resolveSceneAsset} from './video-media-layouts.mjs?v=26';
 import { createSvgContext } from "./video-svg.mjs?v=24";
 import { suggestChart, CHART_PALETTES } from "./video-chart-import.mjs?v=24";
 import {
@@ -291,6 +291,7 @@ function syncControls() {
     assets.get(s[selectedMediaKey()])?.name || "No media selected";
   $("removeMedia").disabled = !s[selectedMediaKey()];
   $("removePreviewMedia").hidden = !s[selectedMediaKey()];
+  $("aspectRatioMedia").hidden = !sceneMediaIds(s).some((id) => assets.has(id));
   $("sceneLabel").textContent = "Scene " + (selected + 1);
   $("deleteScene").disabled = project.scenes.length === 1;
   $("moveLeft").disabled = selected === 0;
@@ -1816,6 +1817,43 @@ function removeSceneMedia() {
 }
 $("removeMedia").onclick = removeSceneMedia;
 $("removePreviewMedia").onclick = removeSceneMedia;
+$("aspectRatioMedia").onclick = () => {
+  if (busy) return;
+  const s = current();
+  const ids = sceneMediaIds(s).filter((id) => assets.has(id)).slice(0, MEDIA_GRID_MAX);
+  if (!ids.length) {
+    status("Add media to this scene first.");
+    return;
+  }
+  stop();
+  checkpoint();
+  disableDustForMedia(s);
+  setSceneLayout(s, "media-grid");
+  s.mediaIds = ids;
+  s.mediaId = ids[0];
+  s.mediaIdB = ids[1] || null;
+  s.mediaFit = "adapt";
+  s.mediaFitB = "adapt";
+  s.mediaZoom = 100;
+  s.mediaZoomB = 100;
+  s.mediaX = 50;
+  s.mediaY = 50;
+  s.mediaXB = 50;
+  s.mediaYB = 50;
+  s.mediaDim = 0;
+  s.mediaDimB = 0;
+  s.title = "";
+  s.eyebrow = "";
+  s.body = "";
+  clearMediaSelection();
+  changed({ controls: true });
+  renderThumbnails();
+  status(
+    ids.length === 1
+      ? "Aspect ratio locked for this media."
+      : `Aspect grid · ${ids.length} images keep their ratios.`,
+  );
+};
 
 function clearMediaSelection() {
   const pointer = mediaDrag?.pointerId;
